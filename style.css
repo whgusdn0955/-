@@ -1,30 +1,51 @@
+* {
+    box-sizing: border-box;
+}
+
 body {
+    margin: 0;
+    padding: 30px;
     font-family: Arial, sans-serif;
+    background: #f5f6fa;
+    color: #222;
+}
+
+main {
     max-width: 900px;
     margin: 0 auto;
-    padding: 30px;
-    background-color: #f5f6fa;
 }
 
 h1 {
     font-size: 32px;
+    margin-bottom: 10px;
 }
 
 input {
     width: 100%;
     padding: 12px;
-    box-sizing: border-box;
-    margin-bottom: 20px;
+    margin: 15px 0;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
 }
 
 button {
     padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #333;
+    color: white;
+    font-size: 15px;
     cursor: pointer;
 }
 
+button:hover {
+    opacity: 0.8;
+}
+
 div {
-    background-color: white;
-    padding: 20px;
     margin-top: 20px;
+    padding: 20px;
+    background: white;
     border-radius: 12px;
 }
