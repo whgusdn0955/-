@@ -19,9 +19,25 @@
 </main>
 
 <script>
+    <script>
     const addBundleBtn = document.getElementById("addBundleBtn");
     const bundleList = document.getElementById("bundleList");
 
+    // 저장된 묶음 불러오기
+    let bundles = JSON.parse(localStorage.getItem("bundles")) || [];
+
+    // 화면에 묶음 표시
+    function showBundles() {
+        bundleList.innerHTML = "";
+
+        bundles.forEach(function(bundle) {
+            const bundleDiv = document.createElement("div");
+            bundleDiv.textContent = bundle.name;
+            bundleList.appendChild(bundleDiv);
+        });
+    }
+
+    // 묶음 추가
     addBundleBtn.addEventListener("click", function() {
         const bundleName = prompt("묶음 이름을 입력하세요.");
 
@@ -29,11 +45,20 @@
             return;
         }
 
-        const bundle = document.createElement("div");
-        bundle.textContent = bundleName;
+        bundles.push({
+            name: bundleName.trim()
+        });
 
-        bundleList.appendChild(bundle);
+        // 저장
+        localStorage.setItem("bundles", JSON.stringify(bundles));
+
+        // 화면 업데이트
+        showBundles();
     });
+
+    // 처음 실행할 때 저장된 묶음 표시
+    showBundles();
+</script>
 </script>
 
 </body>
