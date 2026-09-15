@@ -9,55 +9,353 @@
 
 <body>
 
-<main>
-    <h1>영어 단어장</h1>
-    <p>나만의 영어 단어 암기 앱</p>
+    <!-- 앱 전체 -->
+    <main class="app">
 
-    <button id="addBundleBtn">+ 묶음 추가</button>
+        <!-- 상단 -->
+        <header class="header">
+            <div>
+                <h1>영어 단어장</h1>
+                <p>나만의 영어 단어 암기 앱</p>
+            </div>
 
-    <div id="bundleList"></div>
-</main>
-    
-    <script>
-    const addBundleBtn = document.getElementById("addBundleBtn");
-    const bundleList = document.getElementById("bundleList");
+            <button id="darkModeBtn" class="icon-btn" type="button">
+                🌙
+            </button>
+        </header>
 
-    // 저장된 묶음 불러오기
-    let bundles = JSON.parse(localStorage.getItem("bundles")) || [];
 
-    // 화면에 묶음 표시
-    function showBundles() {
-        bundleList.innerHTML = "";
+        <!-- 홈 화면 -->
+        <section id="homeScreen" class="screen">
 
-        bundles.forEach(function(bundle) {
-            const bundleDiv = document.createElement("div");
-            bundleDiv.textContent = bundle.name;
-            bundleList.appendChild(bundleDiv);
-        });
-    }
+            <!-- 검색 -->
+            <div class="search-box">
+                <input
+                    type="text"
+                    id="bundleSearch"
+                    placeholder="단어장 검색"
+                >
+            </div>
 
-    // 묶음 추가
-    addBundleBtn.addEventListener("click", function() {
-        const bundleName = prompt("묶음 이름을 입력하세요.");
 
-        if (!bundleName || bundleName.trim() === "") {
-            return;
-        }
+            <!-- 통계 -->
+            <div class="summary">
+                <div class="summary-item">
+                    <strong id="totalBundleCount">0</strong>
+                    <span>묶음</span>
+                </div>
 
-        bundles.push({
-            name: bundleName.trim()
-        });
+                <div class="summary-item">
+                    <strong id="totalWordCount">0</strong>
+                    <span>단어</span>
+                </div>
 
-        // 저장
-        localStorage.setItem("bundles", JSON.stringify(bundles));
+                <div class="summary-item">
+                    <strong id="difficultWordCount">0</strong>
+                    <span>어려운 단어</span>
+                </div>
+            </div>
 
-        // 화면 업데이트
-        showBundles();
-    });
 
-    // 처음 실행할 때 저장된 묶음 표시
-    showBundles();
-</script>
+            <!-- 묶음 목록 -->
+            <div class="section-title">
+                <h2>내 단어장</h2>
+
+                <button id="addBundleBtn" type="button">
+                    ＋ 묶음 추가
+                </button>
+            </div>
+
+            <div id="bundleList" class="bundle-list">
+                <!-- 묶음이 여기에 표시됨 -->
+            </div>
+
+        </section>
+
+
+        <!-- 단어장 화면 -->
+        <section id="bundleScreen" class="screen hidden">
+
+            <button id="backHomeBtn" class="back-btn" type="button">
+                ← 단어장 목록
+            </button>
+
+            <div class="bundle-header">
+                <div>
+                    <h2 id="currentBundleName">단어장</h2>
+                    <p id="currentBundleWordCount">단어 0개</p>
+                </div>
+
+                <div class="bundle-actions">
+                    <button id="renameBundleBtn" type="button">
+                        이름 변경
+                    </button>
+
+                    <button id="deleteBundleBtn" class="danger-btn" type="button">
+                        삭제
+                    </button>
+                </div>
+            </div>
+
+
+            <!-- 단어 추가 -->
+            <div class="card">
+                <h3>단어 추가</h3>
+
+                <p class="help-text">
+                    예: apple : 사과, book : 책, run : 달리다, 운영하다
+                </p>
+
+                <textarea
+                    id="wordInput"
+                    rows="6"
+                    placeholder="영어 단어 : 뜻, 영어 단어 : 뜻"
+                ></textarea>
+
+                <button id="addWordsBtn" type="button">
+                    단어 추가
+                </button>
+
+                <p id="wordInputMessage" class="message"></p>
+            </div>
+
+
+            <!-- 테스트 설정 -->
+            <div class="card">
+                <h3>테스트</h3>
+
+                <div class="test-options">
+
+                    <label>
+                        <input
+                            type="radio"
+                            name="testMode"
+                            value="englishToMeaning"
+                            checked
+                        >
+                        영어 → 뜻
+                    </label>
+
+                    <label>
+                        <input
+                            type="radio"
+                            name="testMode"
+                            value="meaningToEnglish"
+                        >
+                        뜻 → 영어
+                    </label>
+
+                </div>
+
+                <button id="startTestBtn" type="button">
+                    테스트 시작
+                </button>
+            </div>
+
+
+            <!-- 단어 검색 및 정렬 -->
+            <div class="word-tools">
+
+                <input
+                    type="text"
+                    id="wordSearch"
+                    placeholder="단어 검색"
+                >
+
+                <select id="wordSort">
+                    <option value="input">입력 순서</option>
+                    <option value="alphabetical">알파벳순</option>
+                    <option value="wrong">오답 많은 순</option>
+                    <option value="recentWrong">최근 오답순</option>
+                    <option value="important">중요 단어 우선</option>
+                </select>
+
+            </div>
+
+
+            <!-- 단어 목록 -->
+            <div id="wordList" class="word-list">
+                <!-- 단어가 여기에 표시됨 -->
+            </div>
+
+        </section>
+
+
+        <!-- 테스트 화면 -->
+        <section id="testScreen" class="screen hidden">
+
+            <button id="exitTestBtn" class="back-btn" type="button">
+                ← 테스트 종료
+            </button>
+
+            <div class="test-header">
+                <span id="testProgress">1 / 0</span>
+            </div>
+
+
+            <div class="test-card">
+
+                <p id="testQuestionType" class="question-type">
+                    다음 단어의 뜻은?
+                </p>
+
+                <h2 id="testQuestion">
+                    apple
+                </h2>
+
+                <input
+                    type="text"
+                    id="testAnswer"
+                    placeholder="정답을 입력하세요"
+                    autocomplete="off"
+                >
+
+                <div class="test-buttons">
+
+                    <button id="checkAnswerBtn" type="button">
+                        정답 확인
+                    </button>
+
+                    <button id="dontKnowBtn" type="button">
+                        모르겠어요
+                    </button>
+
+                </div>
+
+                <div id="answerResult" class="answer-result hidden">
+                    <!-- 정답 결과 -->
+                </div>
+
+                <button
+                    id="nextQuestionBtn"
+                    class="next-btn hidden"
+                    type="button"
+                >
+                    다음 문제
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- 테스트 결과 화면 -->
+        <section id="resultScreen" class="screen hidden">
+
+            <div class="result-card">
+
+                <h2>테스트 결과</h2>
+
+                <div class="result-score">
+                    <strong id="resultAccuracy">0%</strong>
+                    <span>정답률</span>
+                </div>
+
+                <div class="result-info">
+                    <p>
+                        전체 문제:
+                        <strong id="resultTotal">0</strong>
+                    </p>
+
+                    <p>
+                        정답:
+                        <strong id="resultCorrect">0</strong>
+                    </p>
+
+                    <p>
+                        오답:
+                        <strong id="resultWrong">0</strong>
+                    </p>
+                </div>
+
+                <div>
+                    <h3>오답 단어</h3>
+
+                    <div id="resultWrongWords">
+                        <!-- 오답 단어 -->
+                    </div>
+                </div>
+
+                <div class="result-buttons">
+
+                    <button id="retryWrongBtn" type="button">
+                        오답 다시 테스트
+                    </button>
+
+                    <button id="resultHomeBtn" type="button">
+                        단어장으로 돌아가기
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- 설정 화면 -->
+        <section id="settingsScreen" class="screen hidden">
+
+            <button id="backHomeFromSettingsBtn" class="back-btn" type="button">
+                ← 돌아가기
+            </button>
+
+            <h2>설정</h2>
+
+            <div class="card">
+
+                <h3>데이터 관리</h3>
+
+                <button id="exportDataBtn" type="button">
+                    데이터 백업
+                </button>
+
+                <button id="importDataBtn" type="button">
+                    데이터 복원
+                </button>
+
+                <input
+                    type="file"
+                    id="importFile"
+                    accept=".json"
+                    hidden
+                >
+
+            </div>
+
+            <div class="card danger-card">
+
+                <h3>주의</h3>
+
+                <button id="deleteAllDataBtn" class="danger-btn" type="button">
+                    모든 데이터 삭제
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- 하단 메뉴 -->
+        <nav class="bottom-nav">
+
+            <button id="homeNavBtn" type="button">
+                🏠
+                <span>단어장</span>
+            </button>
+
+            <button id="settingsNavBtn" type="button">
+                ⚙️
+                <span>설정</span>
+            </button>
+
+        </nav>
+
+    </main>
+
+
+    <!-- JavaScript -->
+    <script src="app.js"></script>
 
 </body>
 </html>
