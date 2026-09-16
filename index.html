@@ -198,6 +198,65 @@
       class="test-list"
     ></div>
 
+
+    <!-- 총합 테스트 -->
+
+    <article
+      id="totalTestCard"
+      class="total-test-card"
+    >
+
+      <div class="total-test-head">
+
+        <div>
+          <div class="total-test-title">
+            📚 총합 테스트
+          </div>
+
+          <div
+            id="totalTestCount"
+            class="test-sub"
+          >
+            0개 단어
+          </div>
+        </div>
+
+      </div>
+
+      <div class="total-test-buttons">
+
+        <button
+          id="totalAllTestBtn"
+          class="primary-btn"
+          type="button"
+        >
+          📝 전체 테스트
+        </button>
+
+        <button
+          id="totalDirectTestBtn"
+          class="secondary-btn"
+          type="button"
+        ></button>
+
+        <button
+          id="totalReverseTestBtn"
+          class="secondary-btn"
+          type="button"
+        ></button>
+
+        <button
+          id="totalQuickTestBtn"
+          class="secondary-btn"
+          type="button"
+        >
+          ⚡ 빠른 테스트
+        </button>
+
+      </div>
+
+    </article>
+
   </section>
 
 
@@ -237,6 +296,7 @@
 
       <div>
         <h1 id="wordbookTitle"></h1>
+
         <p id="wordbookCount"></p>
       </div>
 
@@ -267,25 +327,16 @@
 
     <div class="word-input-area">
 
-      <div class="word-input-row">
-
-        <div class="word-input-handle">
-          ⋮⋮
-        </div>
-
-        <input
-          id="bulkWordInput"
-          type="text"
-          placeholder="예: run:달리다,뛰다/apple:사과"
-          autocomplete="off"
-          spellcheck="false"
-        >
-
-      </div>
+      <input
+        id="bulkWordInput"
+        type="text"
+        placeholder="예: run:달리다,뛰다/apple:사과"
+        autocomplete="off"
+        spellcheck="false"
+      >
 
       <div class="input-help">
-        : 단어와 뜻 구분 · ,
-        같은 단어의 여러 뜻 · /
+        : 단어와 뜻 구분 · , 같은 단어의 여러 뜻 · /
         다른 단어 구분 · Enter로 추가
       </div>
 
@@ -480,7 +531,7 @@
 
       <div>
         <h1>📊 통계</h1>
-        <p>현재 학습 현황입니다.</p>
+        <p>테스트 기록과 학습 현황입니다.</p>
       </div>
 
     </div>
@@ -507,6 +558,18 @@
         <strong id="statQuizCount">0</strong>
         <span>테스트 횟수</span>
       </div>
+
+    </div>
+
+
+    <div class="history-section">
+
+      <h2>테스트 기록</h2>
+
+      <div
+        id="historyList"
+        class="history-list"
+      ></div>
 
     </div>
 
@@ -594,7 +657,7 @@
 
         <div>
           <strong>전체 데이터 초기화</strong>
-          <p>모든 파일, 테스트, 단어를 삭제합니다.</p>
+          <p>모든 파일, 테스트, 단어와 기록을 삭제합니다.</p>
         </div>
 
         <button
@@ -615,7 +678,7 @@
 
 
 <!-- =========================
-     빠른 테스트 선택 창
+     빠른 테스트 창
      ========================= -->
 
 <div
@@ -624,8 +687,8 @@
 >
 
   <div
-    class="modal-backdrop"
     id="quickModalBackdrop"
+    class="modal-backdrop"
   ></div>
 
   <div class="modal-card">
@@ -651,17 +714,28 @@
         data-quick-mode="important"
         class="quick-option"
       >
-        <strong>⭐ 중요 단어 테스트</strong>
-        <span>중요 표시된 단어만 출제</span>
+        <strong>
+          ⭐ 중요 단어 테스트
+        </strong>
+
+        <span>
+          중요 표시된 단어만 출제
+        </span>
       </button>
+
 
       <button
         type="button"
         data-quick-mode="wrong"
         class="quick-option"
       >
-        <strong>❌ 틀린 단어 테스트</strong>
-        <span>이전에 틀린 단어만 출제</span>
+        <strong>
+          ❌ 틀린 단어 테스트
+        </strong>
+
+        <span>
+          이전에 틀린 단어만 출제
+        </span>
       </button>
 
     </div>
