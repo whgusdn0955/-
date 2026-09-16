@@ -34,10 +34,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family:
-    Arial,
-    "Noto Sans KR",
-    sans-serif;
+  font-family: Arial, "Noto Sans KR", sans-serif;
   transition: background 0.2s, color 0.2s;
 }
 
@@ -53,8 +50,6 @@ button {
 .hidden {
   display: none !important;
 }
-
-/* 상단바 */
 
 .topbar {
   height: 64px;
@@ -95,15 +90,12 @@ button {
   color: var(--text);
   padding: 8px 12px;
   border-radius: 8px;
-  transition: background 0.15s;
 }
 
 .nav-btn:hover,
 .icon-btn:hover {
   background: var(--card2);
 }
-
-/* 메인 */
 
 #mainContent {
   max-width: 900px;
@@ -129,8 +121,6 @@ button {
   color: var(--subtext);
   font-size: 14px;
 }
-
-/* 버튼 */
 
 .primary-btn,
 .secondary-btn,
@@ -160,20 +150,12 @@ button {
   color: white;
 }
 
-/* 카드 */
-
 .card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow);
 }
-
-.card + .card {
-  margin-top: 12px;
-}
-
-/* 파일 / 단어장 목록 */
 
 .list {
   display: flex;
@@ -197,10 +179,6 @@ button {
   font-size: 18px;
   cursor: grab;
   user-select: none;
-}
-
-.drag-handle:active {
-  cursor: grabbing;
 }
 
 .item-main {
@@ -235,15 +213,9 @@ button {
   font-size: 13px;
 }
 
-.small-btn:hover {
-  opacity: 0.85;
-}
-
 .small-btn.delete {
   color: var(--danger);
 }
-
-/* 입력 */
 
 .input-area {
   margin-bottom: 18px;
@@ -264,8 +236,6 @@ button {
   border-color: var(--primary);
 }
 
-/* 테스트 버튼 */
-
 .test-buttons {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -274,10 +244,9 @@ button {
 }
 
 .test-btn {
-  border: none;
+  border: 1px solid var(--border);
   background: var(--card);
   color: var(--text);
-  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 13px 12px;
   font-weight: 600;
@@ -286,8 +255,6 @@ button {
 .test-btn:hover {
   background: var(--card2);
 }
-
-/* 단어 목록 */
 
 .word-list {
   display: flex;
@@ -334,12 +301,6 @@ button {
   padding: 3px;
 }
 
-.star-btn.active {
-  color: #f59e0b;
-}
-
-/* 총합 테스트 */
-
 .total-test-card {
   margin-top: 24px;
   padding: 18px;
@@ -363,8 +324,6 @@ button {
   gap: 9px;
 }
 
-/* 퀴즈 */
-
 .quiz-wrap {
   max-width: 680px;
   margin: 0 auto;
@@ -380,10 +339,6 @@ button {
 .quiz-progress {
   color: var(--subtext);
   font-size: 14px;
-}
-
-.timer {
-  font-weight: 700;
 }
 
 .quiz-card {
@@ -413,10 +368,6 @@ button {
   outline: none;
 }
 
-.answer-input:focus {
-  border-color: var(--primary);
-}
-
 .feedback {
   margin-top: 16px;
   min-height: 28px;
@@ -436,8 +387,6 @@ button {
   width: 100%;
   margin-top: 14px;
 }
-
-/* 결과 */
 
 .result-card {
   max-width: 620px;
@@ -467,8 +416,6 @@ button {
   justify-content: center;
   gap: 8px;
 }
-
-/* 통계 */
 
 .stats-grid {
   display: grid;
@@ -539,13 +486,6 @@ button {
   margin-top: 4px;
 }
 
-.history-score {
-  white-space: nowrap;
-  font-weight: 700;
-}
-
-/* 설정 */
-
 .settings-list {
   display: flex;
   flex-direction: column;
@@ -571,7 +511,14 @@ button {
   margin-bottom: 12px;
 }
 
-/* 모달 */
+.empty-state {
+  background: var(--card);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 35px 20px;
+  text-align: center;
+  color: var(--subtext);
+}
 
 .modal {
   position: fixed;
@@ -625,29 +572,12 @@ button {
   font-weight: 600;
 }
 
-.quick-option:hover {
-  opacity: 0.9;
-}
-
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 18px;
 }
-
-/* 빈 화면 */
-
-.empty-state {
-  background: var(--card);
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  padding: 35px 20px;
-  text-align: center;
-  color: var(--subtext);
-}
-
-/* 반응형 */
 
 @media (max-width: 700px) {
   .topbar {
@@ -656,10 +586,6 @@ button {
 
   .logo {
     font-size: 17px;
-  }
-
-  .topbar-right {
-    gap: 2px;
   }
 
   .nav-btn {
@@ -688,9 +614,5 @@ button {
 
   .history-item {
     flex-direction: column;
-  }
-
-  .history-score {
-    white-space: normal;
   }
 }
