@@ -1,31 +1,42 @@
-/* =========================================================
-   단어 암기장
-   최종 app.js
-   ========================================================= */
-
 "use strict";
 
 
 /* =========================================================
-   저장
+   앱 기본 정보
    ========================================================= */
 
-const STORAGE_KEY = "word_memorize_app_final_v1";
+const APP_VERSION = "1.1.0";
+
+const STORAGE_KEY =
+    "word_memorize_app_final_v2";
+
 
 const DEFAULT_DATA = {
+
     files: [],
+
     testRecords: [],
-    theme: "light"
+
+    theme: "light",
+
+    testTime: 10
+
 };
 
 
-let appData = loadData();
+let appData =
+    loadData();
+
 
 let currentFileId = null;
+
 let currentWorkbookId = null;
 
+
 let draggedFileId = null;
+
 let draggedWorkbookId = null;
+
 let draggedWordId = null;
 
 
@@ -34,26 +45,33 @@ let draggedWordId = null;
    ========================================================= */
 
 let testState = {
+
     questions: [],
+
     currentIndex: 0,
 
     correct: 0,
+
     wrong: 0,
 
     wrongQuestions: [],
 
     testName: "",
+
     testType: "",
 
     sourceFileId: null,
+
     sourceWorkbookId: null,
 
     answered: false,
 
     timer: null,
+
     timeLeft: 10,
 
     autoNextTimer: null
+
 };
 
 
@@ -61,7 +79,9 @@ let testState = {
    DOM
    ========================================================= */
 
-const $ = id => document.getElementById(id);
+const $ =
+    id =>
+        document.getElementById(id);
 
 
 /* =========================================================
@@ -72,10 +92,14 @@ function makeId() {
 
     if (
         window.crypto &&
-        typeof window.crypto.randomUUID === "function"
+        typeof window.crypto.randomUUID ===
+        "function"
     ) {
+
         return window.crypto.randomUUID();
+
     }
+
 
     return (
         Date.now().toString(36) +
@@ -83,6 +107,7 @@ function makeId() {
             .toString(36)
             .substring(2, 10)
     );
+
 }
 
 
@@ -95,13 +120,21 @@ function loadData() {
     try {
 
         const saved =
-            localStorage.getItem(STORAGE_KEY);
+            localStorage.getItem(
+                STORAGE_KEY
+            );
+
 
         if (!saved) {
+
             return normalizeData(
-                structuredClone(DEFAULT_DATA)
+                structuredClone(
+                    DEFAULT_DATA
+                )
             );
+
         }
+
 
         return normalizeData(
             JSON.parse(saved)
@@ -114,180 +147,215 @@ function loadData() {
             error
         );
 
+
         return normalizeData(
-            structuredClone(DEFAULT_DATA)
+            structuredClone(
+                DEFAULT_DATA
+            )
         );
+
     }
+
 }
 
 
 function normalizeData(data) {
 
+    const testTime =
+        [0, 5, 10, 15, 20, 30].includes(
+            Number(data?.testTime)
+        )
+            ? Number(data.testTime)
+            : 10;
+
+
     const result = {
+
         files: [],
-        testRecords: Array.isArray(data?.testRecords)
-            ? data.testRecords
-            : [],
+
+        testRecords:
+            Array.isArray(
+                data?.testRecords
+            )
+                ? data.testRecords
+                : [],
+
         theme:
             data?.theme === "dark"
                 ? "dark"
-                : "light"
+                : "light",
+
+        testTime
+
     };
 
 
-    if (!Array.isArray(data?.files)) {
+    if (
+        !Array.isArray(
+            data?.files
+        )
+    ) {
+
         return result;
+
     }
 
 
     result.files =
-        data.files.map(file => {
+        data.files.map(
+            file => {
 
-            const normalizedFile = {
+                const normalizedFile = {
 
-                id:
-                    file.id ||
-                    makeId(),
+                    id:
+                        file.id ||
+                        makeId(),
 
-                name:
-                    String(
-                        file.name ||
-                        "새 파일"
-                    ),
+                    name:
+                        String(
+                            file.name ||
+                            "새 파일"
+                        ),
 
-                createdAt:
-                    file.createdAt ||
-                    new Date().toISOString(),
+                    createdAt:
+                        file.createdAt ||
+                        new Date().toISOString(),
 
-                wordbooks: []
+                    wordbooks: []
 
-            };
-
-
-            if (
-                Array.isArray(
-                    file.wordbooks
-                )
-            ) {
-
-                normalizedFile.wordbooks =
-                    file.wordbooks.map(book => {
-
-                        const normalizedBook = {
-
-                            id:
-                                book.id ||
-                                makeId(),
-
-                            name:
-                                String(
-                                    book.name ||
-                                    "새 단어장"
-                                ),
-
-                            createdAt:
-                                book.createdAt ||
-                                new Date().toISOString(),
-
-                            words: []
-
-                        };
+                };
 
 
-                        if (
-                            Array.isArray(
-                                book.words
-                            )
-                        ) {
+                if (
+                    Array.isArray(
+                        file.wordbooks
+                    )
+                ) {
 
-                            normalizedBook.words =
-                                book.words
-                                    .map(word => {
+                    normalizedFile.wordbooks =
+                        file.wordbooks.map(
+                            book => {
 
-                                        const meanings =
-                                            Array.isArray(
-                                                word.meanings
-                                            )
-                                                ? word.meanings
-                                                : (
-                                                    word.meaning
-                                                        ? [
-                                                            word.meaning
-                                                        ]
-                                                        : []
-                                                );
+                                const normalizedBook = {
+
+                                    id:
+                                        book.id ||
+                                        makeId(),
+
+                                    name:
+                                        String(
+                                            book.name ||
+                                            "새 단어장"
+                                        ),
+
+                                    createdAt:
+                                        book.createdAt ||
+                                        new Date().toISOString(),
+
+                                    words: []
+
+                                };
 
 
-                                        return {
+                                if (
+                                    Array.isArray(
+                                        book.words
+                                    )
+                                ) {
 
-                                            id:
-                                                word.id ||
-                                                makeId(),
+                                    normalizedBook.words =
+                                        book.words
+                                            .map(
+                                                word => {
 
-                                            word:
-                                                String(
-                                                    word.word ||
-                                                    ""
-                                                ).trim(),
+                                                    const meanings =
+                                                        Array.isArray(
+                                                            word.meanings
+                                                        )
+                                                            ? word.meanings
+                                                            : (
+                                                                word.meaning
+                                                                    ? [
+                                                                        word.meaning
+                                                                    ]
+                                                                    : []
+                                                            );
 
-                                            meanings:
-                                                meanings
-                                                    .map(
-                                                        meaning =>
+
+                                                    return {
+
+                                                        id:
+                                                            word.id ||
+                                                            makeId(),
+
+                                                        word:
                                                             String(
-                                                                meaning
-                                                            ).trim()
-                                                    )
-                                                    .filter(
-                                                        Boolean
-                                                    ),
+                                                                word.word ||
+                                                                ""
+                                                            ).trim(),
 
-                                            correct:
-                                                Math.max(
-                                                    0,
-                                                    Number(
-                                                        word.correct
-                                                    ) || 0
-                                                ),
+                                                        meanings:
+                                                            meanings
+                                                                .map(
+                                                                    meaning =>
+                                                                        String(
+                                                                            meaning
+                                                                        ).trim()
+                                                                )
+                                                                .filter(
+                                                                    Boolean
+                                                                ),
 
-                                            wrong:
-                                                Math.max(
-                                                    0,
-                                                    Number(
-                                                        word.wrong
-                                                    ) || 0
-                                                ),
+                                                        correct:
+                                                            Math.max(
+                                                                0,
+                                                                Number(
+                                                                    word.correct
+                                                                ) || 0
+                                                            ),
 
-                                            important:
-                                                Boolean(
-                                                    word.important
-                                                )
+                                                        wrong:
+                                                            Math.max(
+                                                                0,
+                                                                Number(
+                                                                    word.wrong
+                                                                ) || 0
+                                                            ),
 
-                                        };
+                                                        important:
+                                                            Boolean(
+                                                                word.important
+                                                            )
 
-                                    })
-                                    .filter(
-                                        word =>
-                                            word.word &&
-                                            word.meanings.length
-                                    );
+                                                    };
 
-                        }
+                                                }
+                                            )
+                                            .filter(
+                                                word =>
+                                                    word.word &&
+                                                    word.meanings.length
+                                            );
+
+                                }
 
 
-                        return normalizedBook;
+                                return normalizedBook;
 
-                    });
+                            }
+                        );
+
+                }
+
+
+                return normalizedFile;
 
             }
-
-
-            return normalizedFile;
-
-        });
+        );
 
 
     return result;
+
 }
 
 
@@ -297,7 +365,9 @@ function saveData() {
 
         localStorage.setItem(
             STORAGE_KEY,
-            JSON.stringify(appData)
+            JSON.stringify(
+                appData
+            )
         );
 
     } catch (error) {
@@ -307,11 +377,14 @@ function saveData() {
             error
         );
 
+
         showToast(
             "데이터 저장에 실패했습니다.",
             "error"
         );
+
     }
+
 }
 
 
@@ -322,11 +395,27 @@ function saveData() {
 function escapeHTML(value) {
 
     return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+
 }
 
 
@@ -340,6 +429,7 @@ function getFile(fileId) {
         file =>
             file.id === fileId
     );
+
 }
 
 
@@ -351,14 +441,19 @@ function getWorkbook(
     const file =
         getFile(fileId);
 
+
     if (!file) {
+
         return null;
+
     }
+
 
     return file.wordbooks.find(
         workbook =>
             workbook.id === workbookId
     );
+
 }
 
 
@@ -367,6 +462,7 @@ function getCurrentFile() {
     return getFile(
         currentFileId
     );
+
 }
 
 
@@ -376,6 +472,7 @@ function getCurrentWorkbook() {
         currentFileId,
         currentWorkbookId
     );
+
 }
 
 
@@ -386,14 +483,22 @@ function getCurrentWorkbook() {
 function getTotalWordCount(file) {
 
     if (!file) {
+
         return 0;
+
     }
 
+
     return file.wordbooks.reduce(
-        (total, workbook) =>
-            total + workbook.words.length,
+        (
+            total,
+            workbook
+        ) =>
+            total +
+            workbook.words.length,
         0
     );
+
 }
 
 
@@ -403,6 +508,7 @@ function getAttemptCount(word) {
         Number(word.correct) +
         Number(word.wrong)
     );
+
 }
 
 
@@ -411,11 +517,16 @@ function updateImportantStatus(word) {
     const attempts =
         getAttemptCount(word);
 
-    if (attempts === 0) {
 
-        word.important = false;
+    if (
+        attempts === 0
+    ) {
+
+        word.important =
+            false;
 
         return;
+
     }
 
 
@@ -426,16 +537,18 @@ function updateImportantStatus(word) {
 
     word.important =
         wrongRate > 0.7;
+
 }
 
 
 /* =========================================================
-   뜻 정리
+   뜻
    ========================================================= */
 
 function normalizeMeanings(meanings) {
 
     const result = [];
+
 
     meanings.forEach(
         meaning => {
@@ -445,22 +558,32 @@ function normalizeMeanings(meanings) {
                     meaning
                 ).trim();
 
+
             if (!clean) {
+
                 return;
+
             }
+
 
             if (
                 !result.includes(
                     clean
                 )
             ) {
-                result.push(clean);
+
+                result.push(
+                    clean
+                );
+
             }
 
         }
     );
 
+
     return result;
+
 }
 
 
@@ -469,9 +592,12 @@ function getMeaningsText(word) {
     return word.meanings
         .map(
             meaning =>
-                escapeHTML(meaning)
+                escapeHTML(
+                    meaning
+                )
         )
         .join(", ");
+
 }
 
 
@@ -487,8 +613,11 @@ function showToast(
     const container =
         $("toastContainer");
 
+
     if (!container) {
+
         return;
+
     }
 
 
@@ -497,8 +626,10 @@ function showToast(
             "div"
         );
 
+
     toast.className =
         `toast toast-${type}`;
+
 
     toast.textContent =
         message;
@@ -516,9 +647,12 @@ function showToast(
                 "hide"
             );
 
+
             setTimeout(
                 () => {
+
                     toast.remove();
+
                 },
                 300
             );
@@ -526,6 +660,7 @@ function showToast(
         },
         2500
     );
+
 }
 
 
@@ -535,11 +670,14 @@ function showToast(
 
 const pageMap = {
 
-    home: "homePage",
+    home:
+        "homePage",
 
-    file: "filePage",
+    file:
+        "filePage",
 
-    workbook: "workbookPage",
+    workbook:
+        "workbookPage",
 
     statistics:
         "statisticsPage",
@@ -568,6 +706,7 @@ function hideAllPages() {
                     "active"
                 )
         );
+
 }
 
 
@@ -576,8 +715,13 @@ function updateMainNavigation(
 ) {
 
     const mainPage =
-        ["home", "statistics", "settings"]
-            .includes(pageName)
+        [
+            "home",
+            "statistics",
+            "settings"
+        ].includes(
+            pageName
+        )
             ? pageName
             : null;
 
@@ -614,6 +758,7 @@ function updateMainNavigation(
 
             }
         );
+
 }
 
 
@@ -623,21 +768,28 @@ function showPage(
 
     hideAllPages();
 
+
     const pageId =
         pageMap[pageName];
 
+
     if (!pageId) {
+
         return;
+
     }
 
 
     const page =
         $(pageId);
 
+
     if (page) {
+
         page.classList.add(
             "active"
         );
+
     }
 
 
@@ -645,7 +797,9 @@ function showPage(
         pageName
     );
 
+
     closeSidebar();
+
 }
 
 
@@ -657,13 +811,22 @@ function showHomePage() {
 
     stopTimer();
 
-    currentFileId = null;
 
-    currentWorkbookId = null;
+    currentFileId =
+        null;
 
-    showPage("home");
+
+    currentWorkbookId =
+        null;
+
+
+    showPage(
+        "home"
+    );
+
 
     renderFileList();
+
 }
 
 
@@ -678,37 +841,49 @@ function showFilePage(
     const file =
         getFile(fileId);
 
+
     if (!file) {
 
         showHomePage();
 
         return;
+
     }
 
 
     stopTimer();
 
+
     currentFileId =
         fileId;
+
 
     currentWorkbookId =
         null;
 
 
-    showPage("file");
+    showPage(
+        "file"
+    );
 
 
-    $("currentFileTitle").textContent =
+    $("currentFileTitle")
+        .textContent =
         file.name;
 
-    $("currentFileBreadcrumb").textContent =
+
+    $("currentFileBreadcrumb")
+        .textContent =
         file.name;
 
-    $("currentFileDescription").textContent =
+
+    $("currentFileDescription")
+        .textContent =
         `단어장 ${file.wordbooks.length}개 · 총 ${getTotalWordCount(file)}개의 단어`;
 
 
     renderWorkbookList();
+
 }
 
 
@@ -724,6 +899,7 @@ function showWorkbookPage(
     const file =
         getFile(fileId);
 
+
     const workbook =
         getWorkbook(
             fileId,
@@ -731,34 +907,46 @@ function showWorkbookPage(
         );
 
 
-    if (!file || !workbook) {
+    if (
+        !file ||
+        !workbook
+    ) {
 
         showHomePage();
 
         return;
+
     }
 
 
     stopTimer();
 
+
     currentFileId =
         fileId;
+
 
     currentWorkbookId =
         workbookId;
 
 
-    showPage("workbook");
+    showPage(
+        "workbook"
+    );
 
 
-    $("currentWorkbookTitle").textContent =
+    $("currentWorkbookTitle")
+        .textContent =
         workbook.name;
 
-    $("currentWorkbookBreadcrumb").textContent =
+
+    $("currentWorkbookBreadcrumb")
+        .textContent =
         workbook.name;
 
 
     renderWordList();
+
 }
 
 
@@ -771,11 +959,15 @@ function openSidebar() {
     const sidebar =
         $("sidebar");
 
+
     if (sidebar) {
+
         sidebar.classList.add(
             "open"
         );
+
     }
+
 }
 
 
@@ -784,11 +976,15 @@ function closeSidebar() {
     const sidebar =
         $("sidebar");
 
+
     if (sidebar) {
+
         sidebar.classList.remove(
             "open"
         );
+
     }
+
 }
 
 
@@ -801,12 +997,15 @@ function renderFileList() {
     const list =
         $("fileList");
 
+
     const empty =
         $("emptyFileState");
 
 
     if (!list) {
+
         return;
+
     }
 
 
@@ -814,13 +1013,17 @@ function renderFileList() {
         appData.files.length === 0
     ) {
 
-        list.innerHTML = "";
+        list.innerHTML =
+            "";
+
 
         empty?.classList.remove(
             "hidden"
         );
 
+
         return;
+
     }
 
 
@@ -903,6 +1106,7 @@ function renderFileList() {
 
 
     setupFileDragAndDrop();
+
 }
 
 
@@ -929,7 +1133,8 @@ function addFile() {
                 createdAt:
                     new Date().toISOString(),
 
-                wordbooks: []
+                wordbooks:
+                    []
 
             });
 
@@ -938,12 +1143,14 @@ function addFile() {
 
             renderFileList();
 
+
             showToast(
                 "파일이 추가되었습니다."
             );
 
         }
     );
+
 }
 
 
@@ -958,8 +1165,11 @@ function renameFile(
     const file =
         getFile(fileId);
 
+
     if (!file) {
+
         return;
+
     }
 
 
@@ -972,6 +1182,7 @@ function renameFile(
             file.name =
                 name.trim();
 
+
             saveData();
 
             renderFileList();
@@ -982,10 +1193,13 @@ function renameFile(
                 fileId
             ) {
 
-                $("currentFileTitle").textContent =
+                $("currentFileTitle")
+                    .textContent =
                     file.name;
 
-                $("currentFileBreadcrumb").textContent =
+
+                $("currentFileBreadcrumb")
+                    .textContent =
                     file.name;
 
             }
@@ -997,6 +1211,7 @@ function renameFile(
 
         }
     );
+
 }
 
 
@@ -1011,8 +1226,11 @@ function deleteFile(
     const file =
         getFile(fileId);
 
+
     if (!file) {
+
         return;
+
     }
 
 
@@ -1052,6 +1270,7 @@ function deleteFile(
 
         }
     );
+
 }
 
 
@@ -1062,6 +1281,7 @@ function openFile(
     showFilePage(
         fileId
     );
+
 }
 
 
@@ -1085,6 +1305,7 @@ function setupFileDragAndDrop() {
                         draggedFileId =
                             card.dataset.fileId;
 
+
                         card.classList.add(
                             "dragging"
                         );
@@ -1099,6 +1320,7 @@ function setupFileDragAndDrop() {
 
                         draggedFileId =
                             null;
+
 
                         card.classList.remove(
                             "dragging"
@@ -1134,7 +1356,9 @@ function setupFileDragAndDrop() {
                             draggedFileId ===
                             targetId
                         ) {
+
                             return;
+
                         }
 
 
@@ -1148,8 +1372,13 @@ function setupFileDragAndDrop() {
 
             }
         );
+
 }
 
+
+/* =========================================================
+   파일 순서
+   ========================================================= */
 
 function reorderFiles(
     sourceId,
@@ -1176,7 +1405,9 @@ function reorderFiles(
         sourceIndex < 0 ||
         targetIndex < 0
     ) {
+
         return;
+
     }
 
 
@@ -1199,6 +1430,7 @@ function reorderFiles(
     saveData();
 
     renderFileList();
+
 }
 
 
@@ -1211,29 +1443,41 @@ function renderWorkbookList() {
     const file =
         getCurrentFile();
 
+
     const list =
         $("workbookList");
+
 
     const empty =
         $("emptyWorkbookState");
 
 
-    if (!file || !list) {
+    if (
+        !file ||
+        !list
+    ) {
+
         return;
+
     }
 
 
     if (
-        file.wordbooks.length === 0
+        file.wordbooks.length ===
+        0
     ) {
 
-        list.innerHTML = "";
+        list.innerHTML =
+            "";
+
 
         empty?.classList.remove(
             "hidden"
         );
 
+
         return;
+
     }
 
 
@@ -1323,6 +1567,7 @@ function renderWorkbookList() {
 
 
     setupWorkbookDragAndDrop();
+
 }
 
 
@@ -1335,8 +1580,11 @@ function addWorkbook() {
     const file =
         getCurrentFile();
 
+
     if (!file) {
+
         return;
+
     }
 
 
@@ -1357,7 +1605,8 @@ function addWorkbook() {
                 createdAt:
                     new Date().toISOString(),
 
-                words: []
+                words:
+                    []
 
             });
 
@@ -1366,12 +1615,14 @@ function addWorkbook() {
 
             renderWorkbookList();
 
+
             showToast(
                 "단어장이 추가되었습니다."
             );
 
         }
     );
+
 }
 
 
@@ -1386,8 +1637,11 @@ function renameWorkbook(
     const file =
         getCurrentFile();
 
+
     if (!file) {
+
         return;
+
     }
 
 
@@ -1400,7 +1654,9 @@ function renameWorkbook(
 
 
     if (!workbook) {
+
         return;
+
     }
 
 
@@ -1413,6 +1669,7 @@ function renameWorkbook(
             workbook.name =
                 name.trim();
 
+
             saveData();
 
             renderWorkbookList();
@@ -1423,10 +1680,13 @@ function renameWorkbook(
                 workbookId
             ) {
 
-                $("currentWorkbookTitle").textContent =
+                $("currentWorkbookTitle")
+                    .textContent =
                     workbook.name;
 
-                $("currentWorkbookBreadcrumb").textContent =
+
+                $("currentWorkbookBreadcrumb")
+                    .textContent =
                     workbook.name;
 
             }
@@ -1438,6 +1698,7 @@ function renameWorkbook(
 
         }
     );
+
 }
 
 
@@ -1452,8 +1713,11 @@ function deleteWorkbook(
     const file =
         getCurrentFile();
 
+
     if (!file) {
+
         return;
+
     }
 
 
@@ -1466,7 +1730,9 @@ function deleteWorkbook(
 
 
     if (!workbook) {
+
         return;
+
     }
 
 
@@ -1494,6 +1760,7 @@ function deleteWorkbook(
                 currentWorkbookId =
                     null;
 
+
                 showFilePage(
                     file.id
                 );
@@ -1511,6 +1778,7 @@ function deleteWorkbook(
 
         }
     );
+
 }
 
 
@@ -1523,6 +1791,7 @@ function openWorkbook(
         fileId,
         workbookId
     );
+
 }
 
 
@@ -1546,6 +1815,7 @@ function setupWorkbookDragAndDrop() {
                         draggedWorkbookId =
                             card.dataset.workbookId;
 
+
                         card.classList.add(
                             "dragging"
                         );
@@ -1560,6 +1830,7 @@ function setupWorkbookDragAndDrop() {
 
                         draggedWorkbookId =
                             null;
+
 
                         card.classList.remove(
                             "dragging"
@@ -1595,7 +1866,9 @@ function setupWorkbookDragAndDrop() {
                             draggedWorkbookId ===
                             targetId
                         ) {
+
                             return;
+
                         }
 
 
@@ -1609,8 +1882,13 @@ function setupWorkbookDragAndDrop() {
 
             }
         );
+
 }
 
+
+/* =========================================================
+   단어장 순서
+   ========================================================= */
 
 function reorderWorkbooks(
     sourceId,
@@ -1620,8 +1898,11 @@ function reorderWorkbooks(
     const file =
         getCurrentFile();
 
+
     if (!file) {
+
         return;
+
     }
 
 
@@ -1645,7 +1926,9 @@ function reorderWorkbooks(
         sourceIndex < 0 ||
         targetIndex < 0
     ) {
+
         return;
+
     }
 
 
@@ -1668,6 +1951,7 @@ function reorderWorkbooks(
     saveData();
 
     renderWorkbookList();
+
 }
 
 
@@ -1699,8 +1983,12 @@ function parseBulkInput(
                 chunk.indexOf(":");
 
 
-            if (colonIndex === -1) {
+            if (
+                colonIndex === -1
+            ) {
+
                 return;
+
             }
 
 
@@ -1725,7 +2013,9 @@ function parseBulkInput(
                 !word ||
                 !meaningText
             ) {
+
                 return;
+
             }
 
 
@@ -1737,9 +2027,12 @@ function parseBulkInput(
 
 
             if (
-                meanings.length === 0
+                meanings.length ===
+                0
             ) {
+
                 return;
+
             }
 
 
@@ -1756,6 +2049,7 @@ function parseBulkInput(
 
 
     return results;
+
 }
 
 
@@ -1768,6 +2062,7 @@ function addBulkWords() {
     const workbook =
         getCurrentWorkbook();
 
+
     const input =
         $("bulkWordInput");
 
@@ -1776,7 +2071,9 @@ function addBulkWords() {
         !workbook ||
         !input
     ) {
+
         return;
+
     }
 
 
@@ -1792,6 +2089,7 @@ function addBulkWords() {
         );
 
         return;
+
     }
 
 
@@ -1802,7 +2100,8 @@ function addBulkWords() {
 
 
     if (
-        parsed.length === 0
+        parsed.length ===
+        0
     ) {
 
         showToast(
@@ -1811,6 +2110,7 @@ function addBulkWords() {
         );
 
         return;
+
     }
 
 
@@ -1880,11 +2180,14 @@ function addBulkWords() {
                         );
 
 
-                    if (duplicate) {
+                    if (
+                        duplicate
+                    ) {
 
                         duplicates++;
 
                         return;
+
                     }
 
 
@@ -1909,7 +2212,9 @@ function addBulkWords() {
     renderWordList();
 
 
-    if (addedWords > 0) {
+    if (
+        addedWords > 0
+    ) {
 
         showToast(
             `단어 ${addedWords}개가 추가되었습니다.`
@@ -1933,7 +2238,9 @@ function addBulkWords() {
     }
 
 
-    if (duplicates > 0) {
+    if (
+        duplicates > 0
+    ) {
 
         setTimeout(
             () => {
@@ -1960,8 +2267,11 @@ function addSingleWord() {
     const workbook =
         getCurrentWorkbook();
 
+
     if (!workbook) {
+
         return;
+
     }
 
 
@@ -1979,6 +2289,7 @@ function addSingleWord() {
 
                     const cleanWord =
                         word.trim();
+
 
                     const cleanMeaning =
                         meaning.trim();
@@ -2005,7 +2316,9 @@ function addSingleWord() {
                                 cleanWord,
 
                             meanings:
-                                [cleanMeaning],
+                                [
+                                    cleanMeaning
+                                ],
 
                             correct:
                                 0,
@@ -2032,6 +2345,7 @@ function addSingleWord() {
                             );
 
                             return;
+
                         }
 
 
@@ -2046,6 +2360,7 @@ function addSingleWord() {
 
                     renderWordList();
 
+
                     showToast(
                         "단어가 추가되었습니다."
                     );
@@ -2055,6 +2370,7 @@ function addSingleWord() {
 
         }
     );
+
 }
 
 
@@ -2067,8 +2383,10 @@ function renderWordList() {
     const workbook =
         getCurrentWorkbook();
 
+
     const list =
         $("wordList");
+
 
     const empty =
         $("emptyWordState");
@@ -2078,7 +2396,9 @@ function renderWordList() {
         !workbook ||
         !list
     ) {
+
         return;
+
     }
 
 
@@ -2100,15 +2420,21 @@ function renderWordList() {
                         a.word.important &&
                         !b.word.important
                     ) {
+
                         return -1;
+
                     }
+
 
                     if (
                         !a.word.important &&
                         b.word.important
                     ) {
+
                         return 1;
+
                     }
+
 
                     return (
                         a.index -
@@ -2120,20 +2446,26 @@ function renderWordList() {
 
 
     if (
-        words.length === 0
+        words.length ===
+        0
     ) {
 
-        list.innerHTML = "";
+        list.innerHTML =
+            "";
+
 
         empty?.classList.remove(
             "hidden"
         );
 
+
         updateWordCountUI(
             0
         );
 
+
         return;
+
     }
 
 
@@ -2157,6 +2489,7 @@ function renderWordList() {
 
                     const word =
                         item.word;
+
 
                     const attempts =
                         getAttemptCount(
@@ -2250,6 +2583,7 @@ function renderWordList() {
 
 
     setupWordDragAndDrop();
+
 }
 
 
@@ -2257,11 +2591,15 @@ function updateWordCountUI(
     count
 ) {
 
-    $("wordCountDescription").textContent =
+    $("wordCountDescription")
+        .textContent =
         `${count}개의 단어`;
 
-    $("wordListCount").textContent =
+
+    $("wordListCount")
+        .textContent =
         `${count}개`;
+
 }
 
 
@@ -2276,8 +2614,11 @@ function editWord(
     const workbook =
         getCurrentWorkbook();
 
+
     if (!workbook) {
+
         return;
+
     }
 
 
@@ -2290,7 +2631,9 @@ function editWord(
 
 
     if (!word) {
+
         return;
+
     }
 
 
@@ -2309,16 +2652,19 @@ function editWord(
                     const cleanWord =
                         newWord.trim();
 
+
                     const meanings =
                         normalizeMeanings(
-                            newMeaningText.split(",")
+                            newMeaningText
+                                .split(",")
                         );
 
 
                     const duplicateWord =
                         workbook.words.find(
                             item =>
-                                item.id !== wordId &&
+                                item.id !==
+                                wordId &&
                                 item.word
                                     .toLowerCase() ===
                                 cleanWord
@@ -2333,9 +2679,11 @@ function editWord(
                         const duplicateMeaning =
                             meanings.some(
                                 meaning =>
-                                    duplicateWord.meanings.includes(
-                                        meaning
-                                    )
+                                    duplicateWord
+                                        .meanings
+                                        .includes(
+                                            meaning
+                                        )
                             );
 
 
@@ -2349,6 +2697,7 @@ function editWord(
                             );
 
                             return;
+
                         }
 
                     }
@@ -2357,6 +2706,7 @@ function editWord(
                     word.word =
                         cleanWord;
 
+
                     word.meanings =
                         meanings;
 
@@ -2364,6 +2714,7 @@ function editWord(
                     saveData();
 
                     renderWordList();
+
 
                     showToast(
                         "단어가 수정되었습니다."
@@ -2374,6 +2725,7 @@ function editWord(
 
         }
     );
+
 }
 
 
@@ -2388,8 +2740,11 @@ function deleteWord(
     const workbook =
         getCurrentWorkbook();
 
+
     if (!workbook) {
+
         return;
+
     }
 
 
@@ -2402,7 +2757,9 @@ function deleteWord(
 
 
     if (!word) {
+
         return;
+
     }
 
 
@@ -2423,12 +2780,14 @@ function deleteWord(
 
             renderWordList();
 
+
             showToast(
                 "단어가 삭제되었습니다."
             );
 
         }
     );
+
 }
 
 
@@ -2452,6 +2811,7 @@ function setupWordDragAndDrop() {
                         draggedWordId =
                             card.dataset.wordId;
 
+
                         card.classList.add(
                             "dragging"
                         );
@@ -2466,6 +2826,7 @@ function setupWordDragAndDrop() {
 
                         draggedWordId =
                             null;
+
 
                         card.classList.remove(
                             "dragging"
@@ -2501,7 +2862,9 @@ function setupWordDragAndDrop() {
                             draggedWordId ===
                             targetId
                         ) {
+
                             return;
+
                         }
 
 
@@ -2515,8 +2878,13 @@ function setupWordDragAndDrop() {
 
             }
         );
+
 }
 
+
+/* =========================================================
+   단어 순서
+   ========================================================= */
 
 function reorderWords(
     sourceId,
@@ -2526,8 +2894,11 @@ function reorderWords(
     const workbook =
         getCurrentWorkbook();
 
+
     if (!workbook) {
+
         return;
+
     }
 
 
@@ -2551,7 +2922,9 @@ function reorderWords(
         sourceIndex < 0 ||
         targetIndex < 0
     ) {
+
         return;
+
     }
 
 
@@ -2574,6 +2947,7 @@ function reorderWords(
     saveData();
 
     renderWordList();
+
 }
 
 
@@ -2610,11 +2984,161 @@ function getAllWordsFromFile(
 
 
     return result;
+
 }
 
 
 /* =========================================================
-   총합 테스트 메뉴
+   언어 표시
+   ========================================================= */
+
+function getLanguageLabel(
+    fileName
+) {
+
+    const name =
+        String(
+            fileName || ""
+        ).trim();
+
+
+    const lower =
+        name.toLowerCase();
+
+
+    if (
+        lower.includes("일본어") ||
+        lower.includes("일어") ||
+        lower.includes("japanese") ||
+        lower.includes("日本語")
+    ) {
+
+        return "일본어";
+
+    }
+
+
+    if (
+        lower.includes("중국어") ||
+        lower.includes("중문") ||
+        lower.includes("chinese") ||
+        lower.includes("中文")
+    ) {
+
+        return "중국어";
+
+    }
+
+
+    if (
+        lower.includes("영어") ||
+        lower.includes("영문") ||
+        lower.includes("english")
+    ) {
+
+        return "영어";
+
+    }
+
+
+    if (
+        lower.includes("한국어") ||
+        lower.includes("국어") ||
+        lower.includes("korean")
+    ) {
+
+        return "한국어";
+
+    }
+
+
+    if (
+        lower.includes("프랑스어") ||
+        lower.includes("french")
+    ) {
+
+        return "프랑스어";
+
+    }
+
+
+    if (
+        lower.includes("독일어") ||
+        lower.includes("german")
+    ) {
+
+        return "독일어";
+
+    }
+
+
+    if (
+        lower.includes("스페인어") ||
+        lower.includes("spanish")
+    ) {
+
+        return "스페인어";
+
+    }
+
+
+    if (name) {
+
+        return name;
+
+    }
+
+
+    return "단어";
+
+}
+
+
+/* =========================================================
+   배열 섞기
+   ========================================================= */
+
+function shuffleArray(
+    array
+) {
+
+    const result =
+        [...array];
+
+
+    for (
+        let i =
+            result.length - 1;
+        i > 0;
+        i--
+    ) {
+
+        const j =
+            Math.floor(
+                Math.random() *
+                (i + 1)
+            );
+
+
+        [
+            result[i],
+            result[j]
+        ] =
+        [
+            result[j],
+            result[i]
+        ];
+
+    }
+
+
+    return result;
+
+}
+
+
+/* =========================================================
+   일반 테스트 메뉴
    ========================================================= */
 
 function openTotalTestMenu() {
@@ -2622,8 +3146,11 @@ function openTotalTestMenu() {
     const file =
         getCurrentFile();
 
+
     if (!file) {
+
         return;
+
     }
 
 
@@ -2633,7 +3160,10 @@ function openTotalTestMenu() {
         );
 
 
-    if (all.length === 0) {
+    if (
+        all.length ===
+        0
+    ) {
 
         showToast(
             "테스트할 단어가 없습니다.",
@@ -2641,11 +3171,18 @@ function openTotalTestMenu() {
         );
 
         return;
+
     }
 
 
+    const language =
+        getLanguageLabel(
+            file.name
+        );
+
+
     openModal(
-        "총합 테스트",
+        "일반 테스트",
         `
 
             <div class="test-menu">
@@ -2660,7 +3197,7 @@ function openTotalTestMenu() {
                     </strong>
 
                     <span>
-                        영어 → 뜻 / 뜻 → 영어
+                        ${escapeHTML(language)} → 뜻 / 뜻 → ${escapeHTML(language)}
                     </span>
 
                 </button>
@@ -2668,15 +3205,15 @@ function openTotalTestMenu() {
 
                 <button
                     class="test-menu-button"
-                    onclick="closeModal(); startFileTest('english-to-meaning')"
+                    onclick="closeModal(); startFileTest('language-to-meaning')"
                 >
 
                     <strong>
-                        ${escapeHTML(file.name)} → 뜻
+                        ${escapeHTML(language)} → 뜻
                     </strong>
 
                     <span>
-                        단어를 보고 뜻을 입력합니다.
+                        ${escapeHTML(language)}를 보고 뜻을 입력합니다.
                     </span>
 
                 </button>
@@ -2684,15 +3221,15 @@ function openTotalTestMenu() {
 
                 <button
                     class="test-menu-button"
-                    onclick="closeModal(); startFileTest('meaning-to-english')"
+                    onclick="closeModal(); startFileTest('meaning-to-language')"
                 >
 
                     <strong>
-                        뜻 → ${escapeHTML(file.name)}
+                        뜻 → ${escapeHTML(language)}
                     </strong>
 
                     <span>
-                        뜻을 보고 단어를 입력합니다.
+                        뜻을 보고 ${escapeHTML(language)}를 입력합니다.
                     </span>
 
                 </button>
@@ -2717,6 +3254,7 @@ function openTotalTestMenu() {
 
         `
     );
+
 }
 
 
@@ -2729,8 +3267,11 @@ function openQuickTestMenu() {
     const file =
         getCurrentFile();
 
+
     if (!file) {
+
         return;
+
     }
 
 
@@ -2805,11 +3346,12 @@ function openQuickTestMenu() {
 
         `
     );
+
 }
 
 
 /* =========================================================
-   테스트 문제 생성
+   문제 생성
    ========================================================= */
 
 function makeQuestion(
@@ -2820,6 +3362,7 @@ function makeQuestion(
 
     const word =
         item.word;
+
 
     const workbook =
         item.workbook;
@@ -2836,11 +3379,12 @@ function makeQuestion(
 
     if (
         direction ===
-        "english-to-meaning"
+        "language-to-meaning"
     ) {
 
         question =
             word.word;
+
 
         answers =
             meanings;
@@ -2850,8 +3394,11 @@ function makeQuestion(
         question =
             meanings[0];
 
+
         answers =
-            [word.word];
+            [
+                word.word
+            ];
 
     }
 
@@ -2880,11 +3427,12 @@ function makeQuestion(
         answers
 
     };
+
 }
 
 
 /* =========================================================
-   전체 테스트
+   일반 테스트 시작
    ========================================================= */
 
 function startFileTest(
@@ -2894,8 +3442,11 @@ function startFileTest(
     const file =
         getCurrentFile();
 
+
     if (!file) {
+
         return;
+
     }
 
 
@@ -2905,7 +3456,10 @@ function startFileTest(
         );
 
 
-    if (all.length === 0) {
+    if (
+        all.length ===
+        0
+    ) {
 
         showToast(
             "테스트할 단어가 없습니다.",
@@ -2913,6 +3467,7 @@ function startFileTest(
         );
 
         return;
+
     }
 
 
@@ -2920,7 +3475,8 @@ function startFileTest(
 
 
     if (
-        type === "all"
+        type ===
+        "all"
     ) {
 
         questions =
@@ -2929,8 +3485,8 @@ function startFileTest(
 
                     const direction =
                         Math.random() < 0.5
-                            ? "english-to-meaning"
-                            : "meaning-to-english";
+                            ? "language-to-meaning"
+                            : "meaning-to-language";
 
 
                     return makeQuestion(
@@ -2955,6 +3511,12 @@ function startFileTest(
             );
 
     }
+
+
+    questions =
+        shuffleArray(
+            questions
+        );
 
 
     startTest(
@@ -2971,6 +3533,7 @@ function startFileTest(
 
         null
     );
+
 }
 
 
@@ -2983,132 +3546,44 @@ function getTestName(
     fileName
 ) {
 
+    const language =
+        getLanguageLabel(
+            fileName
+        );
+
+
     if (
-        type === "all"
+        type ===
+        "all"
     ) {
 
-        return `${fileName} 전체 테스트`;
+        return `${fileName} 일반 테스트`;
 
     }
 
 
     if (
         type ===
-        "english-to-meaning"
+        "language-to-meaning"
     ) {
 
-        return `${fileName} → 뜻`;
+        return `${language} → 뜻`;
 
     }
 
 
     if (
         type ===
-        "meaning-to-english"
+        "meaning-to-language"
     ) {
 
-        return `뜻 → ${fileName}`;
+        return `뜻 → ${language}`;
 
     }
 
 
     return `${fileName} 테스트`;
-}
 
-
-/* =========================================================
-   단어장 전체 테스트
-   ========================================================= */
-
-function startWorkbookTest(
-    type = "all"
-) {
-
-    const file =
-        getCurrentFile();
-
-    const workbook =
-        getCurrentWorkbook();
-
-
-    if (
-        !file ||
-        !workbook
-    ) {
-        return;
-    }
-
-
-    if (
-        workbook.words.length === 0
-    ) {
-
-        showToast(
-            "테스트할 단어가 없습니다.",
-            "error"
-        );
-
-        return;
-    }
-
-
-    const all =
-        workbook.words.map(
-            word => ({
-                word,
-                workbook
-            })
-        );
-
-
-    let questions;
-
-
-    if (
-        type === "all"
-    ) {
-
-        questions =
-            all.map(
-                item => {
-
-                    const direction =
-                        Math.random() < 0.5
-                            ? "english-to-meaning"
-                            : "meaning-to-english";
-
-
-                    return makeQuestion(
-                        item,
-                        direction,
-                        file
-                    );
-
-                }
-            );
-
-    } else {
-
-        questions =
-            all.map(
-                item =>
-                    makeQuestion(
-                        item,
-                        type,
-                        file
-                    )
-            );
-
-    }
-
-
-    startTest(
-        questions,
-        `${workbook.name} 테스트`,
-        type,
-        file.id,
-        workbook.id
-    );
 }
 
 
@@ -3123,8 +3598,11 @@ function startQuickTest(
     const file =
         getCurrentFile();
 
+
     if (!file) {
+
         return;
+
     }
 
 
@@ -3138,7 +3616,8 @@ function startQuickTest(
 
 
     if (
-        mode === "important"
+        mode ===
+        "important"
     ) {
 
         selected =
@@ -3159,7 +3638,8 @@ function startQuickTest(
 
 
     if (
-        selected.length === 0
+        selected.length ===
+        0
     ) {
 
         showToast(
@@ -3168,17 +3648,26 @@ function startQuickTest(
         );
 
         return;
+
     }
 
 
     const questions =
-        selected.map(
-            item =>
-                makeQuestion(
-                    item,
-                    "english-to-meaning",
-                    file
-                )
+        shuffleArray(
+            selected.map(
+                item =>
+                    makeQuestion(
+                        item,
+                        "language-to-meaning",
+                        file
+                    )
+            )
+        );
+
+
+    const language =
+        getLanguageLabel(
+            file.name
         );
 
 
@@ -3186,8 +3675,8 @@ function startQuickTest(
         questions,
 
         mode === "important"
-            ? "⭐ 중요 단어 테스트"
-            : "❌ 틀린 단어 테스트",
+            ? `⭐ 중요 단어 테스트 (${language} → 뜻)`
+            : `❌ 틀린 단어 테스트 (${language} → 뜻)`,
 
         "quick",
 
@@ -3195,6 +3684,7 @@ function startQuickTest(
 
         null
     );
+
 }
 
 
@@ -3212,7 +3702,8 @@ function startTest(
 
     if (
         !questions ||
-        questions.length === 0
+        questions.length ===
+        0
     ) {
 
         showToast(
@@ -3221,6 +3712,7 @@ function startTest(
         );
 
         return;
+
     }
 
 
@@ -3258,7 +3750,7 @@ function startTest(
             null,
 
         timeLeft:
-            10,
+            appData.testTime,
 
         autoNextTimer:
             null
@@ -3272,6 +3764,7 @@ function startTest(
 
 
     renderCurrentQuestion();
+
 }
 
 
@@ -3295,60 +3788,67 @@ function renderCurrentQuestion() {
         finishTest();
 
         return;
+
     }
 
 
     testState.answered =
         false;
 
+
     testState.timeLeft =
-        10;
+        appData.testTime;
 
 
-    $("testQuestionNumber").textContent =
+    $("testQuestionNumber")
+        .textContent =
         testState.currentIndex + 1;
 
 
-    $("testTotalQuestions").textContent =
+    $("testTotalQuestions")
+        .textContent =
         testState.questions.length;
 
 
-    const fileName =
-        question.file?.name ||
-        "파일";
+    const language =
+        getLanguageLabel(
+            question.file?.name
+        );
 
 
     if (
         question.direction ===
-        "english-to-meaning"
+        "language-to-meaning"
     ) {
 
-        $("testTypeLabel").textContent =
-            `${fileName} → 뜻`;
+        $("testTypeLabel")
+            .textContent =
+            `${language} → 뜻`;
 
     } else {
 
-        $("testTypeLabel").textContent =
-            `뜻 → ${fileName}`;
+        $("testTypeLabel")
+            .textContent =
+            `뜻 → ${language}`;
 
     }
 
 
-    $("testQuestion").textContent =
+    $("testQuestion")
+        .textContent =
         question.question;
-
-
-    $("testTimer").textContent =
-        "10";
 
 
     const input =
         $("testAnswerInput");
 
 
-    input.value = "";
+    input.value =
+        "";
 
-    input.disabled = false;
+
+    input.disabled =
+        false;
 
 
     const feedback =
@@ -3359,20 +3859,31 @@ function renderCurrentQuestion() {
         "hidden"
     );
 
-    feedback.innerHTML = "";
+
+    feedback.innerHTML =
+        "";
 
 
-    $("testSubmitButton").textContent =
+    $("testSubmitButton")
+        .textContent =
         "확인";
 
 
+    updateTimerUI();
+
+
     setTimeout(
-        () => input.focus(),
+        () => {
+
+            input.focus();
+
+        },
         50
     );
 
 
     startTimer();
+
 }
 
 
@@ -3385,8 +3896,43 @@ function startTimer() {
     stopTimer();
 
 
+    const limit =
+        Number(
+            appData.testTime
+        );
+
+
+    const timerContainer =
+        $("timerContainer");
+
+
+    if (
+        limit ===
+        0
+    ) {
+
+        timerContainer?.classList.add(
+            "no-limit"
+        );
+
+
+        $("testTimer")
+            .textContent =
+            "∞";
+
+
+        return;
+
+    }
+
+
+    timerContainer?.classList.remove(
+        "no-limit"
+    );
+
+
     testState.timeLeft =
-        10;
+        limit;
 
 
     updateTimerUI();
@@ -3399,7 +3945,9 @@ function startTimer() {
                 if (
                     testState.answered
                 ) {
+
                     return;
+
                 }
 
 
@@ -3416,6 +3964,7 @@ function startTimer() {
 
                     stopTimer();
 
+
                     submitAnswer(
                         true
                     );
@@ -3425,13 +3974,37 @@ function startTimer() {
             },
             1000
         );
+
 }
 
 
 function updateTimerUI() {
 
-    $("testTimer").textContent =
+    const limit =
+        Number(
+            appData.testTime
+        );
+
+
+    if (
+        limit ===
+        0
+    ) {
+
+        $("testTimer")
+            .textContent =
+            "∞";
+
+
+        return;
+
+    }
+
+
+    $("testTimer")
+        .textContent =
         testState.timeLeft;
+
 }
 
 
@@ -3444,6 +4017,7 @@ function stopTimer() {
         clearInterval(
             testState.timer
         );
+
 
         testState.timer =
             null;
@@ -3459,10 +4033,12 @@ function stopTimer() {
             testState.autoNextTimer
         );
 
+
         testState.autoNextTimer =
             null;
 
     }
+
 }
 
 
@@ -3482,12 +4058,15 @@ function checkAnswer(
 
 
     if (!user) {
+
         return false;
+
     }
 
 
     const answers =
-        question.answers || [];
+        question.answers ||
+        [];
 
 
     return answers.some(
@@ -3501,7 +4080,7 @@ function checkAnswer(
 
             if (
                 question.direction ===
-                "meaning-to-english"
+                "meaning-to-language"
             ) {
 
                 return (
@@ -3519,6 +4098,7 @@ function checkAnswer(
 
         }
     );
+
 }
 
 
@@ -3537,6 +4117,7 @@ function submitAnswer(
         nextQuestion();
 
         return;
+
     }
 
 
@@ -3547,7 +4128,9 @@ function submitAnswer(
 
 
     if (!question) {
+
         return;
+
     }
 
 
@@ -3582,6 +4165,7 @@ function submitAnswer(
 
         testState.wrong++;
 
+
         testState.wrongQuestions.push(
             question
         );
@@ -3612,21 +4196,18 @@ function submitAnswer(
         testState.questions.length - 1
     ) {
 
-        $("testSubmitButton").textContent =
+        $("testSubmitButton")
+            .textContent =
             "결과 보기";
 
     } else {
 
-        $("testSubmitButton").textContent =
+        $("testSubmitButton")
+            .textContent =
             "다음 문제";
 
     }
 
-
-    /*
-       시간 초과는 기획에 따라
-       자동으로 다음 문제로 이동한다.
-    */
 
     if (
         timeOut
@@ -3643,6 +4224,7 @@ function submitAnswer(
             );
 
     }
+
 }
 
 
@@ -3662,7 +4244,9 @@ function updateWordStatistics(
 
 
     if (!file) {
+
         return;
+
     }
 
 
@@ -3674,7 +4258,9 @@ function updateWordStatistics(
 
 
     if (!workbook) {
+
         return;
+
     }
 
 
@@ -3687,19 +4273,25 @@ function updateWordStatistics(
 
 
     if (!word) {
+
         return;
+
     }
 
 
     if (isCorrect) {
 
         word.correct =
-            Number(word.correct) + 1;
+            Number(
+                word.correct
+            ) + 1;
 
     } else {
 
         word.wrong =
-            Number(word.wrong) + 1;
+            Number(
+                word.wrong
+            ) + 1;
 
     }
 
@@ -3710,11 +4302,12 @@ function updateWordStatistics(
 
 
     saveData();
+
 }
 
 
 /* =========================================================
-   정답 피드백
+   피드백
    ========================================================= */
 
 function showAnswerFeedback(
@@ -3729,7 +4322,9 @@ function showAnswerFeedback(
 
 
     if (!feedback) {
+
         return;
+
     }
 
 
@@ -3762,7 +4357,9 @@ function showAnswerFeedback(
 
         `;
 
+
         return;
+
     }
 
 
@@ -3805,6 +4402,7 @@ function showAnswerFeedback(
         </div>
 
     `;
+
 }
 
 
@@ -3822,7 +4420,9 @@ function nextQuestion() {
             false
         );
 
+
         return;
+
     }
 
 
@@ -3833,7 +4433,9 @@ function nextQuestion() {
 
         finishTest();
 
+
         return;
+
     }
 
 
@@ -3841,6 +4443,70 @@ function nextQuestion() {
 
 
     renderCurrentQuestion();
+
+}
+
+
+/* =========================================================
+   테스트 뒤로가기
+   ========================================================= */
+
+function leaveTest() {
+
+    if (
+        !testState.questions.length
+    ) {
+
+        goToResultBack();
+
+        return;
+
+    }
+
+
+    openConfirmModal(
+        "테스트 나가기",
+        "진행 중인 테스트를 종료할까요?\n현재 테스트 진행 내용은 결과 기록에 저장되지 않습니다.",
+        () => {
+
+            stopTimer();
+
+
+            if (
+                testState.sourceWorkbookId &&
+                testState.sourceFileId
+            ) {
+
+                showWorkbookPage(
+                    testState.sourceFileId,
+                    testState.sourceWorkbookId
+                );
+
+
+                return;
+
+            }
+
+
+            if (
+                testState.sourceFileId
+            ) {
+
+                showFilePage(
+                    testState.sourceFileId
+                );
+
+
+                return;
+
+            }
+
+
+            showHomePage();
+
+        }
+    );
+
 }
 
 
@@ -3871,6 +4537,9 @@ function finishTest() {
         testName:
             testState.testName,
 
+        testType:
+            testState.testType,
+
         total,
 
         correct:
@@ -3890,29 +4559,36 @@ function finishTest() {
     saveData();
 
 
-    $("resultTestName").textContent =
+    $("resultTestName")
+        .textContent =
         testState.testName;
 
 
-    $("resultCorrect").textContent =
+    $("resultCorrect")
+        .textContent =
         testState.correct;
 
 
-    $("resultWrong").textContent =
+    $("resultWrong")
+        .textContent =
         testState.wrong;
 
 
-    $("resultTotal").textContent =
+    $("resultTotal")
+        .textContent =
         total;
 
 
-    $("retryWrongButton").disabled =
-        testState.wrongQuestions.length === 0;
+    $("retryWrongButton")
+        .disabled =
+        testState.wrongQuestions.length ===
+        0;
 
 
     showPage(
         "result"
     );
+
 }
 
 
@@ -3927,6 +4603,7 @@ function getFileNameForTest() {
     return file
         ? file.name
         : "알 수 없는 파일";
+
 }
 
 
@@ -3944,21 +4621,28 @@ function retryWrongQuestions() {
             "틀린 문제가 없습니다."
         );
 
+
         return;
+
     }
 
 
     const questions =
-        testState.wrongQuestions.map(
-            question => ({
-                ...question,
+        shuffleArray(
+            testState.wrongQuestions.map(
+                question => ({
+                    ...question,
 
-                word:
-                    question.word,
+                    word:
+                        question.word,
 
-                answers:
-                    [...question.answers]
-            })
+                    answers:
+                        [
+                            ...question.answers
+                        ]
+
+                })
+            )
         );
 
 
@@ -3975,11 +4659,12 @@ function retryWrongQuestions() {
         testState.sourceWorkbookId
 
     );
+
 }
 
 
 /* =========================================================
-   통계
+   기록
    ========================================================= */
 
 function renderStatistics() {
@@ -3993,21 +4678,28 @@ function renderStatistics() {
 
 
     if (
-        records.length === 0
+        records.length ===
+        0
     ) {
 
-        $("statisticsSummary").innerHTML =
+        $("statisticsSummary")
+            .innerHTML =
             "";
 
-        $("statisticsList").innerHTML =
+
+        $("statisticsList")
+            .innerHTML =
             "";
+
 
         $("emptyStatisticsState")
             .classList.remove(
                 "hidden"
             );
 
+
         return;
+
     }
 
 
@@ -4025,22 +4717,28 @@ function renderStatistics() {
     renderStatisticsList(
         records
     );
+
 }
 
 
 /* =========================================================
-   통계 요약
+   기록 요약
    ========================================================= */
 
 function renderStatisticsSummary(
     records
 ) {
 
-    let totalQuestions = 0;
+    let totalQuestions =
+        0;
 
-    let totalCorrect = 0;
 
-    let totalWrong = 0;
+    let totalCorrect =
+        0;
+
+
+    let totalWrong =
+        0;
 
 
     records.forEach(
@@ -4051,10 +4749,12 @@ function renderStatisticsSummary(
                     record.total || 0
                 );
 
+
             totalCorrect +=
                 Number(
                     record.correct || 0
                 );
+
 
             totalWrong +=
                 Number(
@@ -4075,7 +4775,8 @@ function renderStatisticsSummary(
             : 0;
 
 
-    $("statisticsSummary").innerHTML = `
+    $("statisticsSummary")
+        .innerHTML = `
 
         <div class="statistics-card">
 
@@ -4137,39 +4838,13 @@ function renderStatisticsSummary(
         </div>
 
     `;
+
 }
 
 
 /* =========================================================
-   통계 날짜
+   기록 날짜
    ========================================================= */
-
-function formatCurrentMonthDate(
-    dateString
-) {
-
-    const date =
-        new Date(
-            dateString
-        );
-
-
-    if (
-        Number.isNaN(
-            date.getTime()
-        )
-    ) {
-        return "";
-    }
-
-
-    return `${date.getMonth() + 1}/${date.getDate()} ${String(
-        date.getHours()
-    ).padStart(2, "0")}:${String(
-        date.getMinutes()
-    ).padStart(2, "0")}`;
-}
-
 
 function formatRecordDate(
     dateString
@@ -4186,24 +4861,38 @@ function formatRecordDate(
             date.getTime()
         )
     ) {
-        return "";
+
+        return {
+            date: "",
+            time: ""
+        };
+
     }
 
 
-    return `${date.getFullYear()}/${String(
-        date.getMonth() + 1
-    ).padStart(2, "0")}/${String(
-        date.getDate()
-    ).padStart(2, "0")} ${String(
-        date.getHours()
-    ).padStart(2, "0")}:${String(
-        date.getMinutes()
-    ).padStart(2, "0")}`;
+    return {
+
+        date:
+            `${date.getFullYear()}/${String(
+                date.getMonth() + 1
+            ).padStart(2, "0")}/${String(
+                date.getDate()
+            ).padStart(2, "0")}`,
+
+        time:
+            `${String(
+                date.getHours()
+            ).padStart(2, "0")}:${String(
+                date.getMinutes()
+            ).padStart(2, "0")}`
+
+    };
+
 }
 
 
 /* =========================================================
-   통계 목록
+   기록 목록
    ========================================================= */
 
 function renderStatisticsList(
@@ -4218,326 +4907,66 @@ function renderStatisticsList(
         );
 
 
-    const now =
-        new Date();
+    $("statisticsList")
+        .innerHTML =
+        sorted
+            .map(
+                record => {
+
+                    const dateInfo =
+                        formatRecordDate(
+                            record.date
+                        );
 
 
-    const currentYear =
-        now.getFullYear();
+                    return `
 
-    const currentMonth =
-        now.getMonth();
+                        <div class="statistic-record">
 
+                            <div class="statistic-record-info">
 
-    const currentRecords = [];
+                                <strong class="statistic-record-date">
+                                    ${escapeHTML(dateInfo.date)}
+                                </strong>
 
-    const previousMonths = {};
+                                <span class="statistic-record-time">
+                                    ${escapeHTML(dateInfo.time)}
+                                </span>
 
-    const previousYears = {};
+                                <span class="statistic-record-type">
+                                    ${escapeHTML(
+                                        record.testName ||
+                                        "단어 테스트"
+                                    )}
+                                </span>
 
-
-    sorted.forEach(
-        record => {
-
-            const date =
-                new Date(
-                    record.date
-                );
-
-
-            if (
-                Number.isNaN(
-                    date.getTime()
-                )
-            ) {
-                return;
-            }
+                            </div>
 
 
-            const year =
-                date.getFullYear();
+                            <div class="statistic-record-score">
 
-            const month =
-                date.getMonth();
+                                <strong>
+                                    ${Number(record.correct || 0)}
+                                    /
+                                    ${Number(record.total || 0)}
+                                </strong>
 
+                                <span>
+                                    ⭕ ${Number(record.correct || 0)}
+                                    ·
+                                    ❌ ${Number(record.wrong || 0)}
+                                </span>
 
-            if (
-                year === currentYear &&
-                month === currentMonth
-            ) {
+                            </div>
 
-                currentRecords.push(
-                    record
-                );
+                        </div>
 
-                return;
-            }
+                    `;
 
-
-            if (
-                year === currentYear
-            ) {
-
-                const key =
-                    `${year}-${month}`;
-
-
-                if (
-                    !previousMonths[key]
-                ) {
-                    previousMonths[key] =
-                        [];
                 }
-
-
-                previousMonths[key].push(
-                    record
-                );
-
-                return;
-            }
-
-
-            const yearKey =
-                String(
-                    year
-                );
-
-
-            if (
-                !previousYears[yearKey]
-            ) {
-                previousYears[yearKey] =
-                    {};
-            }
-
-
-            const monthKey =
-                `${year}-${month}`;
-
-
-            if (
-                !previousYears[yearKey][monthKey]
-            ) {
-
-                previousYears[yearKey][monthKey] =
-                    [];
-
-            }
-
-
-            previousYears[yearKey][monthKey]
-                .push(record);
-
-        }
-    );
-
-
-    let html = "";
-
-
-    /* 현재 달 */
-
-    currentRecords.forEach(
-        record => {
-
-            html +=
-                renderStatisticRecord(
-                    record,
-                    true
-                );
-
-        }
-    );
-
-
-    /* 이전 달 */
-
-    Object.keys(
-        previousMonths
-    )
-        .sort()
-        .reverse()
-        .forEach(
-            key => {
-
-                const [
-                    year,
-                    month
-                ] =
-                    key.split("-");
-
-
-                html += `
-
-                    <div class="statistics-group">
-
-                        <h2>
-                            ${Number(month) + 1}월
-                        </h2>
-
-                        ${previousMonths[key]
-                            .map(
-                                record =>
-                                    renderStatisticRecord(
-                                        record,
-                                        false
-                                    )
-                            )
-                            .join("")}
-
-                    </div>
-
-                `;
-
-            }
-        );
-
-
-    /* 이전 연도 */
-
-    Object.keys(
-        previousYears
-    )
-        .sort()
-        .reverse()
-        .forEach(
-            year => {
-
-                html += `
-
-                    <div class="statistics-year-group">
-
-                        <h2>
-                            ${year}년
-                        </h2>
-
-                `;
-
-
-                Object.keys(
-                    previousYears[year]
-                )
-                    .sort()
-                    .reverse()
-                    .forEach(
-                        key => {
-
-                            const month =
-                                Number(
-                                    key.split("-")[1]
-                                );
-
-
-                            html += `
-
-                                <div class="statistics-month-group">
-
-                                    <h3>
-                                        ${month + 1}월
-                                    </h3>
-
-                                    ${previousYears[year][key]
-                                        .map(
-                                            record =>
-                                                renderStatisticRecord(
-                                                    record,
-                                                    false
-                                                )
-                                        )
-                                        .join("")}
-
-                                </div>
-
-                            `;
-
-                        }
-                    );
-
-
-                html += `
-                    </div>
-                `;
-
-            }
-        );
-
-
-    $("statisticsList").innerHTML =
-        html ||
-        `
-            <div class="empty-state">
-                <p>통계 기록이 없습니다.</p>
-            </div>
-        `;
-}
-
-
-/* =========================================================
-   통계 기록 하나
-   ========================================================= */
-
-function renderStatisticRecord(
-    record,
-    currentMonth
-) {
-
-    const dateText =
-        currentMonth
-            ? formatCurrentMonthDate(
-                record.date
             )
-            : formatRecordDate(
-                record.date
-            );
+            .join("");
 
-
-    return `
-
-        <div class="statistic-record">
-
-            <div class="statistic-record-info">
-
-                <strong>
-                    ${escapeHTML(
-                        record.testName ||
-                        "단어 테스트"
-                    )}
-                </strong>
-
-                <span>
-                    ${escapeHTML(
-                        record.fileName ||
-                        "파일 없음"
-                    )}
-                </span>
-
-                <small>
-                    ${dateText}
-                </small>
-
-            </div>
-
-
-            <div class="statistic-record-score">
-
-                <strong>
-                    ${Number(record.correct || 0)}
-                    /
-                    ${Number(record.total || 0)}
-                </strong>
-
-                <span>
-                    ⭕ ${Number(record.correct || 0)}
-                    ·
-                    ❌ ${Number(record.wrong || 0)}
-                </span>
-
-            </div>
-
-        </div>
-
-    `;
 }
 
 
@@ -4564,21 +4993,29 @@ function applyTheme() {
             : "light";
 
 
-    $("darkModeToggle").checked =
+    $("darkModeToggle")
+        .checked =
         dark;
 
 
-    $("headerThemeButton").textContent =
+    $("headerThemeButton")
+        .textContent =
         dark
             ? "☀️"
             : "🌙";
+
 }
 
+
+/* =========================================================
+   테마 변경
+   ========================================================= */
 
 function toggleTheme() {
 
     appData.theme =
-        appData.theme === "dark"
+        appData.theme ===
+        "dark"
             ? "light"
             : "dark";
 
@@ -4586,6 +5023,47 @@ function toggleTheme() {
     saveData();
 
     applyTheme();
+
+}
+
+
+/* =========================================================
+   테스트 시간 설정
+   ========================================================= */
+
+function applyTestTimeUI() {
+
+    const select =
+        $("testTimeSelect");
+
+
+    const description =
+        $("testTimeDescription");
+
+
+    if (!select) {
+
+        return;
+
+    }
+
+
+    select.value =
+        String(
+            appData.testTime
+        );
+
+
+    if (description) {
+
+        description.textContent =
+            appData.testTime ===
+            0
+                ? "제한시간 없이 진행합니다."
+                : `한 문제당 ${appData.testTime}초`;
+
+    }
+
 }
 
 
@@ -4601,7 +5079,7 @@ function exportData() {
             "단어 암기장",
 
         version:
-            1,
+            APP_VERSION,
 
         exportedAt:
             new Date().toISOString(),
@@ -4654,6 +5132,7 @@ function exportData() {
     link.href =
         url;
 
+
     link.download =
         `단어장_백업_${date}.json`;
 
@@ -4676,6 +5155,7 @@ function exportData() {
     showToast(
         "데이터를 내보냈습니다."
     );
+
 }
 
 
@@ -4690,13 +5170,18 @@ function importData() {
 
 
     if (!input) {
+
         return;
+
     }
 
 
-    input.value = "";
+    input.value =
+        "";
+
 
     input.click();
+
 }
 
 
@@ -4709,7 +5194,9 @@ function handleImportFile(
 
 
     if (!file) {
+
         return;
+
     }
 
 
@@ -4765,9 +5252,12 @@ function handleImportFile(
 
                         applyTheme();
 
+                        applyTestTimeUI();
+
 
                         currentFileId =
                             null;
+
 
                         currentWorkbookId =
                             null;
@@ -4806,6 +5296,7 @@ function handleImportFile(
         file,
         "UTF-8"
     );
+
 }
 
 
@@ -4813,17 +5304,137 @@ function handleImportFile(
    사용 방법
    ========================================================= */
 
+function getUsageGuideItems() {
+
+    const items = [
+
+        {
+            icon: "📁",
+            title: "파일",
+            text:
+                "파일 안에 여러 개의 단어장을 만들 수 있습니다."
+        },
+
+        {
+            icon: "📖",
+            title: "단어장",
+            text:
+                "단어장을 열어 단어를 추가하고 드래그하여 순서를 변경할 수 있습니다."
+        },
+
+        {
+            icon: "✏️",
+            title: "단어 추가",
+            text:
+                ":로 단어와 뜻을 구분하고 ,로 여러 뜻을 입력하며 /로 여러 단어를 입력할 수 있습니다."
+        },
+
+        {
+            icon: "⭐",
+            title: "중요 단어",
+            text:
+                "틀린 횟수가 전체 시도 횟수의 70%를 초과하면 해당 단어가 자동으로 중요 단어로 표시됩니다."
+        },
+
+        {
+            icon: "📝",
+            title: "일반 테스트",
+            text:
+                "파일 안의 모든 단어를 대상으로 테스트합니다. 전체 테스트에서는 문제 순서와 출제 방향이 문제마다 랜덤으로 결정됩니다."
+        },
+
+        {
+            icon: "⏱️",
+            title: "제한시간",
+            text:
+                `설정에서 한 문제당 제한시간을 5초, 10초, 15초, 20초, 30초 또는 제한 없음으로 설정할 수 있습니다. 현재 설정: ${
+                    appData.testTime === 0
+                        ? "제한 없음"
+                        : `${appData.testTime}초`
+                }`
+        },
+
+        {
+            icon: "📊",
+            title: "기록",
+            text:
+                "완료한 테스트의 날짜, 시간, 점수와 테스트 종류를 확인할 수 있습니다. 가장 최근 기록이 위에 표시됩니다."
+        },
+
+        {
+            icon: "💾",
+            title: "데이터 백업",
+            text:
+                "데이터 내보내기로 단어장과 테스트 기록을 백업하고, 데이터 가져오기로 다시 복원할 수 있습니다."
+        },
+
+        {
+            icon: "🌙",
+            title: "다크 모드",
+            text:
+                "설정 또는 화면 상단의 버튼에서 밝은 화면과 어두운 화면을 변경할 수 있습니다."
+        }
+
+    ];
+
+
+    return items;
+
+}
+
+
+function renderUsageGuide() {
+
+    const content =
+        $("usageGuideContent");
+
+
+    if (!content) {
+
+        return;
+
+    }
+
+
+    content.innerHTML =
+        getUsageGuideItems()
+            .map(
+                item => `
+
+                    <div class="guide-item">
+
+                        <strong>
+                            ${item.icon}
+                            ${escapeHTML(item.title)}
+                        </strong>
+
+                        <p>
+                            ${escapeHTML(item.text)}
+                        </p>
+
+                    </div>
+
+                `
+            )
+            .join("");
+
+}
+
+
 function toggleUsageGuide() {
 
     const content =
         $("usageGuideContent");
+
 
     const arrow =
         $("usageGuideArrow");
 
 
     if (!content) {
+
         return;
+
     }
 
 
@@ -4847,6 +5458,7 @@ function toggleUsageGuide() {
                 : "⌄";
 
     }
+
 }
 
 
@@ -4938,13 +5550,17 @@ function openInputModal(
                     "error"
                 );
 
+
                 input.focus();
 
+
                 return;
+
             }
 
 
             closeModal();
+
 
             onConfirm(
                 value
@@ -4984,6 +5600,7 @@ function openInputModal(
 
         }
     );
+
 }
 
 
@@ -5055,6 +5672,7 @@ function openConfirmModal(
 
             }
         );
+
 }
 
 
@@ -5068,19 +5686,26 @@ function openModal(
     footer = ""
 ) {
 
-    $("modalTitle").textContent =
+    $("modalTitle")
+        .textContent =
         title;
 
-    $("modalBody").innerHTML =
+
+    $("modalBody")
+        .innerHTML =
         body;
 
-    $("modalFooter").innerHTML =
+
+    $("modalFooter")
+        .innerHTML =
         footer;
+
 
     $("modalOverlay")
         .classList.remove(
             "hidden"
         );
+
 }
 
 
@@ -5090,6 +5715,7 @@ function closeModal() {
         .classList.add(
             "hidden"
         );
+
 }
 
 
@@ -5100,6 +5726,7 @@ function closeModal() {
 function goBackToHome() {
 
     showHomePage();
+
 }
 
 
@@ -5109,19 +5736,23 @@ function goBackToFile() {
 
         showHomePage();
 
+
         return;
+
     }
 
 
     showFilePage(
         currentFileId
     );
+
 }
 
 
 function goToResultHome() {
 
     showHomePage();
+
 }
 
 
@@ -5137,7 +5768,9 @@ function goToResultBack() {
             testState.sourceWorkbookId
         );
 
+
         return;
+
     }
 
 
@@ -5149,11 +5782,14 @@ function goToResultBack() {
             testState.sourceFileId
         );
 
+
         return;
+
     }
 
 
     showHomePage();
+
 }
 
 
@@ -5195,9 +5831,11 @@ function setupNavigation() {
 
                             stopTimer();
 
+
                             showPage(
                                 "statistics"
                             );
+
 
                             renderStatistics();
 
@@ -5211,9 +5849,15 @@ function setupNavigation() {
 
                             stopTimer();
 
+
                             showPage(
                                 "settings"
                             );
+
+
+                            applyTestTimeUI();
+
+                            renderUsageGuide();
 
                         }
 
@@ -5222,6 +5866,7 @@ function setupNavigation() {
 
             }
         );
+
 }
 
 
@@ -5302,6 +5947,13 @@ function setupButtons() {
         );
 
 
+    $("testBackButton")
+        .addEventListener(
+            "click",
+            leaveTest
+        );
+
+
     $("resultHomeButton")
         .addEventListener(
             "click",
@@ -5346,6 +5998,34 @@ function setupButtons() {
         .addEventListener(
             "click",
             toggleTheme
+        );
+
+
+    $("testTimeSelect")
+        .addEventListener(
+            "change",
+            event => {
+
+                appData.testTime =
+                    Number(
+                        event.target.value
+                    );
+
+
+                saveData();
+
+                applyTestTimeUI();
+
+                renderUsageGuide();
+
+
+                showToast(
+                    appData.testTime === 0
+                        ? "제한시간이 해제되었습니다."
+                        : `제한시간이 ${appData.testTime}초로 설정되었습니다.`
+                );
+
+            }
         );
 
 
@@ -5414,6 +6094,7 @@ function setupButtons() {
             "click",
             showHomePage
         );
+
 }
 
 
@@ -5426,12 +6107,6 @@ function setupKeyboardEvents() {
     document.addEventListener(
         "keydown",
         event => {
-
-            /*
-               단어 입력창:
-               Enter = 등록
-               Shift + Enter = 줄바꿈
-            */
 
             if (
                 event.target ===
@@ -5450,7 +6125,9 @@ function setupKeyboardEvents() {
 
                 }
 
+
                 return;
+
             }
 
 
@@ -5465,7 +6142,9 @@ function setupKeyboardEvents() {
                 activePage.id !==
                 "testPage"
             ) {
+
                 return;
+
             }
 
 
@@ -5473,7 +6152,9 @@ function setupKeyboardEvents() {
                 event.key !==
                 "Enter"
             ) {
+
                 return;
+
             }
 
 
@@ -5496,6 +6177,7 @@ function setupKeyboardEvents() {
 
         }
     );
+
 }
 
 
@@ -5543,6 +6225,7 @@ function registerServiceWorker() {
         );
 
     }
+
 }
 
 
@@ -5554,6 +6237,8 @@ function initializeApp() {
 
     applyTheme();
 
+    applyTestTimeUI();
+
     setupNavigation();
 
     setupButtons();
@@ -5562,14 +6247,21 @@ function initializeApp() {
 
     renderFileList();
 
+    renderUsageGuide();
+
+    $("appVersion")
+        .textContent =
+        APP_VERSION;
+
     showHomePage();
 
     registerServiceWorker();
 
 
     console.log(
-        "단어 암기장이 시작되었습니다."
+        `단어 암기장이 시작되었습니다. v${APP_VERSION}`
     );
+
 }
 
 
