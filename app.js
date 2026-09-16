@@ -1,23 +1,23 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "memory_app_v1";
+  const STORAGE_KEY = "memorize_app_v2";
+  const THEME_KEY = "memorize_app_theme";
 
   const state = {
-    pages: [],
-    tests: 0,
+    files: [],
+    quizCount: 0
   };
 
-  let currentView = "home";
-  let currentPageId = null;
-  let currentBundleId = null;
+  let currentFileId = null;
+  let currentTestId = null;
 
-  let testSession = null;
-  let testTimer = null;
+  let quizSession = null;
+  let timerId = null;
+  let draggedId = null;
+  let draggedType = null;
 
-  let draggedPageId = null;
-
-  function uid(prefix = "id") {
+  function uid(prefix) {
     return (
       prefix +
       "_" +
@@ -36,6 +36,12 @@
       .replaceAll("'", "&#039;");
   }
 
+  function normalize(value) {
+    return String(value ?? "")
+      .trim()
+      .toLowerCase();
+  }
+
   function save() {
     localStorage.setItem(
       STORAGE_KEY,
@@ -45,140 +51,159 @@
 
   function load() {
     try {
-      const saved = localStorage.getItem(
-        STORAGE_KEY
-      );
+      const raw =
+        localStorage.getItem(STORAGE_KEY);
 
-      if (!saved) return;
+      if (!raw) return;
 
-      const parsed = JSON.parse(saved);
+      const saved = JSON.parse(raw);
 
-      if (
-        parsed &&
-        Array.isArray(parsed.pages)
-      ) {
-        state.pages = parsed.pages;
-        state.tests = Number(parsed.tests) || 0;
+      if (!saved || !Array.isArray(saved.files)) {
+        return;
       }
+
+      state.files = saved.files;
+      state.quizCount =
+        Number(saved.quizCount) || 0;
+
+      normalizeData();
     } catch (error) {
       console.error(
-        "데이터 불러오기 실패:",
+        "데이터 로딩 오류:",
         error
       );
     }
   }
 
-  function getPage(pageId) {
-    return state.pages.find(
-      (page) => page.id === pageId
+  function normalizeData() {
+    state.files = state.files.map(file => ({
+      id: file.id || uid("file"),
+      name: String(file.name || "파일"),
+      tests: Array.isArray(file.tests)
+        ? file.tests.map(test => ({
+            id: test.id || uid("test"),
+            name: String(test.name || "테스트"),
+            words: Array.isArray(test.words)
+              ? test.words.map(word => ({
+                  id: word.id || uid("word"),
+                  term: String(word.term || ""),
+                  meaning: String(word.meaning || ""),
+                  meanings: Array.isArray(word.meanings)
+                    ? word.meanings
+                    : [String(word.meaning || "")],
+                  important: Boolean(word.important),
+                  correct: Number(word.correct) || 0,
+                  wrong: Number(word.wrong) || 0,
+                  lastWrong:
+                    word.lastWrong || null
+                }))
+              : []
+          }))
+        : []
+    }));
+  }
+
+  function getFile(fileId) {
+    return state.files.find(
+      file => file.id === fileId
     );
   }
 
-  function getBundle(bundleId) {
-    for (const page of state.pages) {
-      const bundle = page.bundles?.find(
-        (item) => item.id === bundleId
-      );
-
-      if (bundle) return bundle;
-    }
-
-    return null;
+  function getCurrentFile() {
+    return getFile(currentFileId);
   }
 
-  function getCurrentPage() {
-    return getPage(currentPageId);
+  function getCurrentTest() {
+    const file = getCurrentFile();
+
+    if (!file) return null;
+
+    return file.tests.find(
+      test => test.id === currentTestId
+    );
   }
 
-  function getCurrentBundle() {
-    return getBundle(currentBundleId);
-  }
-
-  function getPageTerm() {
-    const page = getCurrentPage();
-
-    return page?.name || "단어";
-  }
-
-  function showOnly(id) {
+  function show(viewId) {
     document
       .querySelectorAll(".view")
-      .forEach((view) => {
-        view.classList.add("hidden");
-      });
+      .forEach(view =>
+        view.classList.add("hidden")
+      );
 
     document
-      .getElementById(id)
+      .getElementById(viewId)
       .classList.remove("hidden");
 
     window.scrollTo({
       top: 0,
-      behavior: "smooth",
+      behavior: "smooth"
     });
   }
 
-  function updateNav(pageName) {
+  function updateNav(name) {
     document
-      .querySelectorAll(".nav-btn")
-      .forEach((button) => {
+      .querySelectorAll("[data-nav]")
+      .forEach(button =>
         button.classList.toggle(
           "active",
-          button.dataset.page === pageName
-        );
-      });
+          button.dataset.nav === name
+        )
+      );
   }
 
-  /* ========================================================
-     홈
-     ======================================================== */
+  /* =====================================================
+     홈 / 파일
+     ===================================================== */
 
   function renderHome() {
-    currentView = "home";
-
-    showOnly("homeView");
+    show("homeView");
     updateNav("home");
 
     const list =
-      document.getElementById("pageList");
+      document.getElementById("fileList");
 
-    if (!state.pages.length) {
+    if (!state.files.length) {
       list.innerHTML = `
         <div class="empty">
-          아직 페이지가 없습니다.<br>
-          위의 「＋ 페이지 추가」를 눌러주세요.
+          아직 파일이 없습니다.<br>
+          「＋ 파일 추가」를 눌러주세요.
         </div>
       `;
-
       return;
     }
 
-    list.innerHTML = state.pages
+    list.innerHTML = state.files
       .map(
-        (page) => `
+        file => `
           <div
-            class="page-card"
+            class="file-card"
             draggable="true"
-            data-page-id="${page.id}"
+            data-id="${file.id}"
+            data-drag-type="file"
           >
-            <div class="drag-handle">
-              ☷
-            </div>
+
+            <div class="drag-handle">☷</div>
 
             <button
-              class="page-main"
+              class="file-main"
               type="button"
-              data-open-page="${page.id}"
+              data-open-file="${file.id}"
             >
-              <div class="page-name">
-                ${escapeHTML(page.name)}
+              <div class="file-name">
+                📁 ${escapeHTML(file.name)}
+              </div>
+
+              <div class="file-sub">
+                ${file.tests.length}개 테스트
               </div>
             </button>
 
-            <div class="page-actions">
+            <div class="file-actions">
+
               <button
                 type="button"
                 title="이름 변경"
-                data-rename-page="${page.id}"
+                data-rename-file="${file.id}"
               >
                 ✏️
               </button>
@@ -186,325 +211,239 @@
               <button
                 type="button"
                 title="삭제"
-                data-delete-page="${page.id}"
+                data-delete-file="${file.id}"
               >
                 🗑️
               </button>
+
             </div>
+
           </div>
         `
       )
       .join("");
 
-    setupPageDrag();
+    setupDragAndDrop();
   }
 
-  function addPage() {
-    const name = prompt(
-      "새 페이지의 제목을 입력하세요."
+  function addFile() {
+    const value = prompt(
+      "파일 이름을 입력하세요."
     );
 
-    if (name === null) return;
+    if (value === null) return;
 
-    const cleanName = name.trim();
+    const name = value.trim();
 
-    if (!cleanName) {
-      alert("페이지 제목을 입력해주세요.");
+    if (!name) {
+      alert("파일 이름을 입력해주세요.");
       return;
     }
 
     if (
-      state.pages.some(
-        (page) =>
-          page.name.toLowerCase() ===
-          cleanName.toLowerCase()
+      state.files.some(
+        file =>
+          normalize(file.name) ===
+          normalize(name)
       )
     ) {
-      alert("같은 이름의 페이지가 이미 있습니다.");
+      alert("같은 이름의 파일이 있습니다.");
       return;
     }
 
-    state.pages.push({
-      id: uid("page"),
-      name: cleanName,
-      bundles: [],
+    state.files.push({
+      id: uid("file"),
+      name,
+      tests: []
     });
 
     save();
     renderHome();
   }
 
-  function renamePage(pageId) {
-    const page = getPage(pageId);
+  function renameFile(fileId) {
+    const file = getFile(fileId);
 
-    if (!page) return;
+    if (!file) return;
 
-    const name = prompt(
-      "페이지 제목을 변경하세요.",
-      page.name
+    const value = prompt(
+      "파일 이름을 변경하세요.",
+      file.name
     );
 
-    if (name === null) return;
+    if (value === null) return;
 
-    const cleanName = name.trim();
+    const name = value.trim();
 
-    if (!cleanName) {
-      alert("페이지 제목을 입력해주세요.");
+    if (!name) {
+      alert("파일 이름을 입력해주세요.");
       return;
     }
 
     if (
-      state.pages.some(
-        (item) =>
-          item.id !== pageId &&
-          item.name.toLowerCase() ===
-            cleanName.toLowerCase()
+      state.files.some(
+        other =>
+          other.id !== fileId &&
+          normalize(other.name) ===
+            normalize(name)
       )
     ) {
-      alert("같은 이름의 페이지가 이미 있습니다.");
+      alert("같은 이름의 파일이 있습니다.");
       return;
     }
 
-    page.name = cleanName;
+    file.name = name;
 
     save();
     renderHome();
   }
 
-  function deletePage(pageId) {
-    const page = getPage(pageId);
+  function deleteFile(fileId) {
+    const file = getFile(fileId);
 
-    if (!page) return;
+    if (!file) return;
 
-    const answer = confirm(
-      `"${page.name}" 페이지를 삭제할까요?\n\n페이지 안의 묶음과 단어도 모두 삭제됩니다.`
+    if (
+      !confirm(
+        `"${file.name}" 파일을 삭제할까요?\n안의 테스트와 단어도 삭제됩니다.`
+      )
+    ) {
+      return;
+    }
+
+    state.files = state.files.filter(
+      item => item.id !== fileId
     );
 
-    if (!answer) return;
-
-    state.pages = state.pages.filter(
-      (item) => item.id !== pageId
-    );
-
-    if (currentPageId === pageId) {
-      currentPageId = null;
+    if (currentFileId === fileId) {
+      currentFileId = null;
+      currentTestId = null;
     }
 
     save();
     renderHome();
   }
 
-  function setupPageDrag() {
-    document
-      .querySelectorAll(".page-card")
-      .forEach((card) => {
-        card.addEventListener(
-          "dragstart",
-          () => {
-            draggedPageId =
-              card.dataset.pageId;
+  /* =====================================================
+     파일 내부 테스트
+     ===================================================== */
 
-            card.classList.add("dragging");
-          }
-        );
+  function openFile(fileId) {
+    const file = getFile(fileId);
 
-        card.addEventListener(
-          "dragend",
-          () => {
-            draggedPageId = null;
+    if (!file) return;
 
-            document
-              .querySelectorAll(".page-card")
-              .forEach((item) => {
-                item.classList.remove(
-                  "dragging",
-                  "drag-over"
-                );
-              });
-          }
-        );
+    currentFileId = fileId;
+    currentTestId = null;
 
-        card.addEventListener(
-          "dragover",
-          (event) => {
-            event.preventDefault();
-
-            if (
-              draggedPageId &&
-              draggedPageId !==
-                card.dataset.pageId
-            ) {
-              card.classList.add("drag-over");
-            }
-          }
-        );
-
-        card.addEventListener(
-          "dragleave",
-          () => {
-            card.classList.remove(
-              "drag-over"
-            );
-          }
-        );
-
-        card.addEventListener(
-          "drop",
-          (event) => {
-            event.preventDefault();
-
-            const targetId =
-              card.dataset.pageId;
-
-            if (
-              !draggedPageId ||
-              draggedPageId === targetId
-            ) {
-              return;
-            }
-
-            const fromIndex =
-              state.pages.findIndex(
-                (page) =>
-                  page.id === draggedPageId
-              );
-
-            const toIndex =
-              state.pages.findIndex(
-                (page) =>
-                  page.id === targetId
-              );
-
-            if (
-              fromIndex === -1 ||
-              toIndex === -1
-            ) {
-              return;
-            }
-
-            const [moved] =
-              state.pages.splice(
-                fromIndex,
-                1
-              );
-
-            state.pages.splice(
-              toIndex,
-              0,
-              moved
-            );
-
-            save();
-            renderHome();
-          }
-        );
-      });
+    renderFile();
   }
 
-  /* ========================================================
-     페이지
-     ======================================================== */
+  function renderFile() {
+    const file = getCurrentFile();
 
-  function openPage(pageId) {
-    const page = getPage(pageId);
-
-    if (!page) return;
-
-    currentPageId = pageId;
-    currentBundleId = null;
-
-    renderSubject();
-  }
-
-  function renderSubject() {
-    currentView = "subject";
-
-    const page = getCurrentPage();
-
-    if (!page) {
+    if (!file) {
       renderHome();
       return;
     }
 
-    showOnly("subjectView");
+    show("fileView");
     updateNav("");
 
     document.getElementById(
-      "subjectName"
-    ).textContent = page.name;
+      "fileBreadcrumb"
+    ).textContent = file.name;
 
     document.getElementById(
-      "subjectTitle"
-    ).textContent = page.name;
-
-    document.getElementById(
-      "subjectDescription"
-    ).textContent =
-      `"${page.name}" 암기 페이지`;
-
-    document.getElementById(
-      "subjectTestInfo"
-    ).textContent =
-      `${page.name} → 뜻 / 뜻 → ${page.name}`;
+      "fileTitle"
+    ).textContent = `📁 ${file.name}`;
 
     const list =
-      document.getElementById(
-        "bundleList"
-      );
+      document.getElementById("testList");
 
-    if (!page.bundles.length) {
+    if (!file.tests.length) {
       list.innerHTML = `
         <div class="empty">
-          아직 묶음이 없습니다.<br>
-          「＋ 묶음칸 생성」을 눌러주세요.
+          아직 테스트가 없습니다.<br>
+          「＋ 테스트 생성」을 눌러주세요.
         </div>
       `;
-
       return;
     }
 
-    list.innerHTML = page.bundles
+    list.innerHTML = file.tests
       .map(
-        (bundle) => `
-          <article class="bundle-card">
+        test => `
+          <article
+            class="test-card"
+            draggable="true"
+            data-id="${test.id}"
+            data-drag-type="test"
+          >
 
-            <div class="bundle-card-head">
-              <div>
-                <div class="bundle-card-title">
-                  ${escapeHTML(bundle.name)}
+            <div class="drag-handle">☷</div>
+
+            <div style="flex:1">
+
+              <div class="test-card-head">
+
+                <button
+                  class="file-main"
+                  type="button"
+                  data-open-test="${test.id}"
+                >
+                  <div class="test-name">
+                    📝 ${escapeHTML(test.name)}
+                  </div>
+
+                  <div class="test-sub">
+                    ${test.words.length}개 단어
+                  </div>
+                </button>
+
+                <div class="test-card-actions">
+
+                  <button
+                    type="button"
+                    title="이름 변경"
+                    data-rename-test="${test.id}"
+                  >
+                    ✏️
+                  </button>
+
+                  <button
+                    type="button"
+                    title="삭제"
+                    data-delete-test="${test.id}"
+                  >
+                    🗑️
+                  </button>
+
                 </div>
 
-                <div class="bundle-card-count">
-                  ${bundle.words.length}개 단어
-                </div>
               </div>
-            </div>
 
-            <div class="bundle-actions">
+              <div class="test-card-foot">
 
-              <button
-                class="primary-btn"
-                type="button"
-                data-open-bundle="${bundle.id}"
-              >
-                📚 단어장
-              </button>
+                <button
+                  class="primary-btn"
+                  type="button"
+                  data-test-start="${test.id}"
+                  data-test-mode="all"
+                >
+                  전체 테스트
+                </button>
 
-              <button
-                class="secondary-btn"
-                type="button"
-                data-rename-bundle="${bundle.id}"
-              >
-                ✏️ 이름 변경
-              </button>
+                <button
+                  class="secondary-btn"
+                  type="button"
+                  data-test-start="${test.id}"
+                  data-test-mode="quick"
+                >
+                  ⚡ 빠른 테스트
+                </button>
 
-              <button
-                class="danger-btn"
-                type="button"
-                data-delete-bundle="${bundle.id}"
-              >
-                🗑️ 삭제
-              </button>
+              </div>
 
             </div>
 
@@ -512,201 +451,211 @@
         `
       )
       .join("");
+
+    setupDragAndDrop();
   }
 
-  function addBundle() {
-    const page = getCurrentPage();
+  function addTest() {
+    const file = getCurrentFile();
 
-    if (!page) return;
+    if (!file) return;
 
-    const name = prompt(
-      "묶음 제목을 입력하세요."
+    const value = prompt(
+      "테스트 제목을 입력하세요."
     );
 
-    if (name === null) return;
+    if (value === null) return;
 
-    const cleanName = name.trim();
+    const name = value.trim();
 
-    if (!cleanName) {
-      alert("묶음 제목을 입력해주세요.");
+    if (!name) {
+      alert("테스트 제목을 입력해주세요.");
       return;
     }
 
     if (
-      page.bundles.some(
-        (bundle) =>
-          bundle.name.toLowerCase() ===
-          cleanName.toLowerCase()
+      file.tests.some(
+        test =>
+          normalize(test.name) ===
+          normalize(name)
       )
     ) {
-      alert("같은 이름의 묶음이 이미 있습니다.");
+      alert("같은 이름의 테스트가 있습니다.");
       return;
     }
 
-    page.bundles.push({
-      id: uid("bundle"),
-      name: cleanName,
-      words: [],
+    file.tests.push({
+      id: uid("test"),
+      name,
+      words: []
     });
 
     save();
-    renderSubject();
+    renderFile();
   }
 
-  function renameBundle(bundleId) {
-    const bundle = getBundle(bundleId);
+  function renameTest(testId) {
+    const file = getCurrentFile();
 
-    if (!bundle) return;
+    if (!file) return;
 
-    const name = prompt(
-      "묶음 제목을 변경하세요.",
-      bundle.name
+    const test = file.tests.find(
+      item => item.id === testId
     );
 
-    if (name === null) return;
+    if (!test) return;
 
-    const cleanName = name.trim();
+    const value = prompt(
+      "테스트 제목을 변경하세요.",
+      test.name
+    );
 
-    if (!cleanName) {
-      alert("묶음 제목을 입력해주세요.");
+    if (value === null) return;
+
+    const name = value.trim();
+
+    if (!name) {
+      alert("테스트 제목을 입력해주세요.");
       return;
     }
-
-    const page = getCurrentPage();
 
     if (
-      page.bundles.some(
-        (item) =>
-          item.id !== bundleId &&
-          item.name.toLowerCase() ===
-            cleanName.toLowerCase()
+      file.tests.some(
+        other =>
+          other.id !== testId &&
+          normalize(other.name) ===
+            normalize(name)
       )
     ) {
-      alert("같은 이름의 묶음이 이미 있습니다.");
+      alert("같은 이름의 테스트가 있습니다.");
       return;
     }
 
-    bundle.name = cleanName;
+    test.name = name;
 
     save();
-    renderSubject();
+    renderFile();
   }
 
-  function deleteBundle(bundleId) {
-    const page = getCurrentPage();
+  function deleteTest(testId) {
+    const file = getCurrentFile();
 
-    if (!page) return;
+    if (!file) return;
 
-    const bundle =
-      page.bundles.find(
-        (item) => item.id === bundleId
-      );
-
-    if (!bundle) return;
-
-    const answer = confirm(
-      `"${bundle.name}" 묶음을 삭제할까요?\n\n안의 단어도 모두 삭제됩니다.`
+    const test = file.tests.find(
+      item => item.id === testId
     );
 
-    if (!answer) return;
+    if (!test) return;
 
-    page.bundles =
-      page.bundles.filter(
-        (item) => item.id !== bundleId
-      );
+    if (
+      !confirm(
+        `"${test.name}" 테스트를 삭제할까요?\n안의 단어도 삭제됩니다.`
+      )
+    ) {
+      return;
+    }
+
+    file.tests = file.tests.filter(
+      item => item.id !== testId
+    );
+
+    if (currentTestId === testId) {
+      currentTestId = null;
+    }
 
     save();
-    renderSubject();
+    renderFile();
   }
 
-  /* ========================================================
-     묶음
-     ======================================================== */
+  /* =====================================================
+     단어장/테스트 화면
+     ===================================================== */
 
-  function openBundle(bundleId) {
-    const page = getCurrentPage();
+  function openTest(testId) {
+    const file = getCurrentFile();
 
-    if (!page) return;
+    if (!file) return;
 
-    const bundle =
-      page.bundles.find(
-        (item) => item.id === bundleId
-      );
+    const test = file.tests.find(
+      item => item.id === testId
+    );
 
-    if (!bundle) return;
+    if (!test) return;
 
-    currentBundleId = bundleId;
+    currentTestId = testId;
 
-    renderBundle();
+    renderWordbook();
   }
 
-  function renderBundle() {
-    currentView = "bundle";
+  function renderWordbook() {
+    const file = getCurrentFile();
+    const test = getCurrentTest();
 
-    const page = getCurrentPage();
-    const bundle = getCurrentBundle();
-
-    if (!page || !bundle) {
+    if (!file || !test) {
       renderHome();
       return;
     }
 
-    showOnly("bundleView");
+    show("wordbookView");
     updateNav("");
 
     document.getElementById(
-      "bundleBackSubjectBtn"
-    ).textContent = page.name;
+      "wordbookFileBtn"
+    ).textContent = file.name;
 
     document.getElementById(
-      "bundleBreadcrumbName"
-    ).textContent = bundle.name;
+      "wordbookBreadcrumb"
+    ).textContent = test.name;
 
     document.getElementById(
-      "bundleTitle"
-    ).textContent = bundle.name;
+      "wordbookTitle"
+    ).textContent = `📝 ${test.name}`;
 
     document.getElementById(
-      "bundleWordCount"
+      "wordbookCount"
     ).textContent =
-      `${bundle.words.length}개 단어`;
+      `${test.words.length}개 단어`;
 
     document.getElementById(
       "directTestBtn"
     ).textContent =
-      `📝 ${page.name} → 뜻`;
+      `${file.name} → 뜻`;
 
     document.getElementById(
       "reverseTestBtn"
     ).textContent =
-      `📝 뜻 → ${page.name}`;
+      `뜻 → ${file.name}`;
 
     const list =
       document.getElementById(
         "wordList"
       );
 
-    if (!bundle.words.length) {
+    if (!test.words.length) {
       list.innerHTML = `
         <div class="empty">
           아직 단어가 없습니다.
         </div>
       `;
-
       return;
     }
 
-    list.innerHTML = bundle.words
+    list.innerHTML = test.words
       .map(
-        (word) => `
+        word => `
           <div class="word-row">
-            <div class="word-left">
+
+            <div>
               <div class="word-term">
+                ${word.important ? "⭐ " : ""}
                 ${escapeHTML(word.term)}
               </div>
 
               <div class="word-meaning">
-                ${escapeHTML(word.meaning)}
+                ${escapeHTML(
+                  word.meanings.join(", ")
+                )}
               </div>
             </div>
 
@@ -714,8 +663,7 @@
 
               <button
                 type="button"
-                data-toggle-important="${word.id}"
-                title="중요"
+                data-important-word="${word.id}"
               >
                 ${word.important ? "⭐" : "☆"}
               </button>
@@ -735,153 +683,187 @@
               </button>
 
             </div>
+
           </div>
         `
       )
       .join("");
   }
 
-  function addWord() {
-    const bundle = getCurrentBundle();
+  /* =====================================================
+     단어 추가
+     ===================================================== */
 
-    if (!bundle) return;
+  function addWordsFromText() {
+    const test = getCurrentTest();
 
-    const termInput =
+    if (!test) return;
+
+    const input =
       document.getElementById(
-        "wordInput"
+        "bulkWordInput"
       );
 
-    const meaningInput =
-      document.getElementById(
-        "meaningInput"
-      );
+    const value = input.value.trim();
 
-    const term = termInput.value.trim();
-    const meaning =
-      meaningInput.value.trim();
-
-    if (!term) {
+    if (!value) {
       alert("단어를 입력해주세요.");
-      termInput.focus();
+      input.focus();
       return;
     }
 
-    if (!meaning) {
-      alert("뜻을 입력해주세요.");
-      meaningInput.focus();
-      return;
+    const entries = value
+      .split("/")
+      .map(item => item.trim())
+      .filter(Boolean);
+
+    let added = 0;
+
+    for (const entry of entries) {
+      const separator =
+        entry.indexOf(":");
+
+      if (separator === -1) {
+        alert(
+          `"${entry}"에 : 구분자가 없습니다.`
+        );
+        return;
+      }
+
+      const term =
+        entry
+          .slice(0, separator)
+          .trim();
+
+      const meaningText =
+        entry
+          .slice(separator + 1)
+          .trim();
+
+      if (!term || !meaningText) {
+        alert(
+          `"${entry}"의 단어 또는 뜻이 비어 있습니다.`
+        );
+        return;
+      }
+
+      const meanings =
+        meaningText
+          .split(",")
+          .map(item => item.trim())
+          .filter(Boolean);
+
+      if (!meanings.length) {
+        alert(
+          `"${entry}"의 뜻이 없습니다.`
+        );
+        return;
+      }
+
+      const duplicate =
+        test.words.some(
+          word =>
+            normalize(word.term) ===
+              normalize(term) &&
+            word.meanings.some(
+              oldMeaning =>
+                meanings.some(
+                  newMeaning =>
+                    normalize(
+                      oldMeaning
+                    ) ===
+                    normalize(
+                      newMeaning
+                    )
+                )
+            )
+        );
+
+      if (duplicate) {
+        alert(
+          `"${term}"과 겹치는 단어가 있습니다.`
+        );
+        return;
+      }
+
+      test.words.push({
+        id: uid("word"),
+        term,
+        meaning: meanings[0],
+        meanings,
+        important: false,
+        correct: 0,
+        wrong: 0,
+        lastWrong: null
+      });
+
+      added++;
     }
 
-    const duplicate =
-      bundle.words.some(
-        (word) =>
-          normalizeForCompare(
-            word.term
-          ) ===
-            normalizeForCompare(term) &&
-          normalizeForCompare(
-            word.meaning
-          ) ===
-            normalizeForCompare(meaning)
-      );
-
-    if (duplicate) {
-      alert("같은 단어와 뜻이 이미 있습니다.");
-      return;
+    if (added > 0) {
+      input.value = "";
+      save();
+      renderWordbook();
+      input.focus();
     }
-
-    bundle.words.push({
-      id: uid("word"),
-      term,
-      meaning,
-      important: false,
-      correct: 0,
-      wrong: 0,
-      lastWrong: null,
-    });
-
-    termInput.value = "";
-    meaningInput.value = "";
-
-    save();
-    renderBundle();
-
-    termInput.focus();
   }
 
   function editWord(wordId) {
-    const bundle = getCurrentBundle();
+    const test = getCurrentTest();
 
-    if (!bundle) return;
+    if (!test) return;
 
-    const word =
-      bundle.words.find(
-        (item) => item.id === wordId
-      );
+    const word = test.words.find(
+      item => item.id === wordId
+    );
 
     if (!word) return;
 
     const term = prompt(
-      "단어를 수정하세요.",
+      "단어",
       word.term
     );
 
     if (term === null) return;
 
-    const meaning = prompt(
-      "뜻을 수정하세요.",
-      word.meaning
+    const meanings = prompt(
+      "뜻 (여러 뜻은 , 로 구분)",
+      word.meanings.join(",")
     );
 
-    if (meaning === null) return;
+    if (meanings === null) return;
 
     const cleanTerm = term.trim();
-    const cleanMeaning = meaning.trim();
 
-    if (!cleanTerm || !cleanMeaning) {
+    const cleanMeanings = meanings
+      .split(",")
+      .map(item => item.trim())
+      .filter(Boolean);
+
+    if (
+      !cleanTerm ||
+      !cleanMeanings.length
+    ) {
       alert("단어와 뜻을 모두 입력해주세요.");
       return;
     }
 
-    const duplicate =
-      bundle.words.some(
-        (item) =>
-          item.id !== wordId &&
-          normalizeForCompare(
-            item.term
-          ) ===
-            normalizeForCompare(
-              cleanTerm
-            ) &&
-          normalizeForCompare(
-            item.meaning
-          ) ===
-            normalizeForCompare(
-              cleanMeaning
-            )
-      );
-
-    if (duplicate) {
-      alert("같은 단어와 뜻이 이미 있습니다.");
-      return;
-    }
-
     word.term = cleanTerm;
-    word.meaning = cleanMeaning;
+    word.meanings = cleanMeanings;
+    word.meaning = cleanMeanings[0];
 
     save();
-    renderBundle();
+    renderWordbook();
   }
 
   function deleteWord(wordId) {
-    const bundle = getCurrentBundle();
+    const test = getCurrentTest();
 
-    if (!bundle) return;
+    if (!test) return;
 
-    const word =
-      bundle.words.find(
-        (item) => item.id === wordId
-      );
+    const word = test.words.find(
+      item => item.id === wordId
+    );
 
     if (!word) return;
 
@@ -893,503 +875,55 @@
       return;
     }
 
-    bundle.words =
-      bundle.words.filter(
-        (item) => item.id !== wordId
-      );
+    test.words = test.words.filter(
+      item => item.id !== wordId
+    );
 
     save();
-    renderBundle();
+    renderWordbook();
   }
 
   function toggleImportant(wordId) {
-    const bundle = getCurrentBundle();
+    const test = getCurrentTest();
 
-    if (!bundle) return;
+    if (!test) return;
 
-    const word =
-      bundle.words.find(
-        (item) => item.id === wordId
-      );
+    const word = test.words.find(
+      item => item.id === wordId
+    );
 
     if (!word) return;
 
     word.important = !word.important;
 
     save();
-    renderBundle();
+    renderWordbook();
   }
 
-  /* ========================================================
-     정답 비교
-     ======================================================== */
+  /* =====================================================
+     테스트 시작
+     ===================================================== */
 
-  function normalizeForCompare(value) {
-    return String(value ?? "")
-      .trim()
-      .toLowerCase();
-  }
-
-  function isAnswerCorrect(input, answer) {
-    return (
-      normalizeForCompare(input) ===
-      normalizeForCompare(answer)
-    );
-  }
-
-  /* ========================================================
-     테스트
-     ======================================================== */
-
-  function collectAllWords() {
-    const page = getCurrentPage();
-
-    if (!page) return [];
-
-    return page.bundles.flatMap(
-      (bundle) =>
-        bundle.words.map((word) => ({
-          ...word,
-          bundleId: bundle.id,
-        }))
-    );
-  }
-
-  function startTest(mode) {
-    const bundle = getCurrentBundle();
-
-    if (!bundle) return;
-
-    if (!bundle.words.length) {
+  function startQuiz(
+    test,
+    mode
+  ) {
+    if (!test.words.length) {
       alert("테스트할 단어가 없습니다.");
       return;
     }
 
-    let words = [...bundle.words];
-
-    if (mode === "wrong") {
-      words = words.filter(
-        (word) => word.wrong > 0
-      );
-    }
+    let words = [...test.words];
 
     if (mode === "important") {
       words = words.filter(
-        (word) => word.important
+        word => word.important
       );
     }
 
-    if (!words.length) {
-      alert("조건에 맞는 단어가 없습니다.");
-      return;
-    }
-
-    words.sort(
-      () => Math.random() - 0.5
-    );
-
-    let direction = "mixed";
-
-    if (
-      mode === "direct" ||
-      mode === "reverse"
-    ) {
-      direction = mode;
-    }
-
-    testSession = {
-      pageId: currentPageId,
-      bundleId: currentBundleId,
-      mode,
-      direction,
-      words,
-      index: 0,
-      correct: 0,
-      wrong: 0,
-      wrongWords: [],
-      answered: false,
-    };
-
-    renderTestQuestion();
-  }
-
-  function renderTestQuestion() {
-    if (!testSession) return;
-
-    clearTimer();
-
-    if (
-      testSession.index >=
-      testSession.words.length
-    ) {
-      finishTest();
-      return;
-    }
-
-    currentView = "test";
-
-    showOnly("testView");
-    updateNav("");
-
-    const word =
-      testSession.words[
-        testSession.index
-      ];
-
-    let direction =
-      testSession.direction;
-
-    if (direction === "mixed") {
-      direction =
-        Math.random() < 0.5
-          ? "direct"
-          : "reverse";
-
-      testSession.currentDirection =
-        direction;
-    }
-
-    if (direction === "direct") {
-      document.getElementById(
-        "questionDirection"
-      ).textContent =
-        `${getPageTerm()} → 뜻`;
-
-      document.getElementById(
-        "questionText"
-      ).textContent =
-        word.term;
-    } else {
-      document.getElementById(
-        "questionDirection"
-      ).textContent =
-        `뜻 → ${getPageTerm()}`;
-
-      document.getElementById(
-        "questionText"
-      ).textContent =
-        word.meaning;
-    }
-
-    document.getElementById(
-      "testProgress"
-    ).textContent =
-      `${testSession.index + 1} / ${testSession.words.length}`;
-
-    document.getElementById(
-      "answerInput"
-    ).value = "";
-
-    document.getElementById(
-      "answerInput"
-    ).disabled = false;
-
-    document.getElementById(
-      "submitAnswerBtn"
-    ).disabled = false;
-
-    document.getElementById(
-      "answerResult"
-    ).textContent = "";
-
-    document
-      .getElementById("answerResult")
-      .className = "answer-result";
-
-    testSession.answered = false;
-
-    document
-      .getElementById("answerInput")
-      .focus();
-
-    startTimer();
-  }
-
-  function submitAnswer() {
-    if (!testSession) return;
-
-    if (testSession.answered) {
-      nextQuestion();
-      return;
-    }
-
-    clearTimer();
-
-    const word =
-      testSession.words[
-        testSession.index
-      ];
-
-    const input =
-      document.getElementById(
-        "answerInput"
-      ).value;
-
-    if (!input.trim()) {
-      handleWrong(word, true);
-      return;
-    }
-
-    const direction =
-      testSession.direction ===
-      "mixed"
-        ? testSession.currentDirection
-        : testSession.direction;
-
-    let correctAnswer = "";
-
-    if (direction === "direct") {
-      correctAnswer = word.meaning;
-    } else {
-      correctAnswer = word.term;
-    }
-
-    const correct =
-      isAnswerCorrect(
-        input,
-        correctAnswer
-      );
-
-    if (correct) {
-      handleCorrect(word);
-    } else {
-      handleWrong(word, false);
-    }
-
-    testSession.answered = true;
-
-    document.getElementById(
-      "answerInput"
-    ).disabled = true;
-
-    document.getElementById(
-      "submitAnswerBtn"
-    ).disabled = false;
-  }
-
-  function handleCorrect(word) {
-    word.correct =
-      Number(word.correct || 0) + 1;
-
-    testSession.correct += 1;
-
-    const result =
-      document.getElementById(
-        "answerResult"
-      );
-
-    result.textContent = "⭕ 정답!";
-    result.className =
-      "answer-result correct";
-
-    save();
-  }
-
-  function handleWrong(
-    word,
-    timeout
-  ) {
-    word.wrong =
-      Number(word.wrong || 0) + 1;
-
-    word.lastWrong =
-      new Date().toISOString();
-
-    testSession.wrong += 1;
-    testSession.wrongWords.push(word);
-
-    const result =
-      document.getElementById(
-        "answerResult"
-      );
-
-    result.textContent = timeout
-      ? "⏰ 시간 초과! 오답입니다."
-      : "❌ 오답입니다.";
-
-    result.className =
-      "answer-result wrong";
-
-    save();
-  }
-
-  function nextQuestion() {
-    if (!testSession?.answered) {
-      submitAnswer();
-      return;
-    }
-
-    testSession.index += 1;
-
-    renderTestQuestion();
-  }
-
-  function startTimer() {
-    let seconds = 10;
-
-    const timer =
-      document.getElementById(
-        "timer"
-      );
-
-    timer.textContent =
-      seconds;
-
-    testTimer = setInterval(() => {
-      seconds -= 1;
-
-      timer.textContent =
-        Math.max(seconds, 0);
-
-      if (seconds <= 0) {
-        clearTimer();
-
-        if (
-          !testSession ||
-          testSession.answered
-        ) {
-          return;
-        }
-
-        const word =
-          testSession.words[
-            testSession.index
-          ];
-
-        handleWrong(word, true);
-
-        testSession.answered = true;
-
-        document.getElementById(
-          "answerInput"
-        ).disabled = true;
-
-        document.getElementById(
-          "submitAnswerBtn"
-        ).disabled = false;
-
-        setTimeout(() => {
-          nextQuestion();
-        }, 700);
-      }
-    }, 1000);
-  }
-
-  function clearTimer() {
-    if (testTimer) {
-      clearInterval(testTimer);
-      testTimer = null;
-    }
-  }
-
-  function finishTest() {
-    clearTimer();
-
-    state.tests += 1;
-    save();
-
-    showResult();
-  }
-
-  function showResult() {
-    currentView = "result";
-
-    showOnly("resultView");
-    updateNav("");
-
-    const total =
-      testSession.words.length;
-
-    const correct =
-      testSession.correct;
-
-    document.getElementById(
-      "resultScore"
-    ).textContent =
-      `${correct} / ${total}`;
-
-    const wrongList =
-      document.getElementById(
-        "wrongList"
-      );
-
-    if (
-      !testSession.wrongWords.length
-    ) {
-      wrongList.innerHTML = `
-        <div class="empty">
-          모든 문제를 맞혔습니다! 🎉
-        </div>
-      `;
-      return;
-    }
-
-    wrongList.innerHTML = `
-      <h3>틀린 단어</h3>
-
-      ${testSession.wrongWords
-        .map(
-          (word) => `
-            <div class="wrong-item">
-              <strong>
-                ${escapeHTML(word.term)}
-              </strong>
-
-              <div>
-                ${escapeHTML(word.meaning)}
-              </div>
-            </div>
-          `
-        )
-        .join("")}
-    `;
-  }
-
-  function retryWrongWords() {
-    if (
-      !testSession ||
-      !testSession.wrongWords.length
-    ) {
-      return;
-    }
-
-    const wrongWords = [
-      ...testSession.wrongWords,
-    ].sort(
-      () => Math.random() - 0.5
-    );
-
-    testSession = {
-      ...testSession,
-      words: wrongWords,
-      index: 0,
-      correct: 0,
-      wrong: 0,
-      wrongWords: [],
-      answered: false,
-    };
-
-    renderTestQuestion();
-  }
-
-  /* ========================================================
-     빠른 테스트
-     ======================================================== */
-
-  function startQuickTest(type) {
-    const page = getCurrentPage();
-
-    if (!page) return;
-
-    let words = [];
-
-    if (type === "important") {
-      words = collectAllWords().filter(
-        (word) => word.important
-      );
-    } else if (type === "wrong") {
-      words = collectAllWords().filter(
-        (word) => word.wrong > 0
+    if (mode === "wrong") {
+      words = words.filter(
+        word => word.wrong > 0
       );
     }
 
@@ -1404,96 +938,730 @@
       () => Math.random() - 0.5
     );
 
-    testSession = {
-      pageId: currentPageId,
-      bundleId: null,
-      mode: type,
-      direction: "mixed",
+    let direction =
+      mode === "direct"
+        ? "direct"
+        : mode === "reverse"
+          ? "reverse"
+          : null;
+
+    quizSession = {
+      fileId: currentFileId,
+      testId: currentTestId,
+      fileName:
+        getCurrentFile().name,
+      testName: test.name,
       words,
+      mode,
+      direction,
+      index: 0,
+      correct: 0,
+      wrong: 0,
+      wrongWords: [],
+      answered: false
+    };
+
+    renderQuizQuestion();
+  }
+
+  function renderQuizQuestion() {
+    clearTimer();
+
+    if (!quizSession) return;
+
+    if (
+      quizSession.index >=
+      quizSession.words.length
+    ) {
+      finishQuiz();
+      return;
+    }
+
+    show("quizView");
+    updateNav("");
+
+    const word =
+      quizSession.words[
+        quizSession.index
+      ];
+
+    let direction =
+      quizSession.direction;
+
+    if (!direction) {
+      direction =
+        Math.random() < 0.5
+          ? "direct"
+          : "reverse";
+
+      quizSession.currentDirection =
+        direction;
+    } else {
+      quizSession.currentDirection =
+        direction;
+    }
+
+    const fileName =
+      quizSession.fileName;
+
+    if (direction === "direct") {
+      document.getElementById(
+        "quizDirection"
+      ).textContent =
+        `${fileName} → 뜻`;
+
+      document.getElementById(
+        "quizQuestion"
+      ).textContent =
+        word.term;
+    } else {
+      document.getElementById(
+        "quizDirection"
+      ).textContent =
+        `뜻 → ${fileName}`;
+
+      document.getElementById(
+        "quizQuestion"
+      ).textContent =
+        word.meanings.join(", ");
+    }
+
+    document.getElementById(
+      "quizProgress"
+    ).textContent =
+      `${quizSession.index + 1} / ${quizSession.words.length}`;
+
+    const answer =
+      document.getElementById(
+        "quizAnswer"
+      );
+
+    answer.value = "";
+    answer.disabled = false;
+
+    document.getElementById(
+      "quizFeedback"
+    ).textContent = "";
+
+    document.getElementById(
+      "quizFeedback"
+    ).className =
+      "quiz-feedback";
+
+    document.getElementById(
+      "quizSubmitBtn"
+    ).textContent =
+      "정답 확인";
+
+    answer.focus();
+
+    startTimer();
+  }
+
+  function isCorrectAnswer(
+    input,
+    word,
+    direction
+  ) {
+    const normalized =
+      normalize(input);
+
+    if (!normalized) {
+      return false;
+    }
+
+    if (direction === "direct") {
+      return word.meanings.some(
+        meaning =>
+          normalize(meaning) ===
+          normalized
+      );
+    }
+
+    return (
+      normalize(word.term) ===
+      normalized
+    );
+  }
+
+  function submitQuizAnswer(
+    fromTimer = false
+  ) {
+    if (!quizSession) return;
+
+    if (quizSession.answered) {
+      nextQuizQuestion();
+      return;
+    }
+
+    clearTimer();
+
+    const answer =
+      document.getElementById(
+        "quizAnswer"
+      );
+
+    const word =
+      quizSession.words[
+        quizSession.index
+      ];
+
+    const direction =
+      quizSession.currentDirection;
+
+    const correct =
+      !fromTimer &&
+      isCorrectAnswer(
+        answer.value,
+        word,
+        direction
+      );
+
+    quizSession.answered = true;
+
+    answer.disabled = true;
+
+    if (correct) {
+      word.correct =
+        Number(word.correct || 0) +
+        1;
+
+      quizSession.correct++;
+
+      const feedback =
+        document.getElementById(
+          "quizFeedback"
+        );
+
+      feedback.textContent =
+        "⭕ 정답입니다.";
+
+      feedback.className =
+        "quiz-feedback feedback-correct";
+
+      save();
+    } else {
+      word.wrong =
+        Number(word.wrong || 0) +
+        1;
+
+      word.lastWrong =
+        new Date().toISOString();
+
+      quizSession.wrong++;
+      quizSession.wrongWords.push(
+        word
+      );
+
+      const feedback =
+        document.getElementById(
+          "quizFeedback"
+        );
+
+      feedback.textContent =
+        fromTimer
+          ? "⏰ 시간 초과! 오답입니다."
+          : "❌ 오답입니다.";
+
+      feedback.className =
+        "quiz-feedback feedback-wrong";
+
+      save();
+    }
+
+    document.getElementById(
+      "quizSubmitBtn"
+    ).textContent =
+      quizSession.index ===
+      quizSession.words.length - 1
+        ? "결과 보기"
+        : "다음 문제";
+  }
+
+  function nextQuizQuestion() {
+    if (!quizSession) return;
+
+    if (!quizSession.answered) {
+      submitQuizAnswer();
+      return;
+    }
+
+    quizSession.index++;
+
+    renderQuizQuestion();
+  }
+
+  function startTimer() {
+    let remaining = 10;
+
+    const timer =
+      document.getElementById(
+        "quizTimer"
+      );
+
+    timer.textContent =
+      remaining;
+
+    timerId = setInterval(() => {
+      remaining--;
+
+      timer.textContent =
+        Math.max(0, remaining);
+
+      if (remaining <= 0) {
+        clearTimer();
+
+        if (
+          !quizSession ||
+          quizSession.answered
+        ) {
+          return;
+        }
+
+        submitQuizAnswer(true);
+
+        setTimeout(
+          () => {
+            nextQuizQuestion();
+          },
+          700
+        );
+      }
+    }, 1000);
+  }
+
+  function clearTimer() {
+    if (timerId) {
+      clearInterval(timerId);
+      timerId = null;
+    }
+  }
+
+  function finishQuiz() {
+    clearTimer();
+
+    state.quizCount++;
+    save();
+
+    showResult();
+  }
+
+  /* =====================================================
+     결과
+     ===================================================== */
+
+  function showResult() {
+    show("resultView");
+    updateNav("");
+
+    const total =
+      quizSession.words.length;
+
+    document.getElementById(
+      "resultScore"
+    ).textContent =
+      `${quizSession.correct} / ${total}`;
+
+    const wrong =
+      document.getElementById(
+        "resultWrongWords"
+      );
+
+    if (
+      !quizSession.wrongWords.length
+    ) {
+      wrong.innerHTML = `
+        <div class="empty">
+          모든 문제를 맞혔습니다! 🎉
+        </div>
+      `;
+      return;
+    }
+
+    wrong.innerHTML = `
+      <h3>틀린 문제</h3>
+
+      ${quizSession.wrongWords
+        .map(
+          word => `
+            <div class="wrong-item">
+              <strong>
+                ${escapeHTML(word.term)}
+              </strong>
+
+              <div>
+                ${escapeHTML(
+                  word.meanings.join(", ")
+                )}
+              </div>
+            </div>
+          `
+        )
+        .join("")}
+    `;
+  }
+
+  function retryWrong() {
+    if (
+      !quizSession ||
+      !quizSession.wrongWords.length
+    ) {
+      alert(
+        "틀린 문제가 없습니다."
+      );
+      return;
+    }
+
+    const test =
+      getCurrentTest();
+
+    if (!test) return;
+
+    quizSession = {
+      ...quizSession,
+      words: [
+        ...quizSession.wrongWords
+      ].sort(
+        () => Math.random() - 0.5
+      ),
       index: 0,
       correct: 0,
       wrong: 0,
       wrongWords: [],
       answered: false,
+      direction:
+        quizSession.mode === "direct"
+          ? "direct"
+          : quizSession.mode ===
+              "reverse"
+            ? "reverse"
+            : null
     };
 
-    renderTestQuestion();
+    renderQuizQuestion();
   }
 
-  function openQuickTestMenu() {
+  /* =====================================================
+     빠른 테스트
+     ===================================================== */
+
+  function openQuickTest() {
     const choice = prompt(
       "빠른 테스트를 선택하세요.\n\n1. ⭐ 중요 단어 테스트\n2. ❌ 틀린 단어 테스트"
     );
 
+    const test =
+      getCurrentTest();
+
+    if (!test) return;
+
     if (choice === "1") {
-      startQuickTest("important");
-    } else if (choice === "2") {
-      startQuickTest("wrong");
+      startQuiz(
+        test,
+        "important"
+      );
+    }
+
+    if (choice === "2") {
+      startQuiz(
+        test,
+        "wrong"
+      );
     }
   }
 
-  /* ========================================================
+  /* =====================================================
+     드래그
+     ===================================================== */
+
+  function setupDragAndDrop() {
+    document
+      .querySelectorAll(
+        "[data-drag-type]"
+      )
+      .forEach(element => {
+
+        element.addEventListener(
+          "dragstart",
+          () => {
+            draggedId =
+              element.dataset.id;
+
+            draggedType =
+              element.dataset.dragType;
+
+            element.classList.add(
+              "dragging"
+            );
+          }
+        );
+
+        element.addEventListener(
+          "dragend",
+          () => {
+            draggedId = null;
+            draggedType = null;
+
+            document
+              .querySelectorAll(
+                "[data-drag-type]"
+              )
+              .forEach(item =>
+                item.classList.remove(
+                  "dragging",
+                  "drag-over"
+                )
+              );
+          }
+        );
+
+        element.addEventListener(
+          "dragover",
+          event => {
+            event.preventDefault();
+
+            if (
+              draggedId &&
+              draggedType ===
+                element.dataset.dragType &&
+              draggedId !==
+                element.dataset.id
+            ) {
+              element.classList.add(
+                "drag-over"
+              );
+            }
+          }
+        );
+
+        element.addEventListener(
+          "dragleave",
+          () => {
+            element.classList.remove(
+              "drag-over"
+            );
+          }
+        );
+
+        element.addEventListener(
+          "drop",
+          event => {
+            event.preventDefault();
+
+            const targetId =
+              element.dataset.id;
+
+            if (
+              !draggedId ||
+              draggedId === targetId ||
+              draggedType !==
+                element.dataset.dragType
+            ) {
+              return;
+            }
+
+            if (
+              draggedType === "file"
+            ) {
+              reorderFiles(
+                draggedId,
+                targetId
+              );
+            }
+
+            if (
+              draggedType === "test"
+            ) {
+              reorderTests(
+                draggedId,
+                targetId
+              );
+            }
+          }
+        );
+      });
+  }
+
+  function reorderFiles(
+    fromId,
+    toId
+  ) {
+    const from =
+      state.files.findIndex(
+        item => item.id === fromId
+      );
+
+    const to =
+      state.files.findIndex(
+        item => item.id === toId
+      );
+
+    if (
+      from === -1 ||
+      to === -1
+    ) {
+      return;
+    }
+
+    const [item] =
+      state.files.splice(
+        from,
+        1
+      );
+
+    state.files.splice(
+      to,
+      0,
+      item
+    );
+
+    save();
+    renderHome();
+  }
+
+  function reorderTests(
+    fromId,
+    toId
+  ) {
+    const file =
+      getCurrentFile();
+
+    if (!file) return;
+
+    const from =
+      file.tests.findIndex(
+        item => item.id === fromId
+      );
+
+    const to =
+      file.tests.findIndex(
+        item => item.id === toId
+      );
+
+    if (
+      from === -1 ||
+      to === -1
+    ) {
+      return;
+    }
+
+    const [item] =
+      file.tests.splice(
+        from,
+        1
+      );
+
+    file.tests.splice(
+      to,
+      0,
+      item
+    );
+
+    save();
+    renderFile();
+  }
+
+  /* =====================================================
      통계
-     ======================================================== */
+     ===================================================== */
 
   function renderStats() {
-    currentView = "stats";
-
-    showOnly("statsView");
+    show("statsView");
     updateNav("stats");
 
-    const bundleCount =
-      state.pages.reduce(
-        (sum, page) =>
-          sum + page.bundles.length,
+    const testCount =
+      state.files.reduce(
+        (sum, file) =>
+          sum + file.tests.length,
         0
       );
 
     const wordCount =
-      state.pages.reduce(
-        (sum, page) =>
+      state.files.reduce(
+        (sum, file) =>
           sum +
-          page.bundles.reduce(
-            (inner, bundle) =>
-              inner + bundle.words.length,
+          file.tests.reduce(
+            (inner, test) =>
+              inner +
+              test.words.length,
             0
           ),
         0
       );
 
     document.getElementById(
-      "statPages"
+      "statFileCount"
     ).textContent =
-      state.pages.length;
+      state.files.length;
 
     document.getElementById(
-      "statBundles"
+      "statTestCount"
     ).textContent =
-      bundleCount;
+      testCount;
 
     document.getElementById(
-      "statWords"
+      "statWordCount"
     ).textContent =
       wordCount;
 
     document.getElementById(
-      "statTests"
+      "statQuizCount"
     ).textContent =
-      state.tests;
+      state.quizCount;
   }
 
-  /* ========================================================
+  /* =====================================================
+     다크모드
+     ===================================================== */
+
+  function loadTheme() {
+    const theme =
+      localStorage.getItem(
+        THEME_KEY
+      );
+
+    if (theme === "dark") {
+      document.documentElement.classList.add(
+        "dark"
+      );
+
+      document.getElementById(
+        "themeBtn"
+      ).textContent = "☀️";
+    } else {
+      document.getElementById(
+        "themeBtn"
+      ).textContent = "🌙";
+    }
+  }
+
+  function toggleTheme() {
+    const dark =
+      document.documentElement.classList.toggle(
+        "dark"
+      );
+
+    localStorage.setItem(
+      THEME_KEY,
+      dark ? "dark" : "light"
+    );
+
+    document.getElementById(
+      "themeBtn"
+    ).textContent =
+      dark ? "☀️" : "🌙";
+  }
+
+  /* =====================================================
      설정
-     ======================================================== */
+     ===================================================== */
 
   function renderSettings() {
-    currentView = "settings";
-
-    showOnly("settingsView");
+    show("settingsView");
     updateNav("settings");
 
     document.getElementById(
-      "offlineStatus"
+      "onlineStatus"
     ).textContent =
       navigator.onLine
         ? "온라인"
@@ -1507,25 +1675,33 @@
           state,
           null,
           2
-        ),
+        )
       ],
       {
-        type: "application/json",
+        type: "application/json"
       }
     );
 
     const url =
-      URL.createObjectURL(blob);
+      URL.createObjectURL(
+        blob
+      );
 
     const link =
-      document.createElement("a");
+      document.createElement(
+        "a"
+      );
 
     link.href = url;
     link.download =
       "memory-app-backup.json";
 
-    document.body.appendChild(link);
+    document.body.appendChild(
+      link
+    );
+
     link.click();
+
     link.remove();
 
     URL.revokeObjectURL(url);
@@ -1547,12 +1723,10 @@
         if (
           !parsed ||
           !Array.isArray(
-            parsed.pages
+            parsed.files
           )
         ) {
-          throw new Error(
-            "잘못된 파일"
-          );
+          throw new Error();
         }
 
         if (
@@ -1563,18 +1737,25 @@
           return;
         }
 
-        state.pages =
-          parsed.pages;
+        state.files =
+          parsed.files;
 
-        state.tests =
-          Number(parsed.tests) || 0;
+        state.quizCount =
+          Number(
+            parsed.quizCount
+          ) || 0;
 
+        normalizeData();
         save();
 
+        currentFileId = null;
+        currentTestId = null;
+
         renderHome();
-      } catch (error) {
+
+      } catch {
         alert(
-          "불러오기에 실패했습니다."
+          "잘못된 데이터 파일입니다."
         );
       }
     };
@@ -1582,51 +1763,54 @@
     reader.readAsText(file);
   }
 
-  function resetData() {
+  function resetAll() {
     if (
       !confirm(
-        "모든 페이지, 묶음, 단어와 기록을 삭제할까요?"
+        "모든 파일, 테스트, 단어와 기록을 삭제할까요?"
       )
     ) {
       return;
     }
 
-    state.pages = [];
-    state.tests = 0;
+    state.files = [];
+    state.quizCount = 0;
 
-    currentPageId = null;
-    currentBundleId = null;
+    currentFileId = null;
+    currentTestId = null;
 
     save();
     renderHome();
   }
 
-  /* ========================================================
+  /* =====================================================
      이벤트
-     ======================================================== */
+     ===================================================== */
 
   document.addEventListener(
     "click",
-    (event) => {
+    event => {
+
       const target =
         event.target;
 
       const nav =
         target.closest(
-          ".nav-btn"
+          "[data-nav]"
         );
 
       if (nav) {
         const page =
-          nav.dataset.page;
+          nav.dataset.nav;
 
         if (page === "home") {
           renderHome();
-        } else if (page === "stats") {
+        }
+
+        if (page === "stats") {
           renderStats();
-        } else if (
-          page === "settings"
-        ) {
+        }
+
+        if (page === "settings") {
           renderSettings();
         }
 
@@ -1634,132 +1818,173 @@
       }
 
       if (
-        target.closest("#logoBtn")
+        target.closest("#themeBtn")
+      ) {
+        toggleTheme();
+        return;
+      }
+
+      if (
+        target.closest("#addFileBtn")
+      ) {
+        addFile();
+        return;
+      }
+
+      const openFileButton =
+        target.closest(
+          "[data-open-file]"
+        );
+
+      if (openFileButton) {
+        openFile(
+          openFileButton.dataset
+            .openFile
+        );
+        return;
+      }
+
+      const renameFileButton =
+        target.closest(
+          "[data-rename-file]"
+        );
+
+      if (renameFileButton) {
+        renameFile(
+          renameFileButton.dataset
+            .renameFile
+        );
+        return;
+      }
+
+      const deleteFileButton =
+        target.closest(
+          "[data-delete-file]"
+        );
+
+      if (deleteFileButton) {
+        deleteFile(
+          deleteFileButton.dataset
+            .deleteFile
+        );
+        return;
+      }
+
+      if (
+        target.closest("#fileHomeBtn")
       ) {
         renderHome();
         return;
       }
 
       if (
-        target.closest("#addPageBtn")
+        target.closest("#addTestBtn")
       ) {
-        addPage();
+        addTest();
         return;
       }
 
-      const openPageButton =
-        target.closest(
-          "[data-open-page]"
-        );
-
-      if (openPageButton) {
-        openPage(
-          openPageButton.dataset
-            .openPage
-        );
-        return;
-      }
-
-      const renamePageButton =
-        target.closest(
-          "[data-rename-page]"
-        );
-
-      if (renamePageButton) {
-        renamePage(
-          renamePageButton.dataset
-            .renamePage
-        );
-        return;
-      }
-
-      const deletePageButton =
-        target.closest(
-          "[data-delete-page]"
-        );
-
-      if (deletePageButton) {
-        deletePage(
-          deletePageButton.dataset
-            .deletePage
+      if (
+        target.closest("#renameFileBtn")
+      ) {
+        renameFile(
+          currentFileId
         );
         return;
       }
 
       if (
-        target.closest("#backHomeBtn")
+        target.closest("#deleteFileBtn")
       ) {
-        renderHome();
+        deleteFile(
+          currentFileId
+        );
+        return;
+      }
+
+      const openTestButton =
+        target.closest(
+          "[data-open-test]"
+        );
+
+      if (openTestButton) {
+        openTest(
+          openTestButton.dataset
+            .openTest
+        );
+        return;
+      }
+
+      const renameTestButton =
+        target.closest(
+          "[data-rename-test]"
+        );
+
+      if (renameTestButton) {
+        renameTest(
+          renameTestButton.dataset
+            .renameTest
+        );
+        return;
+      }
+
+      const deleteTestButton =
+        target.closest(
+          "[data-delete-test]"
+        );
+
+      if (deleteTestButton) {
+        deleteTest(
+          deleteTestButton.dataset
+            .deleteTest
+        );
+        return;
+      }
+
+      const startButton =
+        target.closest(
+          "[data-test-start]"
+        );
+
+      if (startButton) {
+        const file =
+          getCurrentFile();
+
+        if (!file) return;
+
+        const test =
+          file.tests.find(
+            item =>
+              item.id ===
+              startButton.dataset
+                .testStart
+          );
+
+        if (!test) return;
+
+        const mode =
+          startButton.dataset
+            .testMode;
+
+        if (
+          mode === "quick"
+        ) {
+          openQuickTestFor(
+            test
+          );
+        } else {
+          startQuiz(
+            test,
+            "mixed"
+          );
+        }
+
         return;
       }
 
       if (
-        target.closest("#addBundleBtn")
-      ) {
-        addBundle();
-        return;
-      }
-
-      if (
-        target.closest("#renamePageBtn")
-      ) {
-        renamePage(
-          currentPageId
-        );
-        return;
-      }
-
-      if (
-        target.closest("#deletePageBtn")
-      ) {
-        deletePage(
-          currentPageId
-        );
-        return;
-      }
-
-      const openBundleButton =
         target.closest(
-          "[data-open-bundle]"
-        );
-
-      if (openBundleButton) {
-        openBundle(
-          openBundleButton.dataset
-            .openBundle
-        );
-        return;
-      }
-
-      const renameBundleButton =
-        target.closest(
-          "[data-rename-bundle]"
-        );
-
-      if (renameBundleButton) {
-        renameBundle(
-          renameBundleButton.dataset
-            .renameBundle
-        );
-        return;
-      }
-
-      const deleteBundleButton =
-        target.closest(
-          "[data-delete-bundle]"
-        );
-
-      if (deleteBundleButton) {
-        deleteBundle(
-          deleteBundleButton.dataset
-            .deleteBundle
-        );
-        return;
-      }
-
-      if (
-        target.closest(
-          "#bundleBackHomeBtn"
+          "#wordbookHomeBtn"
         )
       ) {
         renderHome();
@@ -1768,35 +1993,105 @@
 
       if (
         target.closest(
-          "#bundleBackSubjectBtn"
+          "#wordbookFileBtn"
         )
       ) {
-        renderSubject();
+        renderFile();
         return;
       }
 
       if (
-        target.closest("#renameBundleBtn")
+        target.closest("#renameTestBtn")
       ) {
-        renameBundle(
-          currentBundleId
+        renameTest(
+          currentTestId
         );
         return;
       }
 
       if (
-        target.closest("#deleteBundleBtn")
+        target.closest("#deleteTestBtn")
       ) {
-        deleteBundle(
-          currentBundleId
+        deleteTest(
+          currentTestId
         );
         return;
       }
 
       if (
-        target.closest("#addWordBtn")
+        target.closest("#addWordsBtn")
       ) {
-        addWord();
+        addWordsFromText();
+        return;
+      }
+
+      if (
+        target.closest("#allTestBtn")
+      ) {
+        const test =
+          getCurrentTest();
+
+        if (test) {
+          startQuiz(
+            test,
+            "mixed"
+          );
+        }
+
+        return;
+      }
+
+      if (
+        target.closest("#directTestBtn")
+      ) {
+        const test =
+          getCurrentTest();
+
+        if (test) {
+          startQuiz(
+            test,
+            "direct"
+          );
+        }
+
+        return;
+      }
+
+      if (
+        target.closest("#reverseTestBtn")
+      ) {
+        const test =
+          getCurrentTest();
+
+        if (test) {
+          startQuiz(
+            test,
+            "reverse"
+          );
+        }
+
+        return;
+      }
+
+      if (
+        target.closest("#quickTestBtn")
+      ) {
+        openQuickTestFor(
+          getCurrentTest()
+        );
+        return;
+      }
+
+      const importantButton =
+        target.closest(
+          "[data-important-word]"
+        );
+
+      if (importantButton) {
+        toggleImportant(
+          importantButton.dataset
+            .importantWord
+        );
         return;
       }
 
@@ -1826,56 +2121,8 @@
         return;
       }
 
-      const importantButton =
-        target.closest(
-          "[data-toggle-important]"
-        );
-
-      if (importantButton) {
-        toggleImportant(
-          importantButton.dataset
-            .toggleImportant
-        );
-        return;
-      }
-
       if (
-        target.closest("#allTestBtn")
-      ) {
-        startTest("mixed");
-        return;
-      }
-
-      if (
-        target.closest("#directTestBtn")
-      ) {
-        startTest("direct");
-        return;
-      }
-
-      if (
-        target.closest("#reverseTestBtn")
-      ) {
-        startTest("reverse");
-        return;
-      }
-
-      if (
-        target.closest("#quickTestBtn")
-      ) {
-        openQuickTestMenu();
-        return;
-      }
-
-      if (
-        target.closest("#submitAnswerBtn")
-      ) {
-        submitAnswer();
-        return;
-      }
-
-      if (
-        target.closest("#exitTestBtn")
+        target.closest("#quitQuizBtn")
       ) {
         if (
           confirm(
@@ -1883,8 +2130,48 @@
           )
         ) {
           clearTimer();
-          testSession = null;
+          quizSession = null;
           renderHome();
+        }
+
+        return;
+      }
+
+      if (
+        target.closest("#quizSubmitBtn")
+      ) {
+        submitQuizAnswer();
+        return;
+      }
+
+      if (
+        target.closest(
+          "#goHomeResultBtn"
+        )
+      ) {
+        quizSession = null;
+        renderHome();
+        return;
+      }
+
+      if (
+        target.closest(
+          "#goCurrentBookBtn"
+        )
+      ) {
+        if (
+          quizSession &&
+          getFile(
+            quizSession.fileId
+          )
+        ) {
+          currentFileId =
+            quizSession.fileId;
+
+          currentTestId =
+            quizSession.testId;
+
+          renderWordbook();
         }
 
         return;
@@ -1893,15 +2180,7 @@
       if (
         target.closest("#retryWrongBtn")
       ) {
-        retryWrongWords();
-        return;
-      }
-
-      if (
-        target.closest("#resultHomeBtn")
-      ) {
-        testSession = null;
-        renderHome();
+        retryWrong();
         return;
       }
 
@@ -1927,64 +2206,129 @@
       if (
         target.closest("#resetBtn")
       ) {
-        resetData();
+        resetAll();
+      }
+    }
+  );
+
+  /* =====================================================
+     키보드
+     ===================================================== */
+
+  document.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        !quizSession ||
+        document
+          .getElementById(
+            "quizView"
+          )
+          .classList.contains(
+            "hidden"
+          )
+      ) {
+        return;
+      }
+
+      if (
+        event.key !== "Enter"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (
+        !quizSession.answered
+      ) {
+        submitQuizAnswer();
+      } else {
+        nextQuizQuestion();
       }
     }
   );
 
   document
-    .getElementById("importFile")
-    .addEventListener(
-      "change",
-      (event) => {
-        importData(
-          event.target.files[0]
-        );
-
-        event.target.value = "";
-      }
-    );
-
-  document
-    .getElementById("answerInput")
+    .getElementById(
+      "bulkWordInput"
+    )
     .addEventListener(
       "keydown",
-      (event) => {
+      event => {
         if (
           event.key === "Enter"
         ) {
           event.preventDefault();
-
-          submitAnswer();
+          addWordsFromText();
         }
       }
     );
 
-  document
-    .getElementById("meaningInput")
-    .addEventListener(
-      "keydown",
-      (event) => {
-        if (
-          event.key === "Enter"
-        ) {
-          event.preventDefault();
+  /* =====================================================
+     빠른 테스트 메뉴
+     ===================================================== */
 
-          addWord();
-        }
-      }
+  function openQuickTestFor(
+    test
+  ) {
+    if (!test) return;
+
+    const choice = prompt(
+      "빠른 테스트\n\n1. ⭐ 중요 단어 테스트\n2. ❌ 틀린 단어 테스트"
     );
+
+    if (choice === "1") {
+      startQuiz(
+        test,
+        "important"
+      );
+    }
+
+    if (choice === "2") {
+      startQuiz(
+        test,
+        "wrong"
+      );
+    }
+  }
+
+  /* =====================================================
+     오프라인
+     ===================================================== */
 
   window.addEventListener(
-    "beforeunload",
+    "online",
     () => {
-      save();
+      const status =
+        document.getElementById(
+          "onlineStatus"
+        );
+
+      if (status) {
+        status.textContent = "온라인";
+      }
     }
   );
 
-  /* ========================================================
+  window.addEventListener(
+    "offline",
+    () => {
+      const status =
+        document.getElementById(
+          "onlineStatus"
+        );
+
+      if (status) {
+        status.textContent = "오프라인";
+      }
+    }
+  );
+
+  /* =====================================================
      PWA
-     ======================================================== */
+     ===================================================== */
 
   if (
     "serviceWorker" in navigator
@@ -1994,20 +2338,33 @@
       () => {
         navigator.serviceWorker
           .register("./sw.js")
-          .catch((error) => {
+          .catch(error =>
             console.error(
-              "Service Worker 오류:",
+              "Service Worker:",
               error
-            );
-          });
+            )
+          );
       }
     );
   }
 
-  /* ========================================================
+  /* =====================================================
      초기화
-     ======================================================== */
+     ===================================================== */
 
   load();
+  loadTheme();
   renderHome();
+
+  const initialStatus =
+    document.getElementById(
+      "onlineStatus"
+    );
+
+  if (initialStatus) {
+    initialStatus.textContent =
+      navigator.onLine
+        ? "온라인"
+        : "오프라인";
+  }
 })();
