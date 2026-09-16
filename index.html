@@ -1,888 +1,517 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#4f46e5">
   <meta name="description" content="나만의 영어 단어 암기장">
   <title>단어 암기장</title>
-
-  <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon-192.png">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+  <header class="topbar">
+    <div>
+      <h1>📚 단어 암기장</h1>
+      <p>나만의 영어 단어 학습</p>
+    </div>
+    <button id="themeButton" class="icon-btn" aria-label="다크 모드">🌙</button>
+  </header>
 
-<header class="topbar">
-  <div>
-    <h1>📚 단어 암기장</h1>
-    <p>나만의 영어 단어 학습</p>
-  </div>
+  <main id="app">
+    <section id="homePage" class="page active">
+      <div id="homeBreadcrumbs" class="breadcrumbs"></div>
 
-  <button id="darkBtn" class="icon-btn" aria-label="다크 모드">
-    🌙
-  </button>
-</header>
+      <div class="page-title">
+        <div>
+          <h2>내 단어장</h2>
+          <p>묶음과 폴더를 관리하세요.</p>
+        </div>
 
-<main id="app">
-
-  <!-- HOME -->
-  <section id="homePage" class="page active">
-
-    <div id="homeBreadcrumbs" class="breadcrumbs"></div>
-
-    <div class="page-title">
-      <div>
-        <h2>내 단어장</h2>
-        <p>단어와 묶음을 한곳에서 관리하세요.</p>
+        <div class="title-actions">
+          <button id="addWordHomeButton" class="secondary-btn">＋ 단어 및 뜻 추가</button>
+          <button id="addFolderButton" class="secondary-btn">＋ 폴더 추가</button>
+          <button id="addBundleButton" class="primary-btn">＋ 묶음 추가</button>
+        </div>
       </div>
 
-      <div class="title-actions wrap">
-        <button id="addWordHomeBtn" class="secondary-btn">
-          ＋ 단어 및 뜻 추가
-        </button>
-
-        <button id="addFolderBtn" class="secondary-btn">
-          ＋ 폴더 추가
-        </button>
-
-        <button id="addBundleBtn" class="primary-btn">
-          ＋ 묶음 추가
-        </button>
-      </div>
-    </div>
-
-    <div class="search-box">
-      <span>🔎</span>
-      <input
-        id="globalSearch"
-        type="search"
-        autocomplete="off"
-        placeholder="묶음, 영어 단어 또는 뜻 검색"
-      >
-    </div>
-
-    <div id="searchResults" class="search-results hidden"></div>
-
-    <div id="homeStats" class="stats-grid"></div>
-
-    <div class="section-title">
-      <div>
-        <h3>📚 단어 묶음</h3>
-        <span id="bundlePageInfo" class="muted"></span>
+      <div class="search-box">
+        <span>🔎</span>
+        <input id="globalSearch" type="search" placeholder="묶음, 영어 단어 또는 뜻 검색" autocomplete="off">
       </div>
 
-      <select id="bundleSort" class="compact-select">
-        <option value="manual">기본 순서</option>
-        <option value="oldest">오래된 날짜순</option>
-        <option value="newest">최근 날짜순</option>
-        <option value="important-oldest">
-          ⭐ 중요 + 오래된 순
-        </option>
-        <option value="important-newest">
-          ⭐ 중요 + 최근 순
-        </option>
-      </select>
-    </div>
+      <div id="searchResults" class="search-results hidden"></div>
 
-    <div id="bundleList"></div>
-    <div id="bundlePagination" class="pagination"></div>
+      <div id="homeStats" class="stats-grid"></div>
 
-    <div class="section-title">
-      <h3>⚡ 빠른 테스트</h3>
-    </div>
+      <div class="section-title">
+        <div>
+          <h3>📚 단어 묶음</h3>
+          <span id="bundlePageInfo" class="muted"></span>
+        </div>
 
-    <button
-      id="quickTestOpenBtn"
-      class="quick-single-card"
-    >
-      <span class="quick-icon">⚡</span>
-
-      <span>
-        <b>빠른 테스트</b>
-        <small>
-          전체·어려운 단어·최근 오답·중요 단어 등을 테스트합니다.
-        </small>
-      </span>
-
-      <span>›</span>
-    </button>
-
-  </section>
-
-
-  <!-- BUNDLE / FOLDER -->
-  <section id="bundlePage" class="page">
-
-    <div id="bundleBreadcrumbs" class="breadcrumbs"></div>
-
-    <button id="backHomeBtn" class="back-btn">
-      ← 홈으로
-    </button>
-
-    <div class="page-title">
-
-      <div>
-        <h2 id="bundleTitle"></h2>
-        <p id="bundleInfo"></p>
+        <select id="rootSort" class="compact-select">
+          <option value="manual">기본 순서</option>
+          <option value="oldest">오래된 날짜순</option>
+          <option value="newest">최근 날짜순</option>
+          <option value="important-oldest">⭐ 중요 + 오래된 순</option>
+          <option value="important-newest">⭐ 중요 + 최근 순</option>
+        </select>
       </div>
 
-      <div class="title-actions wrap">
+      <div id="bundleList"></div>
+      <div id="bundlePagination" class="pagination"></div>
 
-        <button
-          id="prevBundleBtn"
-          class="secondary-btn nav-bundle-btn"
-        >
-          ← 이전 묶음
-        </button>
-
-        <button
-          id="nextBundleBtn"
-          class="secondary-btn nav-bundle-btn"
-        >
-          다음 묶음 →
-        </button>
-
-        <button
-          id="folderAddOpenBtn"
-          class="secondary-btn hidden"
-        >
-          ＋ 묶음칸 추가하기
-        </button>
-
-        <button
-          id="renameBundleBtn"
-          class="secondary-btn"
-        >
-          이름 변경
-        </button>
-
-        <button
-          id="importantBundleBtn"
-          class="secondary-btn"
-        >
-          ☆ 중요
-        </button>
-
-        <button
-          id="deleteBundleBtn"
-          class="danger-btn"
-        >
-          삭제
-        </button>
-
+      <div class="section-title">
+        <h3>⚡ 빠른 테스트</h3>
       </div>
 
-    </div>
+      <button id="quickTestButton" class="quick-card">
+        <span class="quick-icon">⚡</span>
+        <span>
+          <b>빠른 테스트</b>
+          <small>전체·어려운 단어·오답·최근 오답·중요 단어</small>
+        </span>
+        <span>›</span>
+      </button>
+    </section>
 
+    <section id="folderPage" class="page">
+      <div id="folderBreadcrumbs" class="breadcrumbs"></div>
 
-    <!-- FOLDER ADD -->
-    <div id="folderAddCard" class="card hidden">
+      <div class="page-title">
+        <div>
+          <h2 id="folderTitle"></h2>
+          <p id="folderInfo"></p>
+        </div>
 
-      <div class="section-title compact-title">
-        <h3>📁 묶음칸 추가하기</h3>
+        <div class="title-actions">
+          <button id="folderAddBundlesButton" class="primary-btn">＋ 묶음칸 추가하기</button>
+          <button id="folderRenameButton" class="secondary-btn">이름 변경</button>
+          <button id="folderDeleteButton" class="danger-btn">삭제</button>
+        </div>
+      </div>
 
-        <button
-          id="closeFolderAddBtn"
-          class="mini-btn"
-        >
-          닫기
+      <div class="section-title">
+        <h3>📚 폴더 안 묶음</h3>
+
+        <select id="folderSort" class="compact-select">
+          <option value="manual">기본 순서</option>
+          <option value="oldest">오래된 날짜순</option>
+          <option value="newest">최근 날짜순</option>
+          <option value="important-oldest">⭐ 중요 + 오래된 순</option>
+          <option value="important-newest">⭐ 중요 + 최근 순</option>
+        </select>
+      </div>
+
+      <div id="folderBundleList"></div>
+    </section>
+
+    <section id="bundlePage" class="page">
+      <div id="bundleBreadcrumbs" class="breadcrumbs"></div>
+
+      <div class="page-title">
+        <div>
+          <h2 id="bundleTitle"></h2>
+          <p id="bundleInfo"></p>
+        </div>
+
+        <div class="title-actions">
+          <button id="previousBundleButton" class="secondary-btn nav-btn">← 이전 묶음</button>
+          <button id="nextBundleButton" class="secondary-btn nav-btn">다음 묶음 →</button>
+          <button id="bundleImportantButton" class="secondary-btn">☆ 중요</button>
+          <button id="bundleRenameButton" class="secondary-btn">이름 변경</button>
+          <button id="bundleDeleteButton" class="danger-btn">삭제</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>📝 단어 추가</h3>
+
+        <p class="help">
+          단어 사이에는 <code>/</code>,
+          영어와 뜻 사이에는 <code>:</code>,
+          여러 뜻은 <code>,</code>를 사용합니다.
+        </p>
+
+        <textarea
+          id="bulkInput"
+          placeholder="apple : 사과, 과일 / book : 책 / run : 달리다, 운영하다"
+        ></textarea>
+
+        <button id="addWordsButton" class="primary-btn full">
+          단어 추가
+        </button>
+
+        <div id="inputMessage"></div>
+      </div>
+
+      <div class="card">
+        <h3>🎯 테스트 설정</h3>
+
+        <div class="option-grid">
+          <label>
+            <span>문제 방향</span>
+            <select id="bundleDirection">
+              <option value="en-ko">영어 → 뜻</option>
+              <option value="ko-en">뜻 → 영어</option>
+              <option value="mixed">영어 ↔ 뜻 혼합</option>
+            </select>
+          </label>
+
+          <label>
+            <span>문제 수</span>
+            <select id="bundleCount">
+              <option value="all">전체</option>
+              <option value="10">10문제</option>
+              <option value="20">20문제</option>
+              <option value="30">30문제</option>
+              <option value="50">50문제</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="check-row">
+          <label>
+            <input id="importantOnly" type="checkbox">
+            ⭐ 중요 단어만
+          </label>
+
+          <label>
+            <input id="wrongOnly" type="checkbox">
+            ❌ 오답 단어만
+          </label>
+        </div>
+
+        <button id="startBundleTestButton" class="primary-btn full">
+          테스트 시작
+        </button>
+
+        <div id="bundleTestMessage"></div>
+      </div>
+
+      <div class="section-title">
+        <div>
+          <h3>📖 단어 목록</h3>
+          <span id="wordCountInfo" class="muted"></span>
+        </div>
+
+        <button id="importantFilterButton" class="secondary-btn">
+          ⭐ 중요 단어만
         </button>
       </div>
 
       <div class="search-box small-search">
         <span>🔎</span>
-
         <input
-          id="folderBundleSearch"
+          id="wordSearch"
           type="search"
-          placeholder="묶음 이름 검색"
+          placeholder="영어 또는 뜻 검색"
         >
       </div>
 
-      <div class="bulk-actions">
+      <div class="word-toolbar">
+        <label>
+          <input id="selectAllWords" type="checkbox">
+          전체 선택
+        </label>
+
+        <select id="wordSort">
+          <option value="order">입력 순서</option>
+          <option value="alpha">알파벳순</option>
+          <option value="wrong">오답 많은 순</option>
+          <option value="recentWrong">최근 틀린 순</option>
+          <option value="important">중요 단어 우선</option>
+          <option value="difficulty">난이도 높은 순</option>
+        </select>
+      </div>
+
+      <div id="wordBulkActions" class="bulk-actions hidden">
+        <span id="selectedWordInfo">0개 선택</span>
+
+        <button id="importantOnButton" class="secondary-btn">
+          ⭐ 중요 표시
+        </button>
+
+        <button id="importantOffButton" class="secondary-btn">
+          ☆ 중요 해제
+        </button>
+
+        <button id="deleteSelectedWordsButton" class="danger-btn">
+          🗑 삭제
+        </button>
+      </div>
+
+      <div id="wordList"></div>
+      <div id="wordSentinel"></div>
+    </section>
+
+    <section id="testPage" class="page">
+      <div id="testBreadcrumbs" class="breadcrumbs"></div>
+
+      <div class="test-header">
+        <button id="exitTestButton" class="back-btn">
+          ← 테스트 종료
+        </button>
+
+        <span id="testProgress"></span>
+      </div>
+
+      <div class="progress">
+        <div id="progressBar"></div>
+      </div>
+
+      <div class="test-card">
+        <div id="questionDirection" class="question-direction"></div>
+
+        <div id="questionText" class="question"></div>
+
+        <input
+          id="answerInput"
+          autocomplete="off"
+          placeholder="정답을 입력하세요"
+        >
+
+        <button id="checkAnswerButton" class="primary-btn full">
+          확인
+        </button>
+
+        <div id="answerResult" class="answer-result"></div>
 
         <button
-          id="selectAllFolderCandidates"
-          class="secondary-btn"
+          id="nextQuestionButton"
+          class="secondary-btn full hidden"
         >
-          ☑ 모두 선택
+          다음
         </button>
 
         <button
-          id="clearAllFolderCandidates"
-          class="secondary-btn"
+          id="finishTestButton"
+          class="primary-btn full hidden"
         >
-          ☐ 모두 해제
+          마치기
+        </button>
+      </div>
+    </section>
+
+    <section id="resultPage" class="page">
+      <div class="result-card">
+        <h2>🎉 테스트 완료!</h2>
+
+        <div id="resultScore" class="big-score"></div>
+        <div id="resultStats" class="result-stats"></div>
+      </div>
+
+      <div class="card">
+        <h3>❌ 틀린 단어</h3>
+        <div id="wrongResultList"></div>
+      </div>
+
+      <div class="result-buttons">
+        <button id="retryWrongButton" class="primary-btn">
+          틀린 단어 다시 테스트
         </button>
 
-        <span
-          id="folderCandidateCount"
-          class="muted"
-        ></span>
+        <button id="returnSourceButton" class="secondary-btn"></button>
 
+        <button id="resultHomeButton" class="secondary-btn">
+          🏠 홈으로
+        </button>
+      </div>
+    </section>
+
+    <section id="statsPage" class="page">
+      <div class="page-title">
+        <div>
+          <h2>📊 학습 통계</h2>
+          <p>기간별 학습량과 기록을 확인합니다.</p>
+        </div>
       </div>
 
-      <div id="folderBundleCandidates"></div>
-
-      <button
-        id="addSelectedToFolderBtn"
-        class="primary-btn full"
-      >
-        선택한 묶음 추가
-      </button>
-
-    </div>
-
-
-    <!-- WORD ADD -->
-    <div
-      id="bundleWordCard"
-      class="card"
-    >
-
-      <h3>📝 단어 추가</h3>
-
-      <p class="help">
-        단어 사이에는 <code>/</code>,
-        영어와 뜻 사이에는 <code>:</code>,
-        여러 뜻은 <code>,</code>를 사용합니다.
-      </p>
-
-      <textarea
-        id="bulkInput"
-        placeholder="apple : 사과, 과실 / book : 책 / run : 달리다, 운영하다"
-      ></textarea>
-
-      <button
-        id="addWordsBtn"
-        class="primary-btn full"
-      >
-        단어 추가
-      </button>
-
-      <div id="inputMessage"></div>
-
-    </div>
-
-
-    <!-- TEST SETTINGS -->
-    <div class="card">
-
-      <h3>🎯 테스트 설정</h3>
-
-      <div class="option-grid">
-
-        <label>
-          <span>문제 방향</span>
-
-          <select id="directionSelect">
-            <option value="en-ko">
-              영어 → 뜻
-            </option>
-
-            <option value="ko-en">
-              뜻 → 영어
-            </option>
-
-            <option value="mixed">
-              영어 ↔ 뜻 혼합
-            </option>
-          </select>
-        </label>
-
-
-        <label>
-          <span>문제 수</span>
-
-          <select id="countSelect">
-            <option value="all">전체</option>
-            <option value="10">10문제</option>
-            <option value="20">20문제</option>
-            <option value="30">30문제</option>
-            <option value="50">50문제</option>
-          </select>
-        </label>
-
+      <div class="stats-filter">
+        <button class="period-btn active" data-period="all">전체</button>
+        <button class="period-btn" data-period="today">오늘</button>
+        <button class="period-btn" data-period="week">이번 주</button>
+        <button class="period-btn" data-period="month">이번 달</button>
       </div>
 
-      <div class="test-checks">
+      <div id="statsCards" class="stats-grid"></div>
 
-        <label>
+      <div class="card">
+        <h3>📚 묶음별 정확도</h3>
+        <div id="bundleStats"></div>
+      </div>
+
+      <div class="card">
+        <h3>📅 최근 학습 기록</h3>
+        <div id="historyList"></div>
+      </div>
+    </section>
+
+    <section id="settingsPage" class="page">
+      <div class="page-title">
+        <div>
+          <h2>⚙️ 설정</h2>
+          <p>데이터와 학습 설정을 관리합니다.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>💾 데이터 관리</h3>
+
+        <button id="saveDataButton" class="secondary-btn full">
+          저장
+        </button>
+
+        <a
+          id="downloadLink"
+          class="primary-btn full hidden"
+          download
+        >
+          📥 저장 파일 받기
+        </a>
+
+        <label class="file-btn full">
+          불러오기
           <input
-            type="checkbox"
-            id="importantOnly"
+            id="restoreInput"
+            type="file"
+            accept="application/json,.json"
           >
-          ⭐ 중요 단어만
         </label>
 
-        <label>
-          <input
-            type="checkbox"
-            id="wrongOnly"
-          >
-          ❌ 오답 단어만
+        <div id="saveMessage"></div>
+        <div id="restoreMessage"></div>
+      </div>
+
+      <div class="card">
+        <h3>📊 데이터 상태</h3>
+        <div id="dataUsage"></div>
+        <div id="lastChanged"></div>
+      </div>
+
+      <div class="card">
+        <h3>🎛️ 학습 설정</h3>
+
+        <label class="setting-row">
+          <span>자동으로 넘기기</span>
+          <input id="autoNextToggle" type="checkbox">
         </label>
 
-      </div>
-
-      <button
-        id="startBundleTestBtn"
-        class="primary-btn full"
-      >
-        테스트 시작
-      </button>
-
-      <div id="bundleTestMessage"></div>
-
-    </div>
-
-
-    <!-- WORD LIST -->
-    <div class="section-title">
-
-      <div>
-        <h3>📖 단어 목록</h3>
-        <span
-          id="visibleWordCount"
-          class="muted"
-        ></span>
-      </div>
-
-      <button
-        id="importantFilterBtn"
-        class="secondary-btn"
-      >
-        ⭐ 중요 단어만
-      </button>
-
-    </div>
-
-
-    <div class="search-box small-search">
-      <span>🔎</span>
-
-      <input
-        id="wordSearch"
-        type="search"
-        placeholder="영어 또는 뜻 검색"
-      >
-    </div>
-
-
-    <div class="word-toolbar">
-
-      <label class="select-all">
-        <input
-          type="checkbox"
-          id="selectAllWords"
-        >
-        전체 선택
-      </label>
-
-      <select id="wordSort">
-        <option value="order">
-          입력 순서
-        </option>
-
-        <option value="alpha">
-          알파벳순
-        </option>
-
-        <option value="wrong">
-          오답 많은 순
-        </option>
-
-        <option value="recentWrong">
-          최근 틀린 순
-        </option>
-
-        <option value="important">
-          중요 단어 우선
-        </option>
-
-        <option value="difficulty">
-          난이도 높은 순
-        </option>
-      </select>
-
-    </div>
-
-
-    <div
-      id="bulkActions"
-      class="bulk-actions hidden"
-    >
-
-      <span id="selectedCount">
-        0개 선택
-      </span>
-
-      <button
-        id="bulkImportantOnBtn"
-        class="secondary-btn"
-      >
-        ⭐ 중요 표시
-      </button>
-
-      <button
-        id="bulkImportantOffBtn"
-        class="secondary-btn"
-      >
-        ☆ 중요 해제
-      </button>
-
-      <button
-        id="bulkDeleteBtn"
-        class="danger-btn"
-      >
-        🗑 삭제
-      </button>
-
-    </div>
-
-    <div id="wordList"></div>
-    <div id="wordSentinel"></div>
-
-  </section>
-
-
-  <!-- TEST -->
-  <section id="testPage" class="page">
-
-    <div id="testBreadcrumbs" class="breadcrumbs"></div>
-
-    <div class="test-header">
-
-      <button
-        id="exitTestBtn"
-        class="back-btn"
-      >
-        ← 테스트 종료
-      </button>
-
-      <span id="progressText">
-        1 / 10
-      </span>
-
-    </div>
-
-
-    <div class="progress">
-      <div id="progressBar"></div>
-    </div>
-
-
-    <div class="test-card">
-
-      <div
-        id="questionDirection"
-        class="question-direction"
-      >
-        영어
-      </div>
-
-      <div
-        id="questionText"
-        class="question"
-      >
-        apple
-      </div>
-
-      <input
-        id="answerInput"
-        autocomplete="off"
-        placeholder="정답을 입력하세요"
-      >
-
-      <button
-        id="checkAnswerBtn"
-        class="primary-btn full"
-      >
-        확인
-      </button>
-
-      <div
-        id="answerResult"
-        class="answer-result"
-      ></div>
-
-      <button
-        id="nextQuestionBtn"
-        class="secondary-btn full hidden"
-      >
-        다음
-      </button>
-
-      <button
-        id="finishTestBtn"
-        class="primary-btn full hidden"
-      >
-        마치기
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- RESULT -->
-  <section id="resultPage" class="page">
-
-    <div class="result-card">
-
-      <h2>🎉 테스트 완료!</h2>
-
-      <div
-        id="resultScore"
-        class="big-score"
-      >
-        0%
-      </div>
-
-      <div
-        id="resultStats"
-        class="result-stats"
-      ></div>
-
-    </div>
-
-
-    <div class="card">
-
-      <h3>❌ 틀린 단어</h3>
-
-      <div id="wrongResultList"></div>
-
-    </div>
-
-
-    <div class="result-buttons">
-
-      <button
-        id="retryWrongBtn"
-        class="primary-btn"
-      >
-        틀린 단어 다시 테스트
-      </button>
-
-      <button
-        id="returnSourceBtn"
-        class="secondary-btn"
-      >
-        📚 단어장으로 돌아가기
-      </button>
-
-      <button
-        id="resultHomeBtn"
-        class="secondary-btn"
-      >
-        🏠 홈으로
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- STATS -->
-  <section id="statsPage" class="page">
-
-    <div class="page-title">
-
-      <div>
-        <h2>📊 학습 통계</h2>
-
-        <p>
-          모든 학습 기록은 자동으로 보관됩니다.
-        </p>
-      </div>
-
-    </div>
-
-
-    <div class="stats-filter">
-
-      <button
-        class="period-btn active"
-        data-period="all"
-      >
-        전체
-      </button>
-
-      <button
-        class="period-btn"
-        data-period="today"
-      >
-        오늘
-      </button>
-
-      <button
-        class="period-btn"
-        data-period="week"
-      >
-        이번 주
-      </button>
-
-      <button
-        class="period-btn"
-        data-period="month"
-      >
-        이번 달
-      </button>
-
-    </div>
-
-
-    <div id="statsCards" class="stats-grid"></div>
-
-
-    <div class="card">
-
-      <h3>📚 묶음별 정확도</h3>
-
-      <div id="bundleStats"></div>
-
-    </div>
-
-
-    <div class="card">
-
-      <h3>📅 최근 학습 기록</h3>
-
-      <div id="historyList"></div>
-
-    </div>
-
-  </section>
-
-
-  <!-- SETTINGS -->
-  <section id="settingsPage" class="page">
-
-    <div class="page-title">
-
-      <div>
-        <h2>⚙️ 설정</h2>
-
-        <p>
-          데이터, 학습 설정, 앱 버전을 관리합니다.
-        </p>
-      </div>
-
-    </div>
-
-
-    <div class="card">
-
-      <h3>💾 데이터 관리</h3>
-
-      <div id="saveMessage"></div>
-
-      <button
-        id="saveBtn"
-        class="secondary-btn full"
-      >
-        저장
-      </button>
-
-      <a
-        id="downloadLink"
-        class="primary-btn full hidden"
-        download
-      >
-        📥 저장 파일 받기
-      </a>
-
-      <label class="file-btn full">
-        불러오기
-        <input
-          type="file"
-          id="restoreInput"
-          accept=".json,application/json"
-        >
-      </label>
-
-      <div id="restoreMessage"></div>
-
-    </div>
-
-
-    <div class="card">
-
-      <h3>📊 데이터 상태</h3>
-
-      <div id="dataUsage"></div>
-      <div id="lastChanged"></div>
-
-    </div>
-
-
-    <div class="card">
-
-      <h3>🎛️ 학습 설정</h3>
-
-      <label class="setting-row">
-        <span>자동으로 넘기기</span>
-        <input
-          type="checkbox"
-          id="autoNextToggle"
-        >
-      </label>
-
-      <label class="setting-row">
-        <span>다크 모드</span>
-        <input
-          type="checkbox"
-          id="darkModeToggle"
-        >
-      </label>
-
-      <div id="settingsMessage"></div>
-
-      <div class="settings-actions">
+        <div id="settingsMessage"></div>
 
         <button
-          id="saveSettingsBtn"
-          class="primary-btn hidden"
+          id="saveSettingsButton"
+          class="primary-btn full hidden"
         >
           변경 내용 저장
         </button>
 
         <button
-          id="cancelSettingsBtn"
-          class="secondary-btn hidden"
+          id="cancelSettingsButton"
+          class="secondary-btn full hidden"
         >
           변경 취소
         </button>
 
+        <button
+          id="resetSettingsButton"
+          class="secondary-btn full"
+        >
+          설정 전체 초기화
+        </button>
       </div>
 
-      <button
-        id="resetSettingsBtn"
-        class="secondary-btn full"
-      >
-        설정 전체 초기화
-      </button>
+      <div class="card">
+        <h3>🧠 학습 기록</h3>
 
+        <button
+          id="resetLearningButton"
+          class="secondary-btn full"
+        >
+          학습 기록 초기화
+        </button>
+      </div>
+
+      <div class="card">
+        <h3>📖 버전 및 설명서</h3>
+
+        <div id="guideContent"></div>
+
+        <button
+          id="installButton"
+          class="primary-btn full hidden"
+        >
+          📱 앱 설치
+        </button>
+      </div>
+
+      <div class="card danger-card">
+        <h3>⚠️ 위험한 작업</h3>
+
+        <button
+          id="deleteAllButton"
+          class="danger-btn full"
+        >
+          모든 데이터 삭제
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button
+      class="nav-btn active"
+      data-page="homePage"
+    >
+      <span>🏠</span>
+      홈
+    </button>
+
+    <button
+      class="nav-btn"
+      data-page="statsPage"
+    >
+      <span>📊</span>
+      통계
+    </button>
+
+    <button
+      class="nav-btn"
+      data-page="settingsPage"
+    >
+      <span>⚙️</span>
+      설정
+    </button>
+  </nav>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <h3 id="modalTitle">확인</h3>
+      <div id="modalBody"></div>
+      <div id="modalForm"></div>
+
+      <div class="modal-buttons">
+        <button
+          id="modalCancel"
+          class="secondary-btn"
+        >
+          취소
+        </button>
+
+        <button
+          id="modalConfirm"
+          class="primary-btn"
+        >
+          확인
+        </button>
+      </div>
     </div>
-
-
-    <div class="card">
-
-      <h3>🧠 학습 기록</h3>
-
-      <button
-        id="resetLearningBtn"
-        class="secondary-btn full"
-      >
-        학습 기록 초기화
-      </button>
-
-    </div>
-
-
-    <div class="card">
-
-      <h3>📖 버전 및 설명서</h3>
-
-      <div id="guideContent"></div>
-
-      <button
-        id="guideInstallBtn"
-        class="primary-btn full hidden"
-      >
-        📱 앱 설치
-      </button>
-
-    </div>
-
-
-    <div class="card danger-card">
-
-      <h3>⚠️ 위험한 작업</h3>
-
-      <button
-        id="deleteAllBtn"
-        class="danger-btn full"
-      >
-        모든 데이터 삭제
-      </button>
-
-    </div>
-
-  </section>
-
-</main>
-
-
-<nav class="bottom-nav">
-
-  <button
-    class="nav-btn active"
-    data-page="homePage"
-  >
-    <span>🏠</span>
-    홈
-  </button>
-
-  <button
-    class="nav-btn"
-    data-page="statsPage"
-  >
-    <span>📊</span>
-    통계
-  </button>
-
-  <button
-    class="nav-btn"
-    data-page="settingsPage"
-  >
-    <span>⚙️</span>
-    설정
-  </button>
-
-</nav>
-
-
-<div id="modal" class="modal hidden">
-
-  <div class="modal-box">
-
-    <h3 id="modalTitle">
-      확인
-    </h3>
-
-    <div id="modalBody"></div>
-    <div id="modalForm"></div>
-
-    <div class="modal-buttons">
-
-      <button
-        id="modalCancel"
-        class="secondary-btn"
-      >
-        취소
-      </button>
-
-      <button
-        id="modalConfirm"
-        class="primary-btn"
-      >
-        확인
-      </button>
-
-    </div>
-
   </div>
 
-</div>
+  <div id="toastContainer" class="toast-container"></div>
 
-
-<div id="toastContainer" class="toast-container"></div>
-
-<script src="app.js"></script>
-
+  <script src="app.js"></script>
 </body>
 </html>
