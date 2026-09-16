@@ -9,6 +9,7 @@
   --primary-hover: #4338ca;
   --danger: #dc2626;
   --success: #16a34a;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
 html.dark {
@@ -22,6 +23,7 @@ html.dark {
   --primary-hover: #818cf8;
   --danger: #ef4444;
   --success: #22c55e;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
 * {
@@ -44,8 +46,8 @@ body {
     "Segoe UI",
     sans-serif;
   transition:
-    background .2s,
-    color .2s;
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 button,
@@ -61,7 +63,9 @@ button {
   display: none !important;
 }
 
-/* header */
+/* =========================
+   상단
+   ========================= */
 
 .topbar {
   position: sticky;
@@ -75,23 +79,30 @@ button {
   width: min(1100px, calc(100% - 24px));
   min-height: 64px;
   margin: auto;
+
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
 }
 
-.brand {
+.logo-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text);
   font-size: 19px;
   font-weight: 900;
+  padding: 10px 8px;
 }
 
 .topnav {
+  margin-left: auto;
+
   display: flex;
   align-items: center;
   gap: 5px;
 }
 
+.top-btn,
 .nav-btn {
   border: 0;
   border-radius: 9px;
@@ -101,17 +112,20 @@ button {
   font-weight: 700;
 }
 
+.top-btn:hover,
 .nav-btn:hover,
 .nav-btn.active {
-  color: var(--primary);
   background: var(--card2);
+  color: var(--primary);
 }
 
-.icon-btn {
+.top-btn {
   font-size: 18px;
 }
 
-/* layout */
+/* =========================
+   기본
+   ========================= */
 
 .container {
   width: min(1100px, calc(100% - 24px));
@@ -121,8 +135,8 @@ button {
 
 .section-head {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 15px;
   margin-bottom: 20px;
 }
@@ -143,7 +157,9 @@ button {
   gap: 8px;
 }
 
-/* buttons */
+/* =========================
+   버튼
+   ========================= */
 
 .primary-btn,
 .secondary-btn,
@@ -173,14 +189,18 @@ button {
   color: #fff;
 }
 
-/* breadcrumb */
+/* =========================
+   breadcrumb
+   ========================= */
 
 .breadcrumb {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 7px;
   margin-bottom: 18px;
   color: var(--muted);
+  font-size: 14px;
 }
 
 .breadcrumb button {
@@ -190,64 +210,71 @@ button {
   padding: 0;
 }
 
-/* files */
+/* =========================
+   파일
+   ========================= */
 
-.file-list,
-.test-list {
+.file-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.file-card,
-.test-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 13px;
-}
-
 .file-card {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+
   min-height: 76px;
+
   padding: 10px;
+
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+
+  box-shadow: var(--shadow);
 }
 
 .file-card.dragging,
-.test-card.dragging {
-  opacity: .45;
+.test-card.dragging,
+.word-row.dragging {
+  opacity: 0.45;
 }
 
 .file-card.drag-over,
-.test-card.drag-over {
+.test-card.drag-over,
+.word-row.drag-over {
   border-color: var(--primary);
 }
 
 .drag-handle {
+  flex: 0 0 auto;
   color: var(--muted);
-  font-size: 20px;
+  font-size: 21px;
   cursor: grab;
   padding: 8px;
 }
 
 .file-main {
   flex: 1;
+  min-width: 0;
+
   border: 0;
   background: transparent;
   color: var(--text);
+
   padding: 8px;
+
   text-align: left;
 }
 
-.file-name,
-.test-name {
-  font-weight: 900;
+.file-name {
   font-size: 17px;
+  font-weight: 900;
 }
 
-.file-sub,
-.test-sub {
+.file-sub {
   margin-top: 4px;
   color: var(--muted);
   font-size: 13px;
@@ -265,10 +292,33 @@ button {
   padding: 8px;
 }
 
-/* tests */
+/* =========================
+   테스트 목록
+   ========================= */
+
+.test-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
 .test-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+
   padding: 15px;
+
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+
+  box-shadow: var(--shadow);
+}
+
+.test-card-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .test-card-head {
@@ -276,6 +326,17 @@ button {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+
+.test-name {
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.test-sub {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .test-card-actions {
@@ -290,49 +351,86 @@ button {
   padding: 7px;
 }
 
-.test-card-foot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
+/* =========================
+   단어 입력
+   ========================= */
+
+.word-input-area {
+  margin-bottom: 10px;
 }
 
-/* wordbook */
+.word-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.word-input-handle {
+  flex: 0 0 auto;
+
+  width: 40px;
+  height: 48px;
+
+  display: grid;
+  place-items: center;
+
+  color: var(--muted);
+  font-size: 21px;
+  cursor: grab;
+
+  background: var(--card2);
+  border-radius: 10px;
+}
+
+.word-input-row input {
+  flex: 1;
+
+  min-height: 48px;
+
+  border: 1px solid var(--border);
+  border-radius: 10px;
+
+  background: var(--card);
+  color: var(--text);
+
+  padding: 0 14px;
+
+  outline: none;
+
+  font-size: 17px;
+}
+
+.word-input-row input:focus {
+  border-color: var(--primary);
+}
+
+.input-help {
+  margin: 7px 0 16px 48px;
+
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* =========================
+   테스트 버튼
+   ========================= */
 
 .test-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+
   margin-bottom: 20px;
 }
 
 .test-buttons button {
   flex: 1;
-  min-width: 160px;
+  min-width: 150px;
 }
 
-.input-box {
-  display: flex;
-  gap: 8px;
-}
-
-.input-box input {
-  flex: 1;
-  min-height: 48px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--card);
-  color: var(--text);
-  padding: 0 14px;
-  outline: none;
-  font-size: 17px;
-}
-
-.input-help {
-  margin: 7px 0 16px;
-  color: var(--muted);
-  font-size: 13px;
-}
+/* =========================
+   단어
+   ========================= */
 
 .word-list {
   display: flex;
@@ -343,22 +441,34 @@ button {
 .word-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+
+  padding: 11px;
+
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 13px;
+  border-radius: 11px;
+
+  box-shadow: var(--shadow);
+}
+
+.word-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .word-term {
   font-size: 17px;
   font-weight: 900;
+
+  overflow-wrap: anywhere;
 }
 
 .word-meaning {
   margin-top: 4px;
   color: var(--muted);
+
+  overflow-wrap: anywhere;
 }
 
 .word-actions {
@@ -369,17 +479,22 @@ button {
 .word-actions button {
   border: 0;
   border-radius: 8px;
+
   background: var(--card2);
   color: var(--text);
+
   padding: 8px;
 }
 
-/* quiz */
+/* =========================
+   퀴즈
+   ========================= */
 
 .quiz-top {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+
   margin-bottom: 24px;
 }
 
@@ -388,65 +503,94 @@ button {
 }
 
 .quiz-timer {
-  min-width: 54px;
+  min-width: 55px;
+
   text-align: center;
-  font-size: 24px;
-  font-weight: 900;
+
   color: var(--danger);
+
+  font-size: 25px;
+  font-weight: 900;
 }
 
 .quiz-card {
-  width: min(720px, 100%);
+  width: min(760px, 100%);
+
   margin: 25px auto;
-  padding: 30px;
+
+  padding: 32px;
+
   text-align: center;
+
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 17px;
+
+  box-shadow: var(--shadow);
 }
 
 .quiz-direction {
   color: var(--muted);
-  margin-bottom: 20px;
-  font-size: 16px;
+
+  margin-bottom: 22px;
+
+  font-size: 17px;
 }
 
 .quiz-question {
-  min-height: 120px;
+  min-height: 150px;
+
   display: grid;
   place-items: center;
-  font-size: clamp(42px, 8vw, 70px);
-  line-height: 1.15;
+
+  margin-bottom: 26px;
+
+  font-size: clamp(45px, 8vw, 72px);
+  line-height: 1.12;
   font-weight: 900;
+
   overflow-wrap: anywhere;
-  margin-bottom: 25px;
 }
 
 .quiz-answer {
   width: 100%;
-  min-height: 58px;
+  min-height: 60px;
+
   border: 1px solid var(--border);
   border-radius: 11px;
+
   background: var(--card);
   color: var(--text);
-  padding: 0 16px;
+
+  padding: 0 17px;
+
   outline: none;
-  font-size: 23px;
+
   text-align: center;
+
+  font-size: 24px;
+}
+
+.quiz-answer:focus {
+  border-color: var(--primary);
 }
 
 .quiz-submit {
   width: 100%;
-  margin-top: 10px;
   min-height: 55px;
+
+  margin-top: 10px;
+
   font-size: 18px;
 }
 
 .quiz-feedback {
   min-height: 30px;
+
   margin-top: 15px;
-  font-weight: 900;
+
   font-size: 18px;
+  font-weight: 900;
 }
 
 .feedback-correct {
@@ -457,22 +601,31 @@ button {
   color: var(--danger);
 }
 
-/* result */
+/* =========================
+   결과
+   ========================= */
 
 .result-card {
-  width: min(720px, 100%);
+  width: min(760px, 100%);
+
   margin: 30px auto;
+
+  padding: 30px;
+
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 28px;
+  border-radius: 17px;
+
+  box-shadow: var(--shadow);
 }
 
 .result-score {
-  text-align: center;
-  font-size: 48px;
-  font-weight: 900;
   margin: 25px 0;
+
+  text-align: center;
+
+  font-size: 50px;
+  font-weight: 900;
 }
 
 .result-wrong {
@@ -483,14 +636,16 @@ button {
 
 .wrong-item {
   padding: 12px;
-  border-radius: 9px;
+
   background: var(--card2);
+  border-radius: 9px;
 }
 
 .result-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+
   margin-top: 25px;
 }
 
@@ -499,7 +654,9 @@ button {
   min-width: 190px;
 }
 
-/* stats */
+/* =========================
+   통계
+   ========================= */
 
 .stats-grid {
   display: grid;
@@ -508,10 +665,13 @@ button {
 }
 
 .stat-card {
+  padding: 20px;
+
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 13px;
-  padding: 20px;
+
+  box-shadow: var(--shadow);
 }
 
 .stat-card strong {
@@ -523,21 +683,29 @@ button {
   color: var(--muted);
 }
 
-/* settings */
+/* =========================
+   설정
+   ========================= */
 
 .settings-card {
+  overflow: hidden;
+
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 14px;
-  overflow: hidden;
+
+  box-shadow: var(--shadow);
 }
 
 .setting-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+
   gap: 15px;
+
   padding: 18px;
+
   border-bottom: 1px solid var(--border);
 }
 
@@ -547,7 +715,9 @@ button {
 
 .setting-row p {
   margin: 5px 0 0;
+
   color: var(--muted);
+
   font-size: 14px;
 }
 
@@ -560,31 +730,133 @@ button {
   flex-wrap: wrap;
 }
 
-/* empty */
+/* =========================
+   모달
+   ========================= */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.modal-card {
+  position: relative;
+  z-index: 1;
+
+  width: min(470px, calc(100% - 24px));
+
+  margin: 50px auto;
+
+  background: var(--card);
+
+  border: 1px solid var(--border);
+  border-radius: 15px;
+
+  box-shadow:
+    0 25px 70px rgba(0, 0, 0, 0.3);
+
+  overflow: hidden;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 16px 18px;
+
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-head h2 {
+  margin: 0;
+}
+
+.modal-close {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+
+  font-size: 26px;
+  padding: 4px 8px;
+}
+
+.quick-options {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+
+  padding: 18px;
+}
+
+.quick-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+
+  gap: 5px;
+
+  padding: 15px;
+
+  text-align: left;
+
+  background: var(--card2);
+  color: var(--text);
+
+  border: 0;
+  border-radius: 10px;
+}
+
+.quick-option strong {
+  font-size: 16px;
+}
+
+.quick-option span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* =========================
+   empty
+   ========================= */
 
 .empty {
-  text-align: center;
   padding: 45px 20px;
+
+  text-align: center;
+
   color: var(--muted);
+
   background: var(--card);
+
   border: 1px dashed var(--border);
   border-radius: 13px;
 }
 
-/* mobile */
+/* =========================
+   모바일
+   ========================= */
 
 @media (max-width: 720px) {
+
   .topbar-inner {
-    flex-direction: column;
-    padding: 10px 0;
+    min-height: 60px;
   }
 
-  .topnav {
-    width: 100%;
+  .logo-btn {
+    font-size: 17px;
   }
 
   .nav-btn {
-    flex: 1;
+    padding: 8px 8px;
   }
 
   .section-head {
@@ -599,21 +871,20 @@ button {
     flex: 1;
   }
 
-  .input-box {
-    flex-direction: column;
-  }
-
   .stats-grid {
     grid-template-columns: 1fr 1fr;
   }
 
-  .setting-row {
-    align-items: flex-start;
-    flex-direction: column;
+  .quiz-card {
+    padding: 22px 14px;
   }
 
-  .quiz-card {
-    padding: 20px 14px;
+  .quiz-question {
+    font-size: 42px;
+  }
+
+  .quiz-answer {
+    font-size: 22px;
   }
 
   .result-buttons {
@@ -623,14 +894,22 @@ button {
   .result-buttons button {
     width: 100%;
   }
+
 }
 
-@media (max-width: 450px) {
-  .quiz-question {
-    font-size: 40px;
+@media (max-width: 470px) {
+
+  .topnav {
+    gap: 2px;
   }
 
-  .quiz-answer {
-    font-size: 21px;
+  .nav-btn {
+    font-size: 13px;
+    padding: 8px 7px;
   }
+
+  .quiz-question {
+    font-size: 38px;
+  }
+
 }
