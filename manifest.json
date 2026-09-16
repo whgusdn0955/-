@@ -1,12 +1,9 @@
 {
-  "name": "암기장",
-  "short_name": "암기장",
-  "description": "암기 학습용 오프라인 앱",
+  "name": "단어 암기장",
+  "short_name": "단어암기장",
   "start_url": "./",
-  "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#f4f6fb",
   "theme_color": "#4f46e5",
-  "lang": "ko-KR"
+  "lang": "ko"
 }
