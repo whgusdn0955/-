@@ -1,64 +1,181 @@
-const CACHE_NAME = "vocab-test-app-v1";
+"use strict";
 
-const FILES_TO_CACHE = [
-  "./",
-  "./index.html",
-  "./style.css",
-  "./app.js",
-  "./manifest.json"
+
+const CACHE_NAME =
+    "word-memorize-app-v1";
+
+
+const APP_FILES = [
+
+    "./",
+
+    "./index.html",
+
+    "./style.css",
+
+    "./app.js",
+
+    "./manifest.json",
+
+    "./icon-192.png",
+
+    "./icon-512.png"
+
 ];
 
-self.addEventListener("install", event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(FILES_TO_CACHE))
-      .then(() => self.skipWaiting())
-  );
-});
 
-self.addEventListener("activate", event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
-  );
-});
+/* =========================================================
+   설치
+   ========================================================= */
 
-self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") return;
+self.addEventListener(
+    "install",
+    event => {
 
-  event.respondWith(
-    caches.match(event.request)
-      .then(cachedResponse => {
-        if (cachedResponse) {
-          return cachedResponse;
+        event.waitUntil(
+
+            caches
+                .open(
+                    CACHE_NAME
+                )
+                .then(
+                    cache =>
+                        cache.addAll(
+                            APP_FILES
+                        )
+                )
+
+        );
+
+
+        self.skipWaiting();
+
+    }
+);
+
+
+/* =========================================================
+   활성화
+   ========================================================= */
+
+self.addEventListener(
+    "activate",
+    event => {
+
+        event.waitUntil(
+
+            caches
+                .keys()
+                .then(
+                    keys =>
+
+                        Promise.all(
+
+                            keys
+                                .filter(
+                                    key =>
+                                        key !==
+                                        CACHE_NAME
+                                )
+                                .map(
+                                    key =>
+                                        caches.delete(
+                                            key
+                                        )
+                                )
+
+                        )
+
+                )
+
+        );
+
+
+        self.clients.claim();
+
+    }
+);
+
+
+/* =========================================================
+   요청
+   ========================================================= */
+
+self.addEventListener(
+    "fetch",
+    event => {
+
+        if (
+            event.request.method !==
+            "GET"
+        ) {
+            return;
         }
 
-        return fetch(event.request)
-          .then(response => {
-            if (
-              !response ||
-              response.status !== 200 ||
-              response.type !== "basic"
-            ) {
-              return response;
-            }
 
-            const responseClone = response.clone();
+        event.respondWith(
 
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, responseClone);
-            });
+            caches
+                .match(
+                    event.request
+                )
+                .then(
+                    cached => {
 
-            return response;
-          })
-          .catch(() => {
-            return caches.match("./index.html");
-          });
-      })
-  );
-});
+                        if (cached) {
+                            return cached;
+                        }
+
+
+                        return fetch(
+                            event.request
+                        )
+                            .then(
+                                response => {
+
+                                    if (
+                                        !response ||
+                                        response.status !==
+                                        200
+                                    ) {
+
+                                        return response;
+
+                                    }
+
+
+                                    const clone =
+                                        response.clone();
+
+
+                                    caches
+                                        .open(
+                                            CACHE_NAME
+                                        )
+                                        .then(
+                                            cache =>
+                                                cache.put(
+                                                    event.request,
+                                                    clone
+                                                )
+                                        );
+
+
+                                    return response;
+
+                                }
+                            )
+                            .catch(
+                                () =>
+                                    caches.match(
+                                        "./index.html"
+                                    )
+                            );
+
+                    }
+                )
+
+        );
+
+    }
+);
