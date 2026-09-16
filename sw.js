@@ -1,4 +1,4 @@
-const CACHE_NAME = "memorize-app-v6";
+const CACHE_NAME = "memorize-app-v7";
 
 const APP_FILES = [
   "./",
@@ -34,13 +34,14 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      return (
-        cachedResponse ||
-        fetch(event.request).catch(() => {
-          return caches.match("./index.html");
-        })
-      );
+    caches.match(event.request).then(cached => {
+      if (cached) {
+        return cached;
+      }
+
+      return fetch(event.request).catch(() => {
+        return caches.match("./index.html");
+      });
     })
   );
 });
