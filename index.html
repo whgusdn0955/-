@@ -35,10 +35,6 @@
 
 <div id="app">
 
-    <!-- =========================
-         상단 헤더
-    ========================== -->
-
     <header class="app-header">
 
         <div class="header-inner">
@@ -79,13 +75,7 @@
     </header>
 
 
-    <!-- =========================
-         전체 레이아웃
-    ========================== -->
-
     <div class="app-layout">
-
-        <!-- 사이드바 -->
 
         <aside
             id="sidebar"
@@ -109,7 +99,7 @@
                     type="button"
                 >
                     <span class="nav-icon">📊</span>
-                    <span>통계</span>
+                    <span>기록</span>
                 </button>
 
                 <button
@@ -126,18 +116,12 @@
         </aside>
 
 
-        <!-- =========================
-             메인 콘텐츠
-        ========================== -->
-
         <main
             id="mainContent"
             class="main-content"
         >
 
-            <!-- =====================
-                 홈
-            ====================== -->
+            <!-- 홈 -->
 
             <section
                 id="homePage"
@@ -195,9 +179,7 @@
             </section>
 
 
-            <!-- =====================
-                 파일 상세
-            ====================== -->
+            <!-- 파일 -->
 
             <section
                 id="filePage"
@@ -245,7 +227,7 @@
                             class="secondary-button"
                             type="button"
                         >
-                            📝 총합 테스트
+                            📝 일반 테스트
                         </button>
 
                         <button
@@ -293,9 +275,7 @@
             </section>
 
 
-            <!-- =====================
-                 단어장 상세
-            ====================== -->
+            <!-- 단어장 -->
 
             <section
                 id="workbookPage"
@@ -345,8 +325,6 @@
 
                 </div>
 
-
-                <!-- 단어 입력 -->
 
                 <div class="input-card">
 
@@ -406,16 +384,13 @@
                         </span>
 
                         <span>
-                            Enter
-                            등록
+                            Enter 등록
                         </span>
 
                     </div>
 
                 </div>
 
-
-                <!-- 단어 목록 -->
 
                 <div class="section-header">
 
@@ -456,9 +431,7 @@
             </section>
 
 
-            <!-- =====================
-                 통계
-            ====================== -->
+            <!-- 기록 -->
 
             <section
                 id="statisticsPage"
@@ -469,7 +442,7 @@
 
                     <div>
 
-                        <h1>통계</h1>
+                        <h1>기록</h1>
 
                         <p>
                             지금까지의 테스트 기록을 확인할 수 있습니다.
@@ -511,9 +484,7 @@
             </section>
 
 
-            <!-- =====================
-                 설정
-            ====================== -->
+            <!-- 설정 -->
 
             <section
                 id="settingsPage"
@@ -579,6 +550,57 @@
                             <span class="slider"></span>
 
                         </label>
+
+                    </div>
+
+                </div>
+
+
+                <!-- 테스트 설정 -->
+
+                <div class="settings-card">
+
+                    <div class="settings-card-title">
+
+                        <span class="settings-icon">⏱️</span>
+
+                        <div>
+
+                            <h2>테스트</h2>
+
+                            <p>
+                                한 문제당 제한시간을 설정합니다.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="settings-row">
+
+                        <div>
+
+                            <strong>문제 제한시간</strong>
+
+                            <p id="testTimeDescription">
+                                한 문제당 10초
+                            </p>
+
+                        </div>
+
+
+                        <select
+                            id="testTimeSelect"
+                            class="settings-select"
+                        >
+                            <option value="5">5초</option>
+                            <option value="10">10초</option>
+                            <option value="15">15초</option>
+                            <option value="20">20초</option>
+                            <option value="30">30초</option>
+                            <option value="0">제한 없음</option>
+                        </select>
 
                     </div>
 
@@ -670,65 +692,39 @@
                     <div
                         id="usageGuideContent"
                         class="collapsible-content hidden"
-                    >
+                    ></div>
 
-                        <div class="guide-item">
+                </div>
 
-                            <strong>📁 파일</strong>
+
+                <!-- 버전 -->
+
+                <div class="settings-card version-card">
+
+                    <div class="settings-card-title">
+
+                        <span class="settings-icon">ℹ️</span>
+
+                        <div>
+
+                            <h2>앱 정보</h2>
 
                             <p>
-                                파일 안에 여러 개의 단어장을 만들 수 있습니다.
+                                현재 사용 중인 단어 암기장 버전입니다.
                             </p>
 
                         </div>
 
-
-                        <div class="guide-item">
-
-                            <strong>📖 단어장</strong>
-
-                            <p>
-                                단어를 추가하고 드래그하여 순서를 변경할 수 있습니다.
-                            </p>
-
-                        </div>
+                    </div>
 
 
-                        <div class="guide-item">
+                    <div class="version-info">
 
-                            <strong>✏️ 단어 입력</strong>
+                        <span>버전</span>
 
-                            <p>
-                                <code>:</code>로 단어와 뜻을 구분하고,
-                                <code>,</code>로 여러 뜻을 입력하며,
-                                <code>/</code>로 여러 단어를 입력합니다.
-                            </p>
-
-                        </div>
-
-
-                        <div class="guide-item">
-
-                            <strong>⭐ 중요 단어</strong>
-
-                            <p>
-                                틀린 횟수를 전체 시도 횟수로 나눈 비율이
-                                70%를 초과하면 자동으로 중요 단어가 됩니다.
-                            </p>
-
-                        </div>
-
-
-                        <div class="guide-item">
-
-                            <strong>📝 테스트</strong>
-
-                            <p>
-                                한 문제당 10초의 제한 시간이 있으며
-                                Enter를 눌러 답을 제출합니다.
-                            </p>
-
-                        </div>
+                        <strong id="appVersion">
+                            -
+                        </strong>
 
                     </div>
 
@@ -737,39 +733,53 @@
             </section>
 
 
-            <!-- =====================
-                 테스트
-            ====================== -->
+            <!-- 테스트 -->
 
             <section
                 id="testPage"
                 class="page"
             >
 
-                <div class="test-header">
+                <div class="test-top-bar">
 
-                    <div class="test-progress">
-
-                        <span id="testQuestionNumber">
-                            1
-                        </span>
-
-                        <span>/</span>
-
-                        <span id="testTotalQuestions">
-                            1
-                        </span>
-
-                    </div>
+                    <button
+                        id="testBackButton"
+                        class="secondary-button test-back-button"
+                        type="button"
+                    >
+                        ← 뒤로가기
+                    </button>
 
 
-                    <div class="timer-container">
+                    <div class="test-header">
 
-                        <span>⏱️</span>
+                        <div class="test-progress">
 
-                        <strong id="testTimer">
-                            10
-                        </strong>
+                            <span id="testQuestionNumber">
+                                1
+                            </span>
+
+                            <span>/</span>
+
+                            <span id="testTotalQuestions">
+                                1
+                            </span>
+
+                        </div>
+
+
+                        <div
+                            id="timerContainer"
+                            class="timer-container"
+                        >
+
+                            <span>⏱️</span>
+
+                            <strong id="testTimer">
+                                10
+                            </strong>
+
+                        </div>
 
                     </div>
 
@@ -828,9 +838,7 @@
             </section>
 
 
-            <!-- =====================
-                 결과
-            ====================== -->
+            <!-- 결과 -->
 
             <section
                 id="resultPage"
@@ -936,9 +944,7 @@
     </div>
 
 
-    <!-- =========================
-         모달
-    ========================== -->
+    <!-- 모달 -->
 
     <div
         id="modalOverlay"
@@ -1010,7 +1016,7 @@
             type="button"
         >
             <span>📊</span>
-            <small>통계</small>
+            <small>기록</small>
         </button>
 
         <button
