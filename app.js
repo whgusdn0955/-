@@ -1,696 +1,2273 @@
-:root {
-  --bg: #f4f6fb;
-  --card: #ffffff;
-  --card2: #eef1f7;
-  --text: #222222;
-  --subtext: #6b7280;
-  --border: #dfe3eb;
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --danger: #ef4444;
-  --success: #22c55e;
-  --shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+const STORAGE_KEY = "memorize_app_data_v1";
+const THEME_KEY = "memorize_app_theme_v1";
+
+let state = loadState();
+
+let currentScreen = "home";
+let currentFileId = null;
+let currentTestId = null;
+
+let quizSession = null;
+let quizTimer = null;
+let quizTimeLeft = 10;
+
+let quickSource = null;
+let confirmCallback = null;
+
+const mainContent = document.getElementById("mainContent");
+const backBtn = document.getElementById("backBtn");
+const themeBtn = document.getElementById("themeBtn");
+const homeBtn = document.getElementById("homeBtn");
+const statsBtn = document.getElementById("statsBtn");
+const settingsBtn = document.getElementById("settingsBtn");
+
+const quickModal = document.getElementById("quickModal");
+const closeQuickModal = document.getElementById("closeQuickModal");
+const importantQuickBtn = document.getElementById("importantQuickBtn");
+const wrongQuickBtn = document.getElementById("wrongQuickBtn");
+
+const confirmModal = document.getElementById("confirmModal");
+const confirmTitle = document.getElementById("confirmTitle");
+const confirmMessage = document.getElementById("confirmMessage");
+const confirmCancelBtn = document.getElementById("confirmCancelBtn");
+const confirmOkBtn = document.getElementById("confirmOkBtn");
+
+function defaultState() {
+  return {
+    files: [],
+    history: []
+  };
 }
 
-body.dark {
-  --bg: #17181c;
-  --card: #22242a;
-  --card2: #2c2f37;
-  --text: #f3f4f6;
-  --subtext: #a1a1aa;
-  --border: #3a3d46;
-  --primary: #6366f1;
-  --primary-hover: #818cf8;
-  --danger: #f87171;
-  --success: #4ade80;
-  --shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+function loadState() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+
+    if (!data) {
+      return defaultState();
+    }
+
+    const parsed = JSON.parse(data);
+
+    return {
+      files: Array.isArray(parsed.files) ? parsed.files : [],
+      history: Array.isArray(parsed.history) ? parsed.history : []
+    };
+  } catch {
+    return defaultState();
+  }
 }
 
-* {
-  box-sizing: border-box;
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family:
-    Arial,
-    "Noto Sans KR",
-    sans-serif;
-  transition: background 0.2s, color 0.2s;
+function createId(prefix) {
+  return (
+    prefix +
+    "_" +
+    Date.now() +
+    "_" +
+    Math.random().toString(36).slice(2)
+  );
 }
 
-button,
-input {
-  font: inherit;
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
-button {
-  cursor: pointer;
+function findFile(fileId) {
+  return state.files.find(file => file.id === fileId);
 }
 
-.hidden {
-  display: none !important;
+function findTest(file, testId) {
+  if (!file) return null;
+  return file.tests.find(test => test.id === testId);
 }
 
-/* 상단바 */
+function shuffle(array) {
+  const result = [...array];
 
-.topbar {
-  height: 64px;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  position: sticky;
-  top: 0;
-  z-index: 20;
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+
+  return result;
 }
 
-.topbar-left,
-.topbar-right {
-  display: flex;
-  align-items: center;
+function getAllFileWords(file) {
+  if (!file) return [];
+
+  const result = [];
+
+  file.tests.forEach(test => {
+    test.words.forEach(word => {
+      result.push({
+        ...word,
+        sourceTestId: test.id
+      });
+    });
+  });
+
+  return result;
 }
 
-.topbar-left {
-  gap: 10px;
+function isEnglishLike(text) {
+  return /^[A-Za-z0-9\s.,!?'"()\-_/]+$/.test(text);
 }
 
-.topbar-right {
-  gap: 6px;
+function isAnswerCorrect(answer, acceptedAnswers) {
+  const userAnswer = String(answer || "").trim();
+
+  if (!userAnswer) return false;
+
+  return acceptedAnswers.some(item => {
+    const expected = String(item || "").trim();
+
+    if (isEnglishLike(userAnswer) && isEnglishLike(expected)) {
+      return userAnswer.toLowerCase() === expected.toLowerCase();
+    }
+
+    return userAnswer === expected;
+  });
 }
 
-.logo {
-  font-size: 20px;
-  font-weight: 700;
+function formatDateTime(iso) {
+  const date = new Date(iso);
+
+  return (
+    (date.getMonth() + 1) +
+    "/" +
+    date.getDate() +
+    " " +
+    String(date.getHours()).padStart(2, "0") +
+    ":" +
+    String(date.getMinutes()).padStart(2, "0")
+  );
 }
 
-.nav-btn,
-.icon-btn {
-  border: none;
-  background: transparent;
-  color: var(--text);
-  padding: 8px 12px;
-  border-radius: 8px;
-  transition: background 0.15s;
+/* 테마 */
+
+function loadTheme() {
+  const theme = localStorage.getItem(THEME_KEY);
+
+  if (theme === "dark") {
+    document.body.classList.add("dark");
+    themeBtn.textContent = "☀️";
+  } else {
+    document.body.classList.remove("dark");
+    themeBtn.textContent = "🌙";
+  }
 }
 
-.nav-btn:hover,
-.icon-btn:hover {
-  background: var(--card2);
+function toggleTheme() {
+  const dark = document.body.classList.toggle("dark");
+
+  localStorage.setItem(
+    THEME_KEY,
+    dark ? "dark" : "light"
+  );
+
+  themeBtn.textContent = dark ? "☀️" : "🌙";
 }
 
-/* 메인 */
+/* 화면 */
 
-#mainContent {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 28px 18px 50px;
+function updateNavigation() {
+  if (currentScreen === "home") {
+    backBtn.classList.add("hidden");
+  } else {
+    backBtn.classList.remove("hidden");
+  }
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 22px;
+function navigate(screen, options = {}) {
+  stopQuizTimer();
+
+  currentScreen = screen;
+
+  if ("fileId" in options) {
+    currentFileId = options.fileId;
+  }
+
+  if ("testId" in options) {
+    currentTestId = options.testId;
+  }
+
+  updateNavigation();
+  render();
 }
 
-.page-title {
-  margin: 0;
-  font-size: 28px;
+function goBack() {
+  if (quizSession) {
+    showConfirm(
+      "테스트 종료",
+      "진행 중인 테스트를 종료할까요?",
+      () => {
+        const fileId = quizSession.fileId;
+        const testId = quizSession.testId;
+        const isTotal = testId === "__total__";
+
+        clearQuiz();
+
+        if (isTotal) {
+          navigate("file", { fileId });
+        } else {
+          navigate("wordbook", {
+            fileId,
+            testId
+          });
+        }
+      }
+    );
+
+    return;
+  }
+
+  if (currentScreen === "file") {
+    navigate("home");
+  } else if (currentScreen === "wordbook") {
+    navigate("file", {
+      fileId: currentFileId
+    });
+  } else if (currentScreen === "quiz") {
+    navigate("wordbook", {
+      fileId: currentFileId,
+      testId: currentTestId
+    });
+  } else if (currentScreen === "result") {
+    navigate("home");
+  } else {
+    navigate("home");
+  }
 }
 
-.page-description {
-  margin: 6px 0 0;
-  color: var(--subtext);
-  font-size: 14px;
+/* 홈 */
+
+function renderHome() {
+  const files = state.files;
+
+  mainContent.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">홈</h1>
+        <p class="page-description">파일을 선택해서 단어장을 관리하세요.</p>
+      </div>
+
+      <button id="addFileBtn" class="primary-btn">
+        + 파일 추가
+      </button>
+    </div>
+
+    ${
+      files.length
+        ? `
+          <div id="fileList" class="list">
+            ${files.map(renderFileItem).join("")}
+          </div>
+        `
+        : `
+          <div class="empty-state">
+            아직 파일이 없습니다.<br>
+            파일을 추가해서 단어장을 만들어보세요.
+          </div>
+        `
+    }
+  `;
+
+  document
+    .getElementById("addFileBtn")
+    .addEventListener("click", addFile);
+
+  setupFileEvents();
 }
 
-/* 버튼 */
+function renderFileItem(file) {
+  const wordCount = getAllFileWords(file).length;
 
-.primary-btn,
-.secondary-btn,
-.danger-btn {
-  border: none;
-  border-radius: 9px;
-  padding: 10px 15px;
-  font-weight: 600;
+  return `
+    <div class="list-item" draggable="true" data-file-id="${file.id}">
+      <div class="drag-handle">⋮⋮</div>
+
+      <div class="item-main" data-open-file="${file.id}">
+        <div class="item-title">
+          ${escapeHtml(file.name)}
+        </div>
+
+        <div class="item-sub">
+          ${file.tests.length}개 단어장 · ${wordCount}개 단어
+        </div>
+      </div>
+
+      <div class="item-actions">
+        <button class="small-btn" data-rename-file="${file.id}">
+          수정
+        </button>
+
+        <button class="small-btn delete" data-delete-file="${file.id}">
+          삭제
+        </button>
+      </div>
+    </div>
+  `;
 }
 
-.primary-btn {
-  background: var(--primary);
-  color: white;
+function addFile() {
+  const name = prompt("파일 이름을 입력하세요.");
+
+  if (name === null) return;
+
+  const trimmed = name.trim();
+
+  if (!trimmed) {
+    alert("파일 이름을 입력해주세요.");
+    return;
+  }
+
+  state.files.push({
+    id: createId("file"),
+    name: trimmed,
+    tests: []
+  });
+
+  saveState();
+  render();
 }
 
-.primary-btn:hover {
-  background: var(--primary-hover);
+function renameFile(fileId) {
+  const file = findFile(fileId);
+
+  if (!file) return;
+
+  const name = prompt(
+    "파일 이름을 입력하세요.",
+    file.name
+  );
+
+  if (name === null) return;
+
+  const trimmed = name.trim();
+
+  if (!trimmed) {
+    alert("파일 이름을 입력해주세요.");
+    return;
+  }
+
+  file.name = trimmed;
+
+  saveState();
+  render();
 }
 
-.secondary-btn {
-  background: var(--card2);
-  color: var(--text);
+function deleteFile(fileId) {
+  const file = findFile(fileId);
+
+  if (!file) return;
+
+  showConfirm(
+    "파일 삭제",
+    `"${file.name}" 파일을 삭제할까요?`,
+    () => {
+      state.files = state.files.filter(
+        item => item.id !== fileId
+      );
+
+      saveState();
+      render();
+    }
+  );
 }
 
-.danger-btn {
-  background: var(--danger);
-  color: white;
+function setupFileEvents() {
+  const list = document.getElementById("fileList");
+
+  if (!list) return;
+
+  let draggedId = null;
+
+  list.querySelectorAll("[data-file-id]").forEach(item => {
+    item.addEventListener("dragstart", () => {
+      draggedId = item.dataset.fileId;
+      item.style.opacity = "0.5";
+    });
+
+    item.addEventListener("dragend", () => {
+      draggedId = null;
+      item.style.opacity = "";
+    });
+
+    item.addEventListener("dragover", event => {
+      event.preventDefault();
+    });
+
+    item.addEventListener("drop", event => {
+      event.preventDefault();
+
+      const targetId = item.dataset.fileId;
+
+      if (!draggedId || draggedId === targetId) return;
+
+      const fromIndex = state.files.findIndex(
+        file => file.id === draggedId
+      );
+
+      const toIndex = state.files.findIndex(
+        file => file.id === targetId
+      );
+
+      if (fromIndex < 0 || toIndex < 0) return;
+
+      const moved = state.files.splice(fromIndex, 1)[0];
+
+      state.files.splice(toIndex, 0, moved);
+
+      saveState();
+      render();
+    });
+  });
+
+  list.querySelectorAll("[data-open-file]").forEach(item => {
+    item.addEventListener("click", () => {
+      navigate("file", {
+        fileId: item.dataset.openFile
+      });
+    });
+  });
+
+  list.querySelectorAll("[data-rename-file]").forEach(button => {
+    button.addEventListener("click", event => {
+      event.stopPropagation();
+      renameFile(button.dataset.renameFile);
+    });
+  });
+
+  list.querySelectorAll("[data-delete-file]").forEach(button => {
+    button.addEventListener("click", event => {
+      event.stopPropagation();
+      deleteFile(button.dataset.deleteFile);
+    });
+  });
 }
 
-/* 카드 */
+/* 파일 화면 */
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
+function renderFile() {
+  const file = findFile(currentFileId);
+
+  if (!file) {
+    navigate("home");
+    return;
+  }
+
+  mainContent.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">
+          ${escapeHtml(file.name)}
+        </h1>
+
+        <p class="page-description">
+          단어장을 추가하고 관리하세요.
+        </p>
+      </div>
+
+      <button id="addTestBtn" class="primary-btn">
+        + 단어장 생성
+      </button>
+    </div>
+
+    ${
+      file.tests.length
+        ? `
+          <div id="testList" class="list">
+            ${file.tests.map(renderTestItem).join("")}
+          </div>
+        `
+        : `
+          <div class="empty-state">
+            아직 단어장이 없습니다.<br>
+            <b>+ 단어장 생성</b>을 눌러 만들어보세요.
+          </div>
+        `
+    }
+
+    <div class="card total-test-card">
+      <div class="total-test-title">총합 테스트</div>
+
+      <div class="total-test-description">
+        ${escapeHtml(file.name)} 파일의 모든 단어장을 합쳐서 테스트합니다.
+      </div>
+
+      <div class="total-test-buttons">
+        <button id="totalAllBtn" class="test-btn">
+          전체 테스트
+        </button>
+
+        <button id="totalToMeaningBtn" class="test-btn">
+          ${escapeHtml(file.name)} → 뜻
+        </button>
+
+        <button id="totalToTitleBtn" class="test-btn">
+          뜻 → ${escapeHtml(file.name)}
+        </button>
+
+        <button id="totalQuickTestBtn" class="test-btn">
+          빠른 테스트
+        </button>
+      </div>
+    </div>
+  `;
+
+  document
+    .getElementById("addTestBtn")
+    .addEventListener("click", addTest);
+
+  document
+    .getElementById("totalAllBtn")
+    .addEventListener("click", () => {
+      startTotalQuiz(file, "all");
+    });
+
+  document
+    .getElementById("totalToMeaningBtn")
+    .addEventListener("click", () => {
+      startTotalQuiz(file, "term-to-meaning");
+    });
+
+  document
+    .getElementById("totalToTitleBtn")
+    .addEventListener("click", () => {
+      startTotalQuiz(file, "meaning-to-term");
+    });
+
+  document
+    .getElementById("totalQuickTestBtn")
+    .addEventListener("click", () => {
+      quickSource = {
+        type: "total",
+        fileId: file.id
+      };
+
+      quickModal.classList.remove("hidden");
+    });
+
+  setupTestEvents();
 }
 
-.card + .card {
-  margin-top: 12px;
+function renderTestItem(test) {
+  return `
+    <div class="list-item" draggable="true" data-test-id="${test.id}">
+      <div class="drag-handle">⋮⋮</div>
+
+      <div class="item-main" data-open-test="${test.id}">
+        <div class="item-title">
+          ${escapeHtml(test.name)}
+        </div>
+
+        <div class="item-sub">
+          ${test.words.length}개 단어
+        </div>
+      </div>
+
+      <div class="item-actions">
+        <button class="small-btn" data-rename-test="${test.id}">
+          수정
+        </button>
+
+        <button class="small-btn delete" data-delete-test="${test.id}">
+          삭제
+        </button>
+      </div>
+    </div>
+  `;
 }
 
-/* 파일 / 단어장 목록 */
+function addTest() {
+  const file = findFile(currentFileId);
 
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  if (!file) return;
+
+  const name = prompt("단어장 이름을 입력하세요.");
+
+  if (name === null) return;
+
+  const trimmed = name.trim();
+
+  if (!trimmed) {
+    alert("단어장 이름을 입력해주세요.");
+    return;
+  }
+
+  file.tests.push({
+    id: createId("test"),
+    name: trimmed,
+    words: []
+  });
+
+  saveState();
+  render();
 }
 
-.list-item {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 15px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: var(--shadow);
+function renameTest(testId) {
+  const file = findFile(currentFileId);
+  const test = findTest(file, testId);
+
+  if (!test) return;
+
+  const name = prompt(
+    "단어장 이름을 입력하세요.",
+    test.name
+  );
+
+  if (name === null) return;
+
+  const trimmed = name.trim();
+
+  if (!trimmed) {
+    alert("단어장 이름을 입력해주세요.");
+    return;
+  }
+
+  test.name = trimmed;
+
+  saveState();
+  render();
 }
 
-.drag-handle {
-  color: var(--subtext);
-  font-size: 18px;
-  cursor: grab;
-  user-select: none;
+function deleteTest(testId) {
+  const file = findFile(currentFileId);
+  const test = findTest(file, testId);
+
+  if (!test) return;
+
+  showConfirm(
+    "단어장 삭제",
+    `"${test.name}" 단어장을 삭제할까요?`,
+    () => {
+      file.tests = file.tests.filter(
+        item => item.id !== testId
+      );
+
+      saveState();
+      render();
+    }
+  );
 }
 
-.drag-handle:active {
-  cursor: grabbing;
+function setupTestEvents() {
+  const list = document.getElementById("testList");
+
+  if (!list) return;
+
+  let draggedId = null;
+
+  list.querySelectorAll("[data-test-id]").forEach(item => {
+    item.addEventListener("dragstart", () => {
+      draggedId = item.dataset.testId;
+      item.style.opacity = "0.5";
+    });
+
+    item.addEventListener("dragend", () => {
+      draggedId = null;
+      item.style.opacity = "";
+    });
+
+    item.addEventListener("dragover", event => {
+      event.preventDefault();
+    });
+
+    item.addEventListener("drop", event => {
+      event.preventDefault();
+
+      const targetId = item.dataset.testId;
+
+      if (!draggedId || draggedId === targetId) return;
+
+      const file = findFile(currentFileId);
+
+      if (!file) return;
+
+      const fromIndex = file.tests.findIndex(
+        test => test.id === draggedId
+      );
+
+      const toIndex = file.tests.findIndex(
+        test => test.id === targetId
+      );
+
+      if (fromIndex < 0 || toIndex < 0) return;
+
+      const moved = file.tests.splice(fromIndex, 1)[0];
+
+      file.tests.splice(toIndex, 0, moved);
+
+      saveState();
+      render();
+    });
+  });
+
+  list.querySelectorAll("[data-open-test]").forEach(item => {
+    item.addEventListener("click", () => {
+      navigate("wordbook", {
+        fileId: currentFileId,
+        testId: item.dataset.openTest
+      });
+    });
+  });
+
+  list.querySelectorAll("[data-rename-test]").forEach(button => {
+    button.addEventListener("click", event => {
+      event.stopPropagation();
+      renameTest(button.dataset.renameTest);
+    });
+  });
+
+  list.querySelectorAll("[data-delete-test]").forEach(button => {
+    button.addEventListener("click", event => {
+      event.stopPropagation();
+      deleteTest(button.dataset.deleteTest);
+    });
+  });
 }
 
-.item-main {
-  flex: 1;
-  min-width: 0;
-  cursor: pointer;
+/* 단어장 */
+
+function renderWordbook() {
+  const file = findFile(currentFileId);
+  const test = findTest(file, currentTestId);
+
+  if (!file || !test) {
+    navigate("file", {
+      fileId: currentFileId
+    });
+
+    return;
+  }
+
+  mainContent.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">
+          ${escapeHtml(test.name)}
+        </h1>
+
+        <p class="page-description">
+          예: run:달리다,뛰다/runway:활주로
+        </p>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <input
+        id="wordInput"
+        class="word-input"
+        type="text"
+        placeholder="단어:뜻,뜻/단어:뜻"
+        autocomplete="off"
+      >
+    </div>
+
+    <div class="test-buttons">
+      <button id="allTestBtn" class="test-btn">
+        전체 테스트
+      </button>
+
+      <button id="termToMeaningBtn" class="test-btn">
+        ${escapeHtml(file.name)} → 뜻
+      </button>
+
+      <button id="meaningToTermBtn" class="test-btn">
+        뜻 → ${escapeHtml(file.name)}
+      </button>
+
+      <button id="quickTestBtn" class="test-btn">
+        빠른 테스트
+      </button>
+    </div>
+
+    ${
+      test.words.length
+        ? `
+          <div id="wordList" class="word-list">
+            ${test.words.map(renderWordRow).join("")}
+          </div>
+        `
+        : `
+          <div class="empty-state">
+            아직 단어가 없습니다.<br>
+            위 입력창에 단어를 입력해주세요.
+          </div>
+        `
+    }
+  `;
+
+  const input = document.getElementById("wordInput");
+
+  input.addEventListener("keydown", event => {
+    if (event.key !== "Enter") return;
+
+    event.preventDefault();
+
+    addWordsFromInput(input.value);
+    input.value = "";
+  });
+
+  document
+    .getElementById("allTestBtn")
+    .addEventListener("click", () => {
+      startQuiz({
+        fileId: currentFileId,
+        testId: currentTestId,
+        mode: "all"
+      });
+    });
+
+  document
+    .getElementById("termToMeaningBtn")
+    .addEventListener("click", () => {
+      startQuiz({
+        fileId: currentFileId,
+        testId: currentTestId,
+        mode: "term-to-meaning"
+      });
+    });
+
+  document
+    .getElementById("meaningToTermBtn")
+    .addEventListener("click", () => {
+      startQuiz({
+        fileId: currentFileId,
+        testId: currentTestId,
+        mode: "meaning-to-term"
+      });
+    });
+
+  document
+    .getElementById("quickTestBtn")
+    .addEventListener("click", () => {
+      quickSource = {
+        type: "test",
+        fileId: currentFileId,
+        testId: currentTestId
+      };
+
+      quickModal.classList.remove("hidden");
+    });
+
+  setupWordEvents();
 }
 
-.item-title {
-  font-weight: 700;
-  font-size: 16px;
-  word-break: break-word;
+function renderWordRow(word, index) {
+  return `
+    <div
+      class="word-row"
+      draggable="true"
+      data-word-index="${index}"
+    >
+      <div class="drag-handle">⋮⋮</div>
+
+      <div class="word-content">
+        <div class="word-term">
+          ${escapeHtml(word.term)}
+        </div>
+
+        <div class="word-meaning">
+          ${word.meanings.map(escapeHtml).join(", ")}
+        </div>
+      </div>
+
+      <div class="word-actions">
+        <button
+          class="star-btn"
+          data-star-word="${index}"
+        >
+          ${word.important ? "⭐" : "☆"}
+        </button>
+
+        <button
+          class="small-btn delete"
+          data-delete-word="${index}"
+        >
+          삭제
+        </button>
+      </div>
+    </div>
+  `;
 }
 
-.item-sub {
-  color: var(--subtext);
-  font-size: 13px;
-  margin-top: 4px;
+function parseWords(input) {
+  const parts = input
+    .split("/")
+    .map(item => item.trim())
+    .filter(Boolean);
+
+  const result = [];
+
+  for (const part of parts) {
+    const colonIndex = part.indexOf(":");
+
+    if (colonIndex === -1) continue;
+
+    const term = part
+      .slice(0, colonIndex)
+      .trim();
+
+    const meaningText = part
+      .slice(colonIndex + 1)
+      .trim();
+
+    if (!term || !meaningText) continue;
+
+    const meanings = meaningText
+      .split(",")
+      .map(item => item.trim())
+      .filter(Boolean);
+
+    if (!meanings.length) continue;
+
+    result.push({
+      term,
+      meanings
+    });
+  }
+
+  return result;
 }
 
-.item-actions {
-  display: flex;
-  gap: 5px;
+function addWordsFromInput(input) {
+  const file = findFile(currentFileId);
+  const test = findTest(file, currentTestId);
+
+  if (!file || !test) return;
+
+  const words = parseWords(input);
+
+  if (!words.length) {
+    alert(
+      "입력 형식을 확인해주세요.\n예: run:달리다,뛰다/runway:활주로"
+    );
+
+    return;
+  }
+
+  words.forEach(newWord => {
+    const exists = test.words.some(word => {
+      if (word.term !== newWord.term) return false;
+
+      if (
+        word.meanings.length !==
+        newWord.meanings.length
+      ) {
+        return false;
+      }
+
+      return word.meanings.every(
+        (meaning, index) =>
+          meaning === newWord.meanings[index]
+      );
+    });
+
+    if (!exists) {
+      test.words.push({
+        id: createId("word"),
+        term: newWord.term,
+        meanings: newWord.meanings,
+        important: false,
+        correct: 0,
+        wrong: 0,
+        lastWrong: false
+      });
+    }
+  });
+
+  saveState();
+  render();
 }
 
-.small-btn {
-  border: none;
-  background: var(--card2);
-  color: var(--text);
-  padding: 7px 9px;
-  border-radius: 7px;
-  font-size: 13px;
+function toggleImportant(index) {
+  const file = findFile(currentFileId);
+  const test = findTest(file, currentTestId);
+
+  if (!test || !test.words[index]) return;
+
+  test.words[index].important =
+    !test.words[index].important;
+
+  saveState();
+  render();
 }
 
-.small-btn:hover {
-  opacity: 0.85;
+function deleteWord(index) {
+  const file = findFile(currentFileId);
+  const test = findTest(file, currentTestId);
+
+  if (!test || !test.words[index]) return;
+
+  showConfirm(
+    "단어 삭제",
+    `"${test.words[index].term}" 단어를 삭제할까요?`,
+    () => {
+      test.words.splice(index, 1);
+      saveState();
+      render();
+    }
+  );
 }
 
-.small-btn.delete {
-  color: var(--danger);
-}
+function setupWordEvents() {
+  const list = document.getElementById("wordList");
 
-/* 입력 */
+  if (!list) return;
 
-.input-area {
-  margin-bottom: 18px;
-}
+  let draggedIndex = null;
 
-.word-input {
-  width: 100%;
-  height: 46px;
-  padding: 0 14px;
-  border-radius: 9px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--text);
-  outline: none;
-}
+  list.querySelectorAll("[data-word-index]").forEach(item => {
+    item.addEventListener("dragstart", () => {
+      draggedIndex = Number(item.dataset.wordIndex);
+      item.style.opacity = "0.5";
+    });
 
-.word-input:focus {
-  border-color: var(--primary);
-}
+    item.addEventListener("dragend", () => {
+      draggedIndex = null;
+      item.style.opacity = "";
+    });
 
-/* 테스트 버튼 */
+    item.addEventListener("dragover", event => {
+      event.preventDefault();
+    });
 
-.test-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 20px;
-}
+    item.addEventListener("drop", event => {
+      event.preventDefault();
 
-.test-btn {
-  border: none;
-  background: var(--card);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 13px 12px;
-  font-weight: 600;
-}
+      const targetIndex =
+        Number(item.dataset.wordIndex);
 
-.test-btn:hover {
-  background: var(--card2);
-}
+      if (
+        draggedIndex === null ||
+        draggedIndex === targetIndex
+      ) {
+        return;
+      }
 
-/* 단어 목록 */
+      const file = findFile(currentFileId);
+      const test = findTest(file, currentTestId);
 
-.word-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+      if (!test) return;
 
-.word-row {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+      const moved = test.words.splice(
+        draggedIndex,
+        1
+      )[0];
 
-.word-content {
-  flex: 1;
-  min-width: 0;
-}
+      test.words.splice(targetIndex, 0, moved);
 
-.word-term {
-  font-weight: 700;
-  word-break: break-word;
-}
+      saveState();
+      render();
+    });
+  });
 
-.word-meaning {
-  color: var(--subtext);
-  margin-top: 4px;
-  word-break: break-word;
-}
+  list.querySelectorAll("[data-star-word]").forEach(button => {
+    button.addEventListener("click", () => {
+      toggleImportant(
+        Number(button.dataset.starWord)
+      );
+    });
+  });
 
-.word-actions {
-  display: flex;
-  gap: 5px;
-  align-items: center;
-}
-
-.star-btn {
-  border: none;
-  background: transparent;
-  font-size: 20px;
-  padding: 3px;
-}
-
-.star-btn.active {
-  color: #f59e0b;
-}
-
-/* 총합 테스트 */
-
-.total-test-card {
-  margin-top: 24px;
-  padding: 18px;
-}
-
-.total-test-title {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.total-test-description {
-  font-size: 14px;
-  color: var(--subtext);
-  margin-bottom: 14px;
-}
-
-.total-test-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+  list.querySelectorAll("[data-delete-word]").forEach(button => {
+    button.addEventListener("click", () => {
+      deleteWord(
+        Number(button.dataset.deleteWord)
+      );
+    });
+  });
 }
 
 /* 퀴즈 */
 
-.quiz-wrap {
-  max-width: 680px;
-  margin: 0 auto;
+function buildQuizWords(words, mode) {
+  const result = [];
+
+  words.forEach(word => {
+    if (mode === "meaning-to-term") {
+      word.meanings.forEach(meaning => {
+        result.push({
+          id: word.id,
+          sourceTestId: word.sourceTestId || null,
+          question: meaning,
+          answer: word.term,
+          acceptedAnswers: [word.term]
+        });
+      });
+    } else {
+      result.push({
+        id: word.id,
+        sourceTestId: word.sourceTestId || null,
+        question: word.term,
+        answer: word.meanings.join(", "),
+        acceptedAnswers: word.meanings
+      });
+    }
+  });
+
+  return shuffle(result);
 }
 
-.quiz-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+function startQuiz({
+  fileId,
+  testId,
+  mode,
+  wordsOverride = null
+}) {
+  const file = findFile(fileId);
+
+  if (!file) return;
+
+  let words;
+
+  if (testId === "__total__") {
+    words =
+      wordsOverride ||
+      getAllFileWords(file);
+  } else {
+    const test = findTest(file, testId);
+
+    if (!test) return;
+
+    words = wordsOverride || test.words;
+  }
+
+  if (!words.length) {
+    alert("테스트할 단어가 없습니다.");
+    return;
+  }
+
+  const quizWords =
+    buildQuizWords(words, mode);
+
+  currentFileId = fileId;
+  currentTestId = testId;
+
+  quizSession = {
+    fileId,
+    testId,
+    mode,
+    words: quizWords,
+    index: 0,
+    correct: 0,
+    wrong: 0,
+    answered: false
+  };
+
+  navigate("quiz", {
+    fileId,
+    testId
+  });
 }
 
-.quiz-progress {
-  color: var(--subtext);
-  font-size: 14px;
+function startTotalQuiz(file, mode) {
+  const words = getAllFileWords(file);
+
+  if (!words.length) {
+    alert("테스트할 단어가 없습니다.");
+    return;
+  }
+
+  startQuiz({
+    fileId: file.id,
+    testId: "__total__",
+    mode,
+    wordsOverride: words
+  });
 }
 
-.timer {
-  font-weight: 700;
+function renderQuiz() {
+  if (!quizSession) {
+    navigate("home");
+    return;
+  }
+
+  mainContent.innerHTML = `
+    <div class="quiz-wrap">
+      <div class="quiz-top">
+        <div class="quiz-progress">
+          ${quizSession.index + 1}
+          /
+          ${quizSession.words.length}
+        </div>
+
+        <div>
+          ⏱️ <span id="timerText">10</span>초
+        </div>
+      </div>
+
+      <div class="quiz-card">
+        <div id="question" class="question"></div>
+
+        <input
+          id="answerInput"
+          class="answer-input"
+          type="text"
+          placeholder="정답을 입력하세요"
+          autocomplete="off"
+        >
+
+        <div id="feedback" class="feedback"></div>
+
+        <button
+          id="nextBtn"
+          class="primary-btn quiz-next hidden"
+        >
+          다음 문제
+        </button>
+      </div>
+    </div>
+  `;
+
+  renderQuizQuestion();
 }
 
-.quiz-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 28px 22px;
-  box-shadow: var(--shadow);
+function renderQuizQuestion() {
+  const current =
+    quizSession.words[quizSession.index];
+
+  if (!current) {
+    finishQuiz();
+    return;
+  }
+
+  const question =
+    document.getElementById("question");
+
+  const input =
+    document.getElementById("answerInput");
+
+  const feedback =
+    document.getElementById("feedback");
+
+  const nextBtn =
+    document.getElementById("nextBtn");
+
+  question.textContent = current.question;
+
+  input.value = "";
+  input.disabled = false;
+
+  feedback.textContent = "";
+  feedback.className = "feedback";
+
+  nextBtn.classList.add("hidden");
+
+  quizSession.answered = false;
+
+  input.focus();
+
+  startQuizTimer();
+
+  input.onkeydown = event => {
+    if (event.key !== "Enter") return;
+
+    event.preventDefault();
+
+    if (!quizSession.answered) {
+      checkAnswer(input.value);
+    } else {
+      moveToNextQuestion();
+    }
+  };
+
+  nextBtn.onclick = () => {
+    moveToNextQuestion();
+  };
 }
 
-.question {
-  font-size: 30px;
-  font-weight: 700;
-  text-align: center;
-  margin: 18px 0 28px;
-  word-break: break-word;
+function startQuizTimer() {
+  stopQuizTimer();
+
+  quizTimeLeft = 10;
+
+  updateTimer();
+
+  quizTimer = setInterval(() => {
+    quizTimeLeft--;
+
+    updateTimer();
+
+    if (quizTimeLeft <= 0) {
+      stopQuizTimer();
+
+      if (!quizSession.answered) {
+        checkAnswer("");
+      }
+    }
+  }, 1000);
 }
 
-.answer-input {
-  width: 100%;
-  height: 50px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 0 14px;
-  background: var(--card);
-  color: var(--text);
-  outline: none;
+function stopQuizTimer() {
+  if (quizTimer !== null) {
+    clearInterval(quizTimer);
+    quizTimer = null;
+  }
 }
 
-.answer-input:focus {
-  border-color: var(--primary);
+function updateTimer() {
+  const timer =
+    document.getElementById("timerText");
+
+  if (timer) {
+    timer.textContent = quizTimeLeft;
+  }
 }
 
-.feedback {
-  margin-top: 16px;
-  min-height: 28px;
-  text-align: center;
-  font-weight: 700;
+function findOriginalWord(item) {
+  const file = findFile(quizSession.fileId);
+
+  if (!file) return null;
+
+  if (quizSession.testId === "__total__") {
+    const test = findTest(
+      file,
+      item.sourceTestId
+    );
+
+    if (!test) return null;
+
+    return test.words.find(
+      word => word.id === item.id
+    );
+  }
+
+  const test = findTest(
+    file,
+    quizSession.testId
+  );
+
+  if (!test) return null;
+
+  return test.words.find(
+    word => word.id === item.id
+  );
 }
 
-.feedback.correct {
-  color: var(--success);
+function checkAnswer(answer) {
+  if (!quizSession || quizSession.answered) {
+    return;
+  }
+
+  stopQuizTimer();
+
+  const current =
+    quizSession.words[quizSession.index];
+
+  const correct =
+    isAnswerCorrect(
+      answer,
+      current.acceptedAnswers
+    );
+
+  quizSession.answered = true;
+
+  const original =
+    findOriginalWord(current);
+
+  if (correct) {
+    quizSession.correct++;
+
+    if (original) {
+      original.correct++;
+      original.lastWrong = false;
+    }
+  } else {
+    quizSession.wrong++;
+
+    if (original) {
+      original.wrong++;
+      original.lastWrong = true;
+    }
+  }
+
+  saveState();
+
+  const input =
+    document.getElementById("answerInput");
+
+  const feedback =
+    document.getElementById("feedback");
+
+  const nextBtn =
+    document.getElementById("nextBtn");
+
+  input.disabled = true;
+
+  if (correct) {
+    feedback.textContent = "정답입니다!";
+    feedback.className =
+      "feedback correct";
+  } else {
+    feedback.textContent =
+      "오답입니다. 정답: " +
+      current.answer;
+
+    feedback.className =
+      "feedback wrong";
+  }
+
+  nextBtn.textContent =
+    quizSession.index ===
+    quizSession.words.length - 1
+      ? "결과 보기"
+      : "다음 문제";
+
+  nextBtn.classList.remove("hidden");
 }
 
-.feedback.wrong {
-  color: var(--danger);
+function moveToNextQuestion() {
+  quizSession.index++;
+
+  if (
+    quizSession.index >=
+    quizSession.words.length
+  ) {
+    finishQuiz();
+    return;
+  }
+
+  renderQuizQuestion();
 }
 
-.quiz-next {
-  width: 100%;
-  margin-top: 14px;
+function finishQuiz() {
+  stopQuizTimer();
+
+  const file =
+    findFile(quizSession.fileId);
+
+  state.history.push({
+    id: createId("history"),
+    date: new Date().toISOString(),
+    fileName: file?.name || "",
+    testName:
+      quizSession.testId === "__total__"
+        ? "총합 테스트"
+        : findTest(
+            file,
+            quizSession.testId
+          )?.name || "",
+    total: quizSession.words.length,
+    correct: quizSession.correct,
+    wrong: quizSession.wrong
+  });
+
+  saveState();
+
+  currentScreen = "result";
+
+  updateNavigation();
+  render();
 }
 
 /* 결과 */
 
-.result-card {
-  max-width: 620px;
-  margin: 40px auto;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
-  padding: 28px;
-  text-align: center;
+function renderResult() {
+  if (!quizSession) {
+    navigate("home");
+    return;
+  }
+
+  const total = quizSession.words.length;
+  const correct = quizSession.correct;
+  const wrong = quizSession.wrong;
+
+  const percent = total
+    ? Math.round((correct / total) * 100)
+    : 0;
+
+  mainContent.innerHTML = `
+    <div class="result-card">
+      <h2>테스트 결과</h2>
+
+      <div class="result-score">
+        ${percent}%
+      </div>
+
+      <div class="result-detail">
+        ${total}문제 중 ${correct}개 정답 · ${wrong}개 오답
+      </div>
+
+      <div class="result-actions">
+        <button
+          id="resultHomeBtn"
+          class="primary-btn"
+        >
+          🏠 홈으로
+        </button>
+
+        <button
+          id="resultReturnBtn"
+          class="secondary-btn"
+        >
+          📚 ${
+            quizSession.testId === "__total__"
+              ? "현재 파일로 돌아가기"
+              : "현재 단어장으로 돌아가기"
+          }
+        </button>
+
+        <button
+          id="retryWrongBtn"
+          class="secondary-btn"
+        >
+          ❌ 틀린 문제 다시 풀기
+        </button>
+      </div>
+    </div>
+  `;
+
+  document
+    .getElementById("resultHomeBtn")
+    .addEventListener("click", () => {
+      clearQuiz();
+      navigate("home");
+    });
+
+  document
+    .getElementById("resultReturnBtn")
+    .addEventListener("click", () => {
+      const fileId =
+        quizSession.fileId;
+
+      const testId =
+        quizSession.testId;
+
+      clearQuiz();
+
+      if (testId === "__total__") {
+        navigate("file", {
+          fileId
+        });
+      } else {
+        navigate("wordbook", {
+          fileId,
+          testId
+        });
+      }
+    });
+
+  document
+    .getElementById("retryWrongBtn")
+    .addEventListener("click", retryWrong);
 }
 
-.result-score {
-  font-size: 40px;
-  font-weight: 800;
-  margin: 15px 0;
+function retryWrong() {
+  if (!quizSession) return;
+
+  const wrongWords =
+    quizSession.words
+      .map(item => findOriginalWord(item))
+      .filter(word => word?.lastWrong);
+
+  if (!wrongWords.length) {
+    alert("틀린 문제가 없습니다.");
+    return;
+  }
+
+  const fileId =
+    quizSession.fileId;
+
+  const testId =
+    quizSession.testId;
+
+  const mode =
+    quizSession.mode;
+
+  clearQuiz();
+
+  startQuiz({
+    fileId,
+    testId,
+    mode,
+    wordsOverride: shuffle(wrongWords)
+  });
 }
 
-.result-detail {
-  color: var(--subtext);
-  margin-bottom: 25px;
-}
-
-.result-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
+function clearQuiz() {
+  stopQuizTimer();
+  quizSession = null;
 }
 
 /* 통계 */
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
+function renderStats() {
+  const histories =
+    [...state.history].sort(
+      (a, b) =>
+        new Date(b.date) -
+        new Date(a.date)
+    );
+
+  const totalTests =
+    histories.length;
+
+  const totalQuestions =
+    histories.reduce(
+      (sum, item) =>
+        sum + item.total,
+      0
+    );
+
+  const totalCorrect =
+    histories.reduce(
+      (sum, item) =>
+        sum + item.correct,
+      0
+    );
+
+  mainContent.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">통계</h1>
+        <p class="page-description">
+          테스트 기록을 확인하세요.
+        </p>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">총 테스트</div>
+        <div class="stat-value">${totalTests}</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">총 문제</div>
+        <div class="stat-value">${totalQuestions}</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">정답 수</div>
+        <div class="stat-value">${totalCorrect}</div>
+      </div>
+    </div>
+
+    ${
+      histories.length
+        ? renderHistory(histories)
+        : `
+          <div class="empty-state">
+            아직 테스트 기록이 없습니다.
+          </div>
+        `
+    }
+  `;
 }
 
-.stat-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 18px;
-  box-shadow: var(--shadow);
+function renderHistory(histories) {
+  const now = new Date();
+
+  const currentYear =
+    now.getFullYear();
+
+  const currentMonth =
+    now.getMonth() + 1;
+
+  const currentMonthItems = [];
+
+  const currentYearMonths = {};
+
+  const previousYears = {};
+
+  histories.forEach(history => {
+    const date = new Date(history.date);
+
+    const year =
+      date.getFullYear();
+
+    const month =
+      date.getMonth() + 1;
+
+    if (
+      year === currentYear &&
+      month === currentMonth
+    ) {
+      currentMonthItems.push(history);
+      return;
+    }
+
+    if (year === currentYear) {
+      if (!currentYearMonths[month]) {
+        currentYearMonths[month] = [];
+      }
+
+      currentYearMonths[month].push(history);
+
+      return;
+    }
+
+    if (!previousYears[year]) {
+      previousYears[year] = {};
+    }
+
+    if (!previousYears[year][month]) {
+      previousYears[year][month] = [];
+    }
+
+    previousYears[year][month].push(history);
+  });
+
+  let html = "";
+
+  if (currentMonthItems.length) {
+    html += `
+      <div class="history-group">
+        ${currentMonthItems
+          .map(renderHistoryItem)
+          .join("")}
+      </div>
+    `;
+  }
+
+  Object.keys(currentYearMonths)
+    .map(Number)
+    .sort((a, b) => b - a)
+    .forEach(month => {
+      html += `
+        <div class="history-group">
+          <div class="history-month">
+            ${month}월
+          </div>
+
+          ${currentYearMonths[month]
+            .map(renderHistoryItem)
+            .join("")}
+        </div>
+      `;
+    });
+
+  Object.keys(previousYears)
+    .map(Number)
+    .sort((a, b) => b - a)
+    .forEach(year => {
+      html += `
+        <div class="history-group">
+          <div class="history-year">
+            ${year}년
+          </div>
+      `;
+
+      Object.keys(previousYears[year])
+        .map(Number)
+        .sort((a, b) => b - a)
+        .forEach(month => {
+          html += `
+            <div class="history-month">
+              ${month}월
+            </div>
+
+            ${previousYears[year][month]
+              .map(renderHistoryItem)
+              .join("")}
+          `;
+        });
+
+      html += `
+        </div>
+      `;
+    });
+
+  return html;
 }
 
-.stat-label {
-  color: var(--subtext);
-  font-size: 13px;
-}
+function renderHistoryItem(history) {
+  const percent =
+    history.total
+      ? Math.round(
+          (history.correct /
+            history.total) *
+            100
+        )
+      : 0;
 
-.stat-value {
-  margin-top: 8px;
-  font-size: 28px;
-  font-weight: 800;
-}
+  return `
+    <div class="history-item">
+      <div class="history-main">
+        <div class="history-name">
+          ${escapeHtml(history.fileName)}
+          ·
+          ${escapeHtml(history.testName)}
+        </div>
 
-.history-group {
-  margin-bottom: 20px;
-}
+        <div class="history-sub">
+          ${formatDateTime(history.date)}
+        </div>
+      </div>
 
-.history-year,
-.history-month {
-  font-weight: 700;
-  margin-bottom: 9px;
-}
-
-.history-year {
-  font-size: 18px;
-}
-
-.history-month {
-  font-size: 16px;
-}
-
-.history-item {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 11px 14px;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 7px;
-}
-
-.history-main {
-  min-width: 0;
-}
-
-.history-name {
-  font-weight: 600;
-}
-
-.history-sub {
-  color: var(--subtext);
-  font-size: 13px;
-  margin-top: 4px;
-}
-
-.history-score {
-  white-space: nowrap;
-  font-weight: 700;
+      <div>
+        ${history.correct}/${history.total}
+        (${percent}%)
+      </div>
+    </div>
+  `;
 }
 
 /* 설정 */
 
-.settings-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+function renderSettings() {
+  mainContent.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">설정</h1>
+        <p class="page-description">
+          앱 데이터를 관리하세요.
+        </p>
+      </div>
+    </div>
+
+    <div class="settings-list">
+      <div class="settings-item">
+        <div class="settings-title">
+          데이터 내보내기
+        </div>
+
+        <div class="settings-description">
+          현재 단어장과 통계 데이터를 저장합니다.
+        </div>
+
+        <button
+          id="exportBtn"
+          class="secondary-btn"
+        >
+          데이터 내보내기
+        </button>
+      </div>
+
+      <div class="settings-item">
+        <div class="settings-title">
+          데이터 가져오기
+        </div>
+
+        <div class="settings-description">
+          저장한 데이터를 불러옵니다.
+        </div>
+
+        <input
+          id="importInput"
+          type="file"
+          accept=".json,application/json"
+        >
+      </div>
+
+      <div class="settings-item">
+        <div class="settings-title">
+          데이터 초기화
+        </div>
+
+        <div class="settings-description">
+          모든 데이터를 삭제합니다.
+        </div>
+
+        <button
+          id="resetBtn"
+          class="danger-btn"
+        >
+          전체 데이터 초기화
+        </button>
+      </div>
+    </div>
+  `;
+
+  document
+    .getElementById("exportBtn")
+    .addEventListener(
+      "click",
+      exportData
+    );
+
+  document
+    .getElementById("importInput")
+    .addEventListener(
+      "change",
+      importData
+    );
+
+  document
+    .getElementById("resetBtn")
+    .addEventListener(
+      "click",
+      resetData
+    );
 }
 
-.settings-item {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: var(--shadow);
+function exportData() {
+  const blob = new Blob(
+    [
+      JSON.stringify(
+        state,
+        null,
+        2
+      )
+    ],
+    {
+      type: "application/json"
+    }
+  );
+
+  const url =
+    URL.createObjectURL(blob);
+
+  const link =
+    document.createElement("a");
+
+  link.href = url;
+  link.download =
+    "단어암기장.json";
+
+  link.click();
+
+  URL.revokeObjectURL(url);
 }
 
-.settings-title {
-  font-weight: 700;
-  margin-bottom: 5px;
+function importData(event) {
+  const file =
+    event.target.files?.[0];
+
+  if (!file) return;
+
+  const reader =
+    new FileReader();
+
+  reader.onload = () => {
+    try {
+      const imported =
+        JSON.parse(reader.result);
+
+      if (
+        !imported ||
+        !Array.isArray(imported.files) ||
+        !Array.isArray(imported.history)
+      ) {
+        throw new Error();
+      }
+
+      showConfirm(
+        "데이터 가져오기",
+        "현재 데이터를 가져온 데이터로 교체할까요?",
+        () => {
+          state = {
+            files: imported.files,
+            history: imported.history
+          };
+
+          saveState();
+          navigate("home");
+        }
+      );
+    } catch {
+      alert(
+        "올바른 데이터 파일이 아닙니다."
+      );
+    }
+  };
+
+  reader.readAsText(file);
 }
 
-.settings-description {
-  color: var(--subtext);
-  font-size: 13px;
-  margin-bottom: 12px;
+function resetData() {
+  showConfirm(
+    "전체 데이터 초기화",
+    "모든 데이터를 삭제할까요?",
+    () => {
+      state = defaultState();
+      saveState();
+      clearQuiz();
+      navigate("home");
+    }
+  );
 }
 
 /* 모달 */
 
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-  z-index: 100;
+function showConfirm(
+  title,
+  message,
+  callback
+) {
+  confirmTitle.textContent =
+    title;
+
+  confirmMessage.textContent =
+    message;
+
+  confirmCallback = callback;
+
+  confirmModal.classList.remove(
+    "hidden"
+  );
 }
 
-.modal-box {
-  width: 100%;
-  max-width: 440px;
-  background: var(--card);
-  border-radius: 14px;
-  padding: 20px;
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+function closeConfirm() {
+  confirmModal.classList.add(
+    "hidden"
+  );
+
+  confirmCallback = null;
 }
 
-.modal-box.small {
-  max-width: 380px;
+function closeQuick() {
+  quickModal.classList.add(
+    "hidden"
+  );
+
+  quickSource = null;
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+function startQuickTest(type) {
+  closeQuick();
+
+  if (!quickSource) return;
+
+  const file =
+    findFile(quickSource.fileId);
+
+  if (!file) return;
+
+  let words = [];
+  let testId = "__total__";
+
+  if (quickSource.type === "total") {
+    words = getAllFileWords(file);
+  } else {
+    const test =
+      findTest(
+        file,
+        quickSource.testId
+      );
+
+    if (!test) return;
+
+    testId = test.id;
+    words = test.words;
+  }
+
+  if (type === "important") {
+    words = words.filter(
+      word => word.important
+    );
+  }
+
+  if (type === "wrong") {
+    words = words.filter(
+      word =>
+        word.wrong > 0 ||
+        word.lastWrong
+    );
+  }
+
+  if (!words.length) {
+    alert(
+      type === "important"
+        ? "중요 단어가 없습니다."
+        : "틀린 단어가 없습니다."
+    );
+
+    return;
+  }
+
+  startQuiz({
+    fileId: file.id,
+    testId,
+    mode: "all",
+    wordsOverride: shuffle(words)
+  });
 }
 
-.modal-header h3 {
-  margin: 0;
+closeQuickModal.addEventListener(
+  "click",
+  closeQuick
+);
+
+importantQuickBtn.addEventListener(
+  "click",
+  () => startQuickTest("important")
+);
+
+wrongQuickBtn.addEventListener(
+  "click",
+  () => startQuickTest("wrong")
+);
+
+quickModal.addEventListener(
+  "click",
+  event => {
+    if (event.target === quickModal) {
+      closeQuick();
+    }
+  }
+);
+
+confirmCancelBtn.addEventListener(
+  "click",
+  closeConfirm
+);
+
+confirmOkBtn.addEventListener(
+  "click",
+  () => {
+    const callback = confirmCallback;
+
+    closeConfirm();
+
+    if (callback) {
+      callback();
+    }
+  }
+);
+
+confirmModal.addEventListener(
+  "click",
+  event => {
+    if (event.target === confirmModal) {
+      closeConfirm();
+    }
+  }
+);
+
+/* 상단 메뉴 */
+
+backBtn.addEventListener(
+  "click",
+  goBack
+);
+
+themeBtn.addEventListener(
+  "click",
+  toggleTheme
+);
+
+homeBtn.addEventListener(
+  "click",
+  () => {
+    if (quizSession) {
+      showConfirm(
+        "테스트 종료",
+        "진행 중인 테스트를 종료할까요?",
+        () => {
+          clearQuiz();
+          navigate("home");
+        }
+      );
+
+      return;
+    }
+
+    navigate("home");
+  }
+);
+
+statsBtn.addEventListener(
+  "click",
+  () => {
+    if (quizSession) {
+      showConfirm(
+        "테스트 종료",
+        "진행 중인 테스트를 종료하고 통계로 이동할까요?",
+        () => {
+          clearQuiz();
+          navigate("stats");
+        }
+      );
+
+      return;
+    }
+
+    navigate("stats");
+  }
+);
+
+settingsBtn.addEventListener(
+  "click",
+  () => {
+    if (quizSession) {
+      showConfirm(
+        "테스트 종료",
+        "진행 중인 테스트를 종료하고 설정으로 이동할까요?",
+        () => {
+          clearQuiz();
+          navigate("settings");
+        }
+      );
+
+      return;
+    }
+
+    navigate("settings");
+  }
+);
+
+/* 렌더링 */
+
+function render() {
+  updateNavigation();
+
+  if (currentScreen === "home") {
+    renderHome();
+    return;
+  }
+
+  if (currentScreen === "file") {
+    renderFile();
+    return;
+  }
+
+  if (currentScreen === "wordbook") {
+    renderWordbook();
+    return;
+  }
+
+  if (currentScreen === "quiz") {
+    renderQuiz();
+    return;
+  }
+
+  if (currentScreen === "result") {
+    renderResult();
+    return;
+  }
+
+  if (currentScreen === "stats") {
+    renderStats();
+    return;
+  }
+
+  if (currentScreen === "settings") {
+    renderSettings();
+    return;
+  }
+
+  navigate("home");
 }
 
-.quick-options {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
+/* 시작 */
 
-.quick-option {
-  border: 1px solid var(--border);
-  background: var(--card2);
-  color: var(--text);
-  padding: 14px;
-  border-radius: 9px;
-  text-align: left;
-  font-weight: 600;
-}
+loadTheme();
+render();
 
-.quick-option:hover {
-  opacity: 0.9;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 18px;
-}
-
-/* 빈 화면 */
-
-.empty-state {
-  background: var(--card);
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  padding: 35px 20px;
-  text-align: center;
-  color: var(--subtext);
-}
-
-/* 반응형 */
-
-@media (max-width: 700px) {
-  .topbar {
-    padding: 0 10px;
-  }
-
-  .logo {
-    font-size: 17px;
-  }
-
-  .topbar-right {
-    gap: 2px;
-  }
-
-  .nav-btn {
-    padding: 7px 8px;
-    font-size: 13px;
-  }
-
-  #mainContent {
-    padding: 22px 12px 40px;
-  }
-
-  .page-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .test-buttons,
-  .total-test-buttons,
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .question {
-    font-size: 25px;
-  }
-
-  .history-item {
-    flex-direction: column;
-  }
-
-  .history-score {
-    white-space: normal;
-  }
+if ("serviceWorker" in navigator) {
+  window.addEventListener(
+    "load",
+    () => {
+      navigator.serviceWorker
+        .register("sw.js")
+        .catch(error => {
+          console.error(
+            "Service Worker 오류:",
+            error
+          );
+        });
+    }
+  );
 }
