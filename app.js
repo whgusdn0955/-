@@ -1,173 +1,360 @@
-const APP_VERSION = "1.1.0";
-const DB_KEY = "vocab-app-data-v2";
-const SETTINGS_KEY = "vocab-app-settings-v2";
+const APP_VERSION = "1.2.0";
+
+const DB_KEY = "vocab-app-data-v3";
+const SETTINGS_KEY = "vocab-app-settings-v3";
+
 const GROUP_PAGE_SIZE = 5;
 const WORD_CHUNK = 40;
-const STORAGE_SOFT_LIMIT = 4 * 1024 * 1024;
 
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
-const nowISO = () => new Date().toISOString();
-const uid = p => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
-const trim = v => String(v ?? "").trim();
-const norm = v => trim(v).toLocaleLowerCase("ko-KR");
-const clone = v => JSON.parse(JSON.stringify(v));
-const escapeHTML = v => String(v ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[c]));
-const fmtDate = iso => new Intl.DateTimeFormat("ko-KR", {year:"numeric",month:"long",day:"numeric"}).format(new Date(iso));
-const fmtTime = iso => new Intl.DateTimeFormat("ko-KR", {hour:"2-digit",minute:"2-digit"}).format(new Date(iso));
-const fmtDateTime = iso => `${fmtDate(iso)} ${fmtTime(iso)}`;
+const $ = selector =>
+  document.querySelector(selector);
+
+const $$ = selector =>
+  [...document.querySelectorAll(selector)];
+
+const nowISO = () =>
+  new Date().toISOString();
+
+const uid = prefix =>
+  `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+const trim = value =>
+  String(value ?? "").trim();
+
+const norm = value =>
+  trim(value).toLocaleLowerCase("ko-KR");
+
+const clone = value =>
+  JSON.parse(JSON.stringify(value));
+
+const escapeHTML = value =>
+  String(value ?? "").replace(
+    /[&<>'"]/g,
+    char =>
+      ({
+        "&":"&amp;",
+        "<":"&lt;",
+        ">":"&gt;",
+        "'":"&#39;",
+        '"':"&quot;"
+      }[char])
+  );
+
+const fmtDate = iso =>
+  new Intl.DateTimeFormat("ko-KR", {
+    year:"numeric",
+    month:"long",
+    day:"numeric"
+  }).format(new Date(iso));
+
+const fmtTime = iso =>
+  new Intl.DateTimeFormat("ko-KR", {
+    hour:"2-digit",
+    minute:"2-digit"
+  }).format(new Date(iso));
+
+const fmtDateTime = iso =>
+  `${fmtDate(iso)} ${fmtTime(iso)}`;
 
 const CHANGELOG = {
-  "1.1.0": {
-    added: [
-      "묶음 5개 단위 페이지",
+  "1.2.0":{
+    added:[
+      "모바일 화면 최적화",
+      "폴더 전용 화면",
       "폴더 안 묶음 선택 추가",
-      "묶음 중요 표시와 정렬",
-      "묶음 이전/다음 이동",
-      "최근 오답 7일 기준",
-      "학습 기록 상대형 연/월 그룹",
-      "버전별 지원 기능 표시"
+      "묶음 통합 검색",
+      "최근 틀린 단어 7일 기준",
+      "빠른 테스트의 동일 단어 뜻 통합",
+      "다크 모드 확인 절차",
+      "묶음 정렬 및 중요 표시"
     ],
-    fixed: [
-      "테스트 결과의 홈/단어장 이동",
-      "Enter 키 단계별 동작",
-      "드래그와 폴더 이동 구조",
-      "검색 결과 처리",
-      "PWA 캐시 버전 처리"
+    fixed:[
+      "홈·통계 다크 모드",
+      "폴더 진입 문제",
+      "묶음 즉시 갱신",
+      "테스트 결과 이동",
+      "단어 및 뜻 추가 창 닫힘",
+      "Enter 키 동작",
+      "학습 기록 접힘 상태"
     ]
   },
 
-  "1.0.0": {
-    added: [
-      "단어 묶음 및 단어 관리",
-      "빠른 테스트",
-      "통계",
-      "자동 저장",
-      "JSON 저장/불러오기",
-      "다크 모드",
-      "PWA 설치 지원"
+  "1.1.0":{
+    added:[
+      "묶음 5개 페이지",
+      "묶음 드래그",
+      "폴더 이동",
+      "묶음 이전·다음 이동",
+      "버전 변경 기록"
     ],
-    fixed: []
+    fixed:[
+      "검색 구조",
+      "테스트 이동"
+    ]
+  },
+
+  "1.0.0":{
+    added:[
+      "단어 및 뜻 관리",
+      "묶음 관리",
+      "테스트",
+      "학습 통계",
+      "자동 저장",
+      "JSON 저장·불러오기",
+      "PWA 지원"
+    ],
+    fixed:[]
   }
 };
 
-const initialData = () => ({
-  version:2,
+const createInitialState = () => ({
+  version:3,
   groups:[],
   history:[],
   updatedAt:nowISO()
 });
 
-const initialSettings = () => ({
+const createInitialSettings = () => ({
   autoNext:false,
   darkMode:false
 });
 
 let state = loadState();
-let savedSettings = loadSettings();
-let draftSettings = {...savedSettings};
+
+let savedSettings =
+  loadSettings();
+
+let draftSettings =
+  {...savedSettings};
 
 let currentPage = "homePage";
+
+let currentView = {
+  type:"home",
+  id:null
+};
+
 let currentBundleId = null;
+
 let bundlePage = 1;
+
 let bundleSort = "manual";
 
 let wordSearch = "";
 let wordSort = "order";
 let importantFilter = false;
-
-let selectedWordIds = new Set();
 let wordVisibleLimit = WORD_CHUNK;
+
+let selectedWordIds =
+  new Set();
 
 let testSession = null;
 
 let pendingInstallPrompt = null;
+
 let downloadUrl = null;
-let lastExportName = "";
 
 function loadState(){
+
   try{
-    const raw = localStorage.getItem(DB_KEY);
+
+    const raw =
+      localStorage.getItem(DB_KEY);
 
     if(!raw){
-      return initialData();
+      return createInitialState();
     }
 
-    const d = JSON.parse(raw);
+    const parsed =
+      JSON.parse(raw);
 
     if(
-      !d ||
-      !Array.isArray(d.groups) ||
-      !Array.isArray(d.history)
+      !parsed ||
+      !Array.isArray(parsed.groups) ||
+      !Array.isArray(parsed.history)
     ){
-      return initialData();
+
+      return createInitialState();
     }
 
-    migrateState(d);
+    migrateState(parsed);
 
-    return d;
+    return parsed;
 
-  }catch{
-    return initialData();
+  }catch(error){
+
+    console.error(
+      "State load error:",
+      error
+    );
+
+    return createInitialState();
   }
 }
 
-function migrateState(d){
+function migrateState(data){
 
-  d.groups.forEach((g,i)=>{
+  data.version = 3;
 
-    g.type ||= "bundle";
+  data.groups.forEach(
+    (group,index)=>{
 
-    g.parentId ||= null;
+      group.id ||= uid("group");
 
-    if(g.type === "folder"){
-      g.parentId = null;
-    }
+      group.type ||=
+        "bundle";
 
-    if(
-      g.type === "bundle" &&
-      g.parentId &&
-      d.groups.find(
-        x=>x.id===g.parentId
-      )?.type !== "folder"
-    ){
-      g.parentId = null;
-    }
+      group.name =
+        trim(group.name) ||
+        "이름 없음";
 
-    g.order ??= i;
-    g.createdAt ||= nowISO();
-    g.important = !!g.important;
+      group.createdAt ||=
+        nowISO();
 
-    g.words =
-      Array.isArray(g.words)
-        ? g.words
-        : [];
+      group.order ??=
+        index;
 
-    g.words.forEach(w=>{
+      group.important =
+        !!group.important;
 
-      w.id ||= uid("w");
-      w.createdAt ||= nowISO();
-      w.important = !!w.important;
+      group.open =
+        group.open !== false;
 
-      w.meanings =
-        Array.isArray(w.meanings)
-          ? w.meanings
+      group.words =
+        Array.isArray(group.words)
+          ? group.words
           : [];
 
-      w.meanings.forEach(m=>{
-        m.id ||= uid("m");
-        m.text = trim(m.text);
-      });
+      if(group.type==="folder"){
 
-      w.stats ||= {
-        attempts:0,
-        wrong:0,
-        lastWrong:null
-      };
+        group.parentId = null;
 
-    });
+        group.words = [];
 
-  });
+      }else{
+
+        group.parentId =
+          group.parentId ||
+          null;
+
+      }
+
+      group.words.forEach(
+        word=>{
+
+          word.id ||=
+            uid("word");
+
+          word.english =
+            trim(word.english);
+
+          word.meanings =
+            Array.isArray(
+              word.meanings
+            )
+              ? word.meanings
+              : [];
+
+          word.meanings =
+            word.meanings
+              .map(
+                meaning=>({
+                  id:
+                    meaning.id ||
+                    uid("meaning"),
+                  text:
+                    trim(
+                      meaning.text
+                    )
+                })
+              )
+              .filter(
+                meaning =>
+                  meaning.text
+              );
+
+          word.createdAt ||=
+            nowISO();
+
+          word.important =
+            !!word.important;
+
+          word.stats ||= {
+            attempts:0,
+            wrong:0,
+            lastWrong:null
+          };
+
+          word.stats.attempts ||=
+            0;
+
+          word.stats.wrong ||=
+            0;
+
+          word.stats.lastWrong ||=
+            null;
+
+        }
+      );
+
+    }
+  );
+
+  normalizeParentStructure();
+
+}
+
+function normalizeParentStructure(){
+
+  const groupsById =
+    new Map(
+      state.groups.map(
+        group=>[
+          group.id,
+          group
+        ]
+      )
+    );
+
+  state.groups.forEach(
+    group=>{
+
+      if(
+        group.type==="folder"
+      ){
+
+        group.parentId =
+          null;
+
+        return;
+
+      }
+
+      if(
+        group.parentId
+      ){
+
+        const parent =
+          groupsById.get(
+            group.parentId
+          );
+
+        if(
+          !parent ||
+          parent.type !== "folder"
+        ){
+
+          group.parentId =
+            null;
+
+        }
+
+      }
+
+    }
+  );
+
+  renumberOrders();
 
 }
 
@@ -175,75 +362,83 @@ function loadSettings(){
 
   try{
 
-    const d =
-      JSON.parse(
-        localStorage.getItem(
-          SETTINGS_KEY
-        ) || "null"
+    const raw =
+      localStorage.getItem(
+        SETTINGS_KEY
       );
 
+    if(!raw){
+      return createInitialSettings();
+    }
+
+    const parsed =
+      JSON.parse(raw);
+
     return {
-      autoNext:!!d?.autoNext,
-      darkMode:!!d?.darkMode
+      autoNext:
+        !!parsed.autoNext,
+      darkMode:
+        !!parsed.darkMode
     };
 
   }catch{
 
-    return initialSettings();
+    return createInitialSettings();
 
-  }
-
-}
-
-function stateSizeBytes(){
-
-  try{
-    return new Blob([
-      JSON.stringify(state)
-    ]).size;
-  }catch{
-    return 0;
   }
 
 }
 
 function persistState(){
 
-  const snapshot = clone(state);
-
-  snapshot.updatedAt = nowISO();
-
-  const raw =
-    JSON.stringify(snapshot);
-
-  if(raw.length > STORAGE_SOFT_LIMIT){
-
-    toast(
-      "❌ 저장 공간이 부족해 변경사항을 저장하지 못했습니다. 기존 데이터는 유지됩니다."
+  const previous =
+    localStorage.getItem(
+      DB_KEY
     );
 
-    return false;
-  }
+  const snapshot =
+    clone(state);
+
+  snapshot.updatedAt =
+    nowISO();
 
   try{
 
     localStorage.setItem(
       DB_KEY,
-      raw
+      JSON.stringify(snapshot)
     );
 
-    state = snapshot;
+    state =
+      snapshot;
 
     return true;
 
-  }catch{
+  }catch(error){
+
+    if(previous !== null){
+
+      try{
+
+        localStorage.setItem(
+          DB_KEY,
+          previous
+        );
+
+      }catch{}
+
+    }
+
+    console.error(
+      "State save error:",
+      error
+    );
 
     toast(
-      "❌ 저장에 실패했습니다. 기존 데이터는 유지됩니다."
+      "❌ 데이터 저장에 실패했습니다. 기존 데이터는 유지됩니다."
     );
 
     return false;
-
   }
 
 }
@@ -275,7 +470,8 @@ function persistSettings(){
 
 function autoSave(){
 
-  const ok = persistState();
+  const ok =
+    persistState();
 
   if(ok){
     renderDataStatus();
@@ -285,65 +481,348 @@ function autoSave(){
 }
 
 function getGroup(id){
+
   return (
     state.groups.find(
-      g=>g.id===id
+      group =>
+        group.id === id
     ) || null
   );
+
 }
 
 function getBundle(id){
 
-  const g = getGroup(id);
+  const group =
+    getGroup(id);
 
-  return g?.type === "bundle"
-    ? g
+  return group?.type === "bundle"
+    ? group
     : null;
-}
-
-function getFolders(){
-
-  return state.groups.filter(
-    g=>g.type==="folder"
-  );
 
 }
 
-function childrenOf(parentId){
+function getFolder(id){
 
-  return state.groups.filter(
-    g =>
-      g.type==="bundle" &&
-      (g.parentId || null) ===
-      (parentId || null)
-  );
+  const group =
+    getGroup(id);
 
-}
-
-function rootItemsRaw(){
-
-  return state.groups.filter(
-    g=>
-      (g.parentId || null) === null
-  );
-
-}
-
-function roots(){
-
-  return rootItemsRaw();
+  return group?.type === "folder"
+    ? group
+    : null;
 
 }
 
 function allBundles(){
 
   return state.groups.filter(
-    g=>g.type==="bundle"
+    group =>
+      group.type === "bundle"
   );
 
 }
 
-function groupName(id){
+function allFolders(){
+
+  return state.groups.filter(
+    group =>
+      group.type === "folder"
+  );
+
+}
+
+function childrenOf(folderId){
+
+  return allBundles().filter(
+    bundle =>
+      (
+        bundle.parentId ||
+        null
+      ) ===
+      (
+        folderId ||
+        null
+      )
+  );
+
+}
+
+function rootItems(){
+
+  return state.groups.filter(
+    group =>
+      (
+        group.parentId ||
+        null
+      ) === null
+  );
+
+}
+
+function siblingBundles(
+  bundle
+){
+
+  return sortItems(
+    childrenOf(
+      bundle.parentId ||
+      null
+    )
+  );
+
+}
+
+function sortItems(
+  items,
+  sortOverride=null
+){
+
+  let result =
+    [...items];
+
+  const sort =
+    sortOverride ||
+    bundleSort;
+
+  if(sort==="manual"){
+
+    return result.sort(
+      (a,b)=>
+        (a.order || 0) -
+        (b.order || 0)
+    );
+
+  }
+
+  if(sort==="oldest"){
+
+    return result.sort(
+      (a,b)=>
+        new Date(
+          a.createdAt
+        ) -
+        new Date(
+          b.createdAt
+        )
+    );
+
+  }
+
+  if(sort==="newest"){
+
+    return result.sort(
+      (a,b)=>
+        new Date(
+          b.createdAt
+        ) -
+        new Date(
+          a.createdAt
+        )
+    );
+
+  }
+
+  if(
+    sort==="important-oldest"
+  ){
+
+    return result
+      .filter(
+        group =>
+          group.type === "bundle" &&
+          group.important
+      )
+      .sort(
+        (a,b)=>
+          new Date(
+            a.createdAt
+          ) -
+          new Date(
+            b.createdAt
+          )
+      );
+
+  }
+
+  if(
+    sort==="important-newest"
+  ){
+
+    return result
+      .filter(
+        group =>
+          group.type === "bundle" &&
+          group.important
+      )
+      .sort(
+        (a,b)=>
+          new Date(
+            b.createdAt
+          ) -
+          new Date(
+            a.createdAt
+          )
+      );
+
+  }
+
+  return result;
+}
+
+function renumberOrders(){
+
+  const parents =
+    new Set([
+      null,
+      ...allFolders()
+        .map(folder=>folder.id)
+    ]);
+
+  for(
+    const parentId
+    of parents
+  ){
+
+    const list =
+      rootOrFolderItems(
+        parentId
+      );
+
+    list.forEach(
+      (group,index)=>{
+        group.order =
+          index;
+      }
+    );
+
+  }
+
+}
+
+function rootOrFolderItems(
+  parentId
+){
+
+  return state.groups
+    .filter(
+      group =>
+        (
+          group.parentId ||
+          null
+        ) ===
+        (
+          parentId ||
+          null
+        )
+    )
+    .sort(
+      (a,b)=>
+        (a.order || 0) -
+        (b.order || 0)
+    );
+
+}
+
+function wordRefs(){
+
+  const refs = [];
+
+  allBundles().forEach(
+    bundle=>{
+
+      bundle.words.forEach(
+        word=>{
+
+          refs.push({
+            group:bundle,
+            word
+          });
+
+        }
+      );
+
+    }
+  );
+
+  return refs;
+}
+
+function meaningTexts(
+  word
+){
+
+  return (
+    word.meanings || []
+  )
+    .map(
+      meaning =>
+        trim(meaning.text)
+    )
+    .filter(Boolean);
+
+}
+
+function ensureStats(word){
+
+  word.stats ||= {
+    attempts:0,
+    wrong:0,
+    lastWrong:null
+  };
+
+  word.stats.attempts ||=
+    0;
+
+  word.stats.wrong ||=
+    0;
+
+  word.stats.lastWrong ||=
+    null;
+
+}
+
+function errorRate(
+  word
+){
+
+  ensureStats(word);
+
+  if(
+    word.stats.attempts <= 0
+  ){
+
+    return 0;
+
+  }
+
+  return (
+    word.stats.wrong /
+    word.stats.attempts
+  ) * 100;
+
+}
+
+function isValidWord(
+  word
+){
+
+  return (
+    !!trim(word.english) &&
+    Array.isArray(
+      word.meanings
+    ) &&
+    word.meanings.length > 0 &&
+    word.meanings.every(
+      meaning =>
+        !!trim(meaning.text)
+    )
+  );
+
+}
+
+function groupName(
+  id
+){
 
   return (
     getGroup(id)?.name ||
@@ -352,198 +831,399 @@ function groupName(id){
 
 }
 
-function wordRefs(){
+function statCard(
+  label,
+  value
+){
 
-  const out = [];
+  return `
+    <div class="stat-card">
 
-  for(
-    const g of allBundles()
-  ){
+      <b>
+        ${escapeHTML(value)}
+      </b>
 
-    for(
-      const w of g.words
-    ){
+      <span>
+        ${escapeHTML(label)}
+      </span>
 
-      out.push({
-        group:g,
-        word:w
-      });
+    </div>
+  `;
 
-    }
+}
 
+function toast(
+  message
+){
+
+  const container =
+    $("#toastContainer");
+
+  if(!container){
+    return;
   }
 
-  return out;
+  const element =
+    document.createElement(
+      "div"
+    );
 
-}
+  element.className =
+    "toast";
 
-function meaningTexts(w){
+  element.textContent =
+    message;
 
-  return (
-    w.meanings || []
-  )
-    .map(m=>trim(m.text))
-    .filter(Boolean);
-
-}
-
-function errorRate(w){
-
-  return (
-    w.stats?.attempts || 0
-  ) > 0
-    ? (
-        (w.stats?.wrong || 0) /
-        (w.stats.attempts || 1)
-      ) * 100
-    : 0;
-
-}
-
-function ensureStats(w){
-
-  w.stats ||= {
-    attempts:0,
-    wrong:0,
-    lastWrong:null
-  };
-
-}
-
-function isValidWord(w){
-
-  return (
-    !!trim(w.english) &&
-    Array.isArray(w.meanings) &&
-    w.meanings.length > 0 &&
-    w.meanings.every(
-      m=>trim(m.text)
-    )
+  container.appendChild(
+    element
   );
-
-}
-
-function duplicateGroupName(
-  name,
-  excludeId=null
-){
-
-  return state.groups.some(
-    g =>
-      g.id !== excludeId &&
-      norm(g.name) === norm(name)
-  );
-
-}
-
-function storageAllows(
-  extra=1200
-){
-
-  return (
-    stateSizeBytes() + extra <
-    STORAGE_SOFT_LIMIT
-  );
-
-}
-
-function toast(text){
-
-  const d =
-    document.createElement("div");
-
-  d.className = "toast";
-  d.textContent = text;
-
-  $("#toastContainer")
-    .appendChild(d);
 
   setTimeout(
-    ()=>d.remove(),
-    3300
+    ()=>{
+      element.remove();
+    },
+    3200
   );
 
 }
 
-function setMsg(
-  id,
-  text,
-  kind="info"
+function setMessage(
+  elementId,
+  message,
+  type="info"
 ){
 
-  const e =
-    $("#"+id);
+  const element =
+    $("#"+elementId);
 
-  if(e){
-
-    e.innerHTML =
-      `<div class="${kind==="error"?"incorrect":""}">
-        ${escapeHTML(text)}
-      </div>`;
-
+  if(!element){
+    return;
   }
+
+  element.innerHTML = `
+    <div
+      class="${
+        type==="error"
+          ? "incorrect"
+          : ""
+      }"
+    >
+      ${escapeHTML(message)}
+    </div>
+  `;
 
 }
 
-function openModal(
+function showPage(
+  page
+){
+
+  currentPage =
+    page;
+
+  $$(".page")
+    .forEach(
+      section =>
+        section.classList.toggle(
+          "active",
+          section.id === page
+        )
+    );
+
+  $$(".nav-btn")
+    .forEach(
+      button =>
+        button.classList.toggle(
+          "active",
+          button.dataset.page ===
+            page
+        )
+    );
+
+  if(
+    page === "homePage"
+  ){
+
+    renderHome();
+
+  }
+
+  if(
+    page === "statsPage"
+  ){
+
+    renderStats();
+
+  }
+
+  if(
+    page === "settingsPage"
+  ){
+
+    renderSettings();
+
+  }
+
+  window.scrollTo({
+    top:0,
+    behavior:"smooth"
+  });
+
+}
+
+function showPageSilent(
+  page
+){
+
+  currentPage =
+    page;
+
+  $$(".page")
+    .forEach(
+      section =>
+        section.classList.toggle(
+          "active",
+          section.id === page
+        )
+    );
+
+  $$(".nav-btn")
+    .forEach(
+      button =>
+        button.classList.toggle(
+          "active",
+          button.dataset.page ===
+            page
+        )
+    );
+
+}
+
+function openConfirmModal(
   title,
-  body,
-  formHTML,
-  onConfirm,
-  {enter=true}={}
+  message,
+  onConfirm
 ){
 
   $("#modalTitle")
-    .textContent = title;
+    .textContent =
+    title;
 
   $("#modalBody")
-    .innerHTML = body || "";
+    .innerHTML =
+    `<p>${escapeHTML(message)}</p>`;
 
   $("#modalForm")
-    .innerHTML = formHTML || "";
+    .innerHTML = "";
 
   $("#modal")
-    .classList.remove("hidden");
+    .classList.remove(
+      "hidden"
+    );
 
-  const close = ()=>{
-    $("#modal")
-      .classList.add("hidden");
-  };
-
-  $("#modalCancel").onclick =
-    close;
-
-  $("#modalConfirm").onclick =
+  const close =
     ()=>{
-      const keep =
-        openAction(onConfirm);
-
-      if(keep !== false){
-        close();
-      }
+      $("#modal")
+        .classList.add(
+          "hidden"
+        );
     };
 
-  if(enter){
+  $("#modalCancel")
+    .onclick =
+    close;
 
-    $("#modalForm")
-      .querySelectorAll(
-        "input:not([type=checkbox]),select"
-      )
-      .forEach(
-        el=>{
-          el.addEventListener(
-            "keydown",
-            e=>{
-              if(e.key==="Enter"){
-                e.preventDefault();
-                $("#modalConfirm").click();
-              }
-            }
-          );
+  $("#modalConfirm")
+    .onclick =
+    ()=>{
+      close();
+      onConfirm();
+    };
+
+}
+
+function openPromptModal(
+  title,
+  label,
+  value,
+  onConfirm
+){
+
+  $("#modalTitle")
+    .textContent =
+    title;
+
+  $("#modalBody")
+    .innerHTML = "";
+
+  $("#modalForm")
+    .innerHTML = `
+      <label class="modal-form-label">
+
+        <span>
+          ${escapeHTML(label)}
+        </span>
+
+        <input
+          id="modalInput"
+          value="${escapeHTML(value)}"
+          autocomplete="off"
+        >
+
+      </label>
+    `;
+
+  $("#modal")
+    .classList.remove(
+      "hidden"
+    );
+
+  const close =
+    ()=>{
+      $("#modal")
+        .classList.add(
+          "hidden"
+        );
+    };
+
+  $("#modalCancel")
+    .onclick =
+    close;
+
+  $("#modalConfirm")
+    .onclick =
+    ()=>{
+      const value =
+        trim(
+          $("#modalInput")
+            .value
+        );
+
+      const result =
+        onConfirm(
+          value,
+          close
+        );
+
+      if(
+        result !== false
+      ){
+
+        close();
+
+      }
+
+    };
+
+  $("#modalInput")
+    .addEventListener(
+      "keydown",
+      event=>{
+
+        if(
+          event.key ===
+          "Enter"
+        ){
+
+          event.preventDefault();
+
+          $("#modalConfirm")
+            .click();
+
         }
-      );
 
-  }
+      }
+    );
+
+  setTimeout(
+    ()=>{
+      $("#modalInput")
+        ?.focus();
+    },
+    30
+  );
+
+}
+
+function openFormModal(
+  title,
+  formHTML,
+  onConfirm
+){
+
+  $("#modalTitle")
+    .textContent =
+    title;
+
+  $("#modalBody")
+    .innerHTML = "";
+
+  $("#modalForm")
+    .innerHTML =
+    formHTML;
+
+  $("#modal")
+    .classList.remove(
+      "hidden"
+    );
+
+  const close =
+    ()=>{
+      $("#modal")
+        .classList.add(
+          "hidden"
+        );
+    };
+
+  $("#modalCancel")
+    .onclick =
+    close;
+
+  $("#modalConfirm")
+    .onclick =
+    ()=>{
+      const result =
+        onConfirm(
+          close
+        );
+
+      if(
+        result !== false
+      ){
+
+        close();
+
+      }
+
+    };
+
+  $("#modalForm")
+    .querySelectorAll(
+      "input,select"
+    )
+    .forEach(
+      input=>{
+        input.addEventListener(
+          "keydown",
+          event=>{
+
+            if(
+              event.key==="Enter" &&
+              input.type !==
+                "checkbox"
+            ){
+
+              event.preventDefault();
+
+              $("#modalConfirm")
+                .click();
+
+            }
+
+          }
+        );
+      }
+    );
 
   setTimeout(
     ()=>{
@@ -558,140 +1238,53 @@ function openModal(
 
 }
 
-function openAction(fn){
-
-  try{
-
-    return fn();
-
-  }catch(e){
-
-    toast(
-      "❌ 처리 중 오류가 발생했습니다."
-    );
-
-    console.error(e);
-
-    return false;
-
-  }
-
-}
-
-function confirmModal(
-  title,
-  body,
-  fn
+function navigate(
+  page
 ){
 
-  openModal(
-    title,
-    `<p>${escapeHTML(body)}</p>`,
-    "",
-    ()=>{
-      fn();
-      return true;
-    },
-    {enter:false}
-  );
+  if(
+    testSession &&
+    currentPage==="testPage" &&
+    page!=="testPage"
+  ){
 
-}
-
-function promptModal(
-  title,
-  label,
-  value,
-  onConfirm
-){
-
-  openModal(
-    title,
-    "",
-    `
-      <label class="modal-form-label">
-
-        <span>
-          ${escapeHTML(label)}
-        </span>
-
-        <input
-          id="modalInput"
-          value="${escapeHTML(value || "")}"
-          autocomplete="off"
-        >
-
-      </label>
-    `,
-    ()=>{
-      const v =
-        trim(
-          $("#modalInput").value
-        );
-
-      if(!v){
-
-        toast(
-          "⚠️ 입력해주세요."
-        );
-
-        return false;
+    openConfirmModal(
+      "테스트 종료",
+      "진행 중인 테스트를 종료하시겠습니까? 현재 테스트 결과는 학습 기록에 저장되지 않습니다.",
+      ()=>{
+        testSession = null;
+        showPage(page);
       }
-
-      return onConfirm(v);
-
-    }
-  );
-
-}
-
-function renderAll(){
-
-  applyTheme();
-
-  renderHome();
-
-  renderDataStatus();
-
-}
-
-function showPage(page){
-
-  currentPage = page;
-
-  $$(".page")
-    .forEach(
-      p =>
-        p.classList.toggle(
-          "active",
-          p.id===page
-        )
     );
 
-  $$(".nav-btn")
-    .forEach(
-      b =>
-        b.classList.toggle(
-          "active",
-          b.dataset.page===page
-        )
+    return;
+
+  }
+
+  if(
+    currentPage==="settingsPage" &&
+    hasUnsavedSettings() &&
+    page!=="settingsPage"
+  ){
+
+    openConfirmModal(
+      "설정 변경 확인",
+      "저장하지 않은 설정 변경사항이 있습니다. 저장하지 않고 이동하시겠습니까?",
+      ()=>{
+        draftSettings =
+          {...savedSettings};
+
+        applyTheme();
+
+        showPage(page);
+      }
     );
 
-  window.scrollTo({
-    top:0,
-    behavior:"smooth"
-  });
+    return;
 
-  if(page==="statsPage"){
-    renderStats();
   }
 
-  if(page==="settingsPage"){
-    renderSettings();
-  }
-
-  if(page==="homePage"){
-    renderHome();
-  }
+  showPage(page);
 
 }
 
@@ -708,65 +1301,99 @@ function hasUnsavedSettings(){
 
 }
 
-function navigate(page){
+function applyTheme(){
 
-  if(
-    hasUnsavedSettings() &&
-    currentPage === "settingsPage" &&
-    page !== "settingsPage"
-  ){
-
-    confirmModal(
-      "설정 변경 확인",
-      "변경된 설정을 저장하지 않고 이동하시겠습니까?",
-      ()=>{
-        draftSettings =
-          {...savedSettings};
-
-        applyTheme();
-
-        showPage(page);
-      }
+  document.body
+    .classList.toggle(
+      "dark",
+      savedSettings.darkMode
     );
 
-    return;
-  }
-
-  if(
-    testSession &&
-    currentPage === "testPage" &&
-    page !== "testPage"
-  ){
-
-    leaveTest(
-      ()=>{
-        testSession = null;
-        showPage(page);
-      }
-    );
-
-  }else{
-
-    showPage(page);
-
-  }
+  $("#darkBtn")
+    .textContent =
+      savedSettings.darkMode
+        ? "☀️"
+        : "🌙";
 
 }
 
-function leaveTest(fn){
+function applyDraftTheme(){
 
-  confirmModal(
-    "테스트 종료",
-    "진행 중인 테스트를 종료하시겠습니까? 현재 테스트 결과는 학습 기록에 저장되지 않습니다.",
-    fn
+  document.body
+    .classList.toggle(
+      "dark",
+      draftSettings.darkMode
+    );
+
+  $("#darkBtn")
+    .textContent =
+      draftSettings.darkMode
+        ? "☀️"
+        : "🌙";
+
+}
+
+function requestDarkModeChange(){
+
+  const next =
+    !savedSettings.darkMode;
+
+  const label =
+    next
+      ? "다크 모드"
+      : "일반 모드";
+
+  openConfirmModal(
+    "화면 모드 변경",
+    `${label}로 변경하시겠습니까?`,
+    ()=>{
+      savedSettings.darkMode =
+        next;
+
+      draftSettings =
+        {...savedSettings};
+
+      persistSettings();
+
+      applyTheme();
+
+      if(
+        currentPage==="settingsPage"
+      ){
+        renderSettings();
+      }
+    }
   );
 
 }
 
-function createFolder(){
+function duplicateGroupName(
+  name,
+  excludeId=null
+){
 
-  const name =
-    trim(arguments[0] || "");
+  const normalized =
+    norm(name);
+
+  if(!normalized){
+    return false;
+  }
+
+  return state.groups.some(
+    group =>
+      group.id !== excludeId &&
+      norm(group.name) ===
+        normalized
+  );
+
+}
+
+function createFolder(
+  name
+){
+
+  name =
+    trim(name);
 
   if(!name){
 
@@ -778,27 +1405,17 @@ function createFolder(){
   }
 
   if(
-    duplicateGroupName(name)
+    duplicateGroupName(
+      name
+    )
   ){
 
     toast(
-      "⚠️ 이미 같은 이름의 묶음/폴더가 있습니다."
+      "⚠️ 이미 같은 이름의 묶음 또는 폴더가 있습니다."
     );
 
     return false;
   }
-
-  if(!storageAllows()){
-
-    toast(
-      "⚠️ 데이터가 커서 새 폴더를 만들 수 없습니다."
-    );
-
-    return false;
-  }
-
-  const siblings =
-    rootItemsRaw();
 
   state.groups.push({
 
@@ -810,32 +1427,27 @@ function createFolder(){
 
     parentId:null,
 
-    order:siblings.length,
+    order:
+      rootItems().length,
 
-    createdAt:nowISO(),
+    createdAt:
+      nowISO(),
 
     important:false,
+
+    open:true,
 
     words:[]
 
   });
 
+  renumberOrders();
+
   autoSave();
 
-  renderHome();
+  showPage("homePage");
 
   return true;
-
-}
-
-function promptCreateFolder(){
-
-  promptModal(
-    "폴더 추가",
-    "폴더 이름",
-    "",
-    createFolder
-  );
 
 }
 
@@ -844,7 +1456,8 @@ function createBundle(
   parentId=null
 ){
 
-  name = trim(name);
+  name =
+    trim(name);
 
   if(!name){
 
@@ -856,9 +1469,21 @@ function createBundle(
   }
 
   if(
+    duplicateGroupName(
+      name
+    )
+  ){
+
+    toast(
+      "⚠️ 이미 같은 이름의 묶음 또는 폴더가 있습니다."
+    );
+
+    return false;
+  }
+
+  if(
     parentId &&
-    getGroup(parentId)?.type !==
-    "folder"
+    !getFolder(parentId)
   ){
 
     toast(
@@ -868,30 +1493,10 @@ function createBundle(
     return false;
   }
 
-  if(
-    duplicateGroupName(name)
-  ){
-
-    toast(
-      "⚠️ 이미 같은 이름의 묶음/폴더가 있습니다."
-    );
-
-    return false;
-  }
-
-  if(!storageAllows()){
-
-    toast(
-      "⚠️ 데이터가 부족해 새 묶음을 만들 수 없습니다."
-    );
-
-    return false;
-  }
-
-  const siblings =
+  const siblingList =
     parentId
       ? childrenOf(parentId)
-      : rootItemsRaw();
+      : rootItems();
 
   state.groups.push({
 
@@ -902,307 +1507,136 @@ function createBundle(
     name,
 
     parentId:
-      parentId || null,
+      parentId ||
+      null,
 
     order:
-      siblings.length,
+      siblingList.length,
 
     createdAt:
       nowISO(),
 
     important:false,
 
+    open:true,
+
     words:[]
 
   });
 
+  renumberOrders();
+
   autoSave();
 
-  renderHome();
-
-  return true;
-
-}
-function deleteGroupRecursive(id){
-
-  const children =
-    state.groups.filter(
-      g=>g.parentId===id
-    );
-
-  for(
-    const child of children
-  ){
-    deleteGroupRecursive(child.id);
-  }
-
-  state.groups =
-    state.groups.filter(
-      g=>g.id!==id
-    );
-
-}
-
-function moveBundleToFolder(
-  bundleId,
-  folderId
-){
-
-  const bundle =
-    getBundle(bundleId);
-
-  const folder =
-    getGroup(folderId);
-
-  if(
-    !bundle ||
-    !folder ||
-    folder.type!=="folder"
-  ){
-    return false;
-  }
-
-  bundle.parentId =
-    folder.id;
-
-  bundle.order =
-    childrenOf(folder.id).length;
+  showPage("homePage");
 
   return true;
 
 }
 
-function moveBundleToRoot(
-  bundleId
-){
+function promptCreateFolder(){
 
-  const bundle =
-    getBundle(bundleId);
-
-  if(!bundle){
-    return false;
-  }
-
-  bundle.parentId = null;
-
-  bundle.order =
-    rootItemsRaw().length;
-
-  return true;
-
-}
-
-function canDropIntoFolder(
-  bundleId,
-  folderId
-){
-
-  const bundle =
-    getBundle(bundleId);
-
-  const folder =
-    getGroup(folderId);
-
-  if(
-    !bundle ||
-    bundle.type!=="bundle" ||
-    !folder ||
-    folder.type!=="folder"
-  ){
-    return false;
-  }
-
-  return bundle.id!==folder.id;
-
-}
-
-function reorderSiblingBundles(
-  parentId,
-  orderedIds
-){
-
-  orderedIds.forEach(
-    (id,index)=>{
-      const g =
-        getBundle(id);
-
-      if(
-        g &&
-        (g.parentId || null) ===
-        (parentId || null)
-      ){
-        g.order=index;
-      }
-    }
+  openPromptModal(
+    "폴더 추가",
+    "폴더 이름",
+    "",
+    value =>
+      createFolder(value)
   );
 
 }
 
-function manualItems(
+function promptCreateBundle(
   parentId=null
 ){
 
-  return state.groups
-    .filter(
-      g =>
-        (g.parentId || null) ===
-        (parentId || null)
-    )
-    .sort(
-      (a,b)=>
-        (a.order ?? 0) -
-        (b.order ?? 0)
-    );
-
-}
-
-function sortedItems(
-  parentId=null
-){
-
-  let items =
-    [...manualItems(parentId)];
-
-  const sort =
-    bundleSort;
-
-  if(sort==="manual"){
-    return items;
-  }
-
-  if(
-    sort==="oldest"
-  ){
-
-    return items.sort(
-      (a,b)=>
-        new Date(a.createdAt) -
-        new Date(b.createdAt)
-    );
-
-  }
-
-  if(
-    sort==="newest"
-  ){
-
-    return items.sort(
-      (a,b)=>
-        new Date(b.createdAt) -
-        new Date(a.createdAt)
-    );
-
-  }
-
-  if(
-    sort==="important-oldest"
-  ){
-
-    return items.sort(
-      (a,b)=>
-        Number(b.important) -
-        Number(a.important) ||
-        new Date(a.createdAt) -
-        new Date(b.createdAt)
-    );
-
-  }
-
-  if(
-    sort==="important-newest"
-  ){
-
-    return items.sort(
-      (a,b)=>
-        Number(b.important) -
-        Number(a.important) ||
-        new Date(b.createdAt) -
-        new Date(a.createdAt)
-    );
-
-  }
-
-  return items;
-
-}
-
-function updateGroupOrders(){
-
-  const parentIds =
-    new Set(
-      state.groups.map(
-        g=>g.parentId || null
+  openPromptModal(
+    "묶음 추가",
+    "묶음 이름",
+    "",
+    value =>
+      createBundle(
+        value,
+        parentId
       )
-    );
+  );
 
-  for(
-    const parentId
-    of parentIds
+}
+
+function openGroup(
+  id
+){
+
+  const group =
+    getGroup(id);
+
+  if(!group){
+    return;
+  }
+
+  if(
+    group.type==="folder"
   ){
 
-    manualItems(parentId)
-      .forEach(
-        (g,index)=>{
-          g.order=index;
-        }
-      );
+    currentView = {
+      type:"folder",
+      id:group.id
+    };
+
+    currentBundleId = null;
+
+    showPageSilent(
+      "bundlePage"
+    );
+
+    renderFolderPage();
+
+    return;
 
   }
+
+  currentView = {
+    type:"bundle",
+    id:group.id
+  };
+
+  currentBundleId =
+    group.id;
+
+  resetWordViewState();
+
+  showPageSilent(
+    "bundlePage"
+  );
+
+  renderBundlePage();
 
 }
 
 function renderHome(){
 
-  currentPage =
-    "homePage";
+  currentView = {
+    type:"home",
+    id:null
+  };
 
-  showPageSilent("homePage");
+  currentBundleId = null;
+
+  $("#homeBreadcrumbs")
+    .innerHTML =
+    `<span>🏠 홈</span>`;
 
   renderHomeStats();
 
-  renderHomeBreadcrumbs();
-
   renderSearchResults();
 
-  renderBundles();
+  renderRootItems();
 
-}
+  renderBundlePagination();
 
-function showPageSilent(page){
-
-  $$(".page")
-    .forEach(
-      p =>
-        p.classList.toggle(
-          "active",
-          p.id===page
-        )
-    );
-
-  $$(".nav-btn")
-    .forEach(
-      b =>
-        b.classList.toggle(
-          "active",
-          b.dataset.page===page
-        )
-    );
-
-  currentPage=page;
-
-}
-
-function renderHomeBreadcrumbs(){
-
-  const box =
-    $("#homeBreadcrumbs");
-
-  if(!box){
-    return;
-  }
-
-  box.innerHTML =
-    `<span>🏠 홈</span>`;
+  $("#bundleSort")
+    .value =
+    bundleSort;
 
 }
 
@@ -1211,84 +1645,94 @@ function renderHomeStats(){
   const refs =
     wordRefs();
 
-  const tests =
-    state.history.length;
-
-  const totalQuestions =
+  const questions =
     state.history.reduce(
-      (a,h)=>
-        a+(h.questionCount||0),
+      (sum,history)=>
+        sum +
+        (
+          history.questionCount ||
+          0
+        ),
       0
     );
 
-  const totalCorrect =
+  const correct =
     state.history.reduce(
-      (a,h)=>
-        a+(h.correct||0),
+      (sum,history)=>
+        sum +
+        (
+          history.correct ||
+          0
+        ),
       0
     );
 
   const accuracy =
-    totalQuestions
+    questions
       ? Math.round(
-          totalCorrect /
-          totalQuestions *
+          correct /
+          questions *
           100
         )
       : 0;
 
-  $("#homeStats").innerHTML = [
+  $("#homeStats")
+    .innerHTML = [
 
-    statCard(
-      "묶음",
-      allBundles().length
-    ),
+      statCard(
+        "묶음",
+        allBundles().length
+      ),
 
-    statCard(
-      "단어",
-      refs.length
-    ),
+      statCard(
+        "폴더",
+        allFolders().length
+      ),
 
-    statCard(
-      "테스트",
-      tests
-    ),
+      statCard(
+        "단어",
+        refs.length
+      ),
 
-    statCard(
-      "누적 정확도",
-      totalQuestions
-        ? `${accuracy}%`
-        : "-"
-    )
+      statCard(
+        "누적 정확도",
+        questions
+          ? `${accuracy}%`
+          : "-"
+      )
 
-  ].join("");
-
-}
-
-function statCard(
-  label,
-  value
-){
-
-  return `
-    <div class="stat-card">
-      <b>${escapeHTML(value)}</b>
-      <span>${escapeHTML(label)}</span>
-    </div>
-  `;
+    ].join("");
 
 }
 
-function getRootPageItems(){
-
-  return sortedItems(null);
-
-}
-
-function renderBundles(){
+function getRootDisplayItems(){
 
   const items =
-    getRootPageItems();
+    rootItems();
+
+  if(
+    bundleSort ===
+      "important-oldest" ||
+    bundleSort ===
+      "important-newest"
+  ){
+
+    return sortItems(
+      items
+    );
+
+  }
+
+  return sortItems(
+    items
+  );
+
+}
+
+function renderRootItems(){
+
+  const items =
+    getRootDisplayItems();
 
   const pageCount =
     Math.max(
@@ -1306,42 +1750,45 @@ function renderBundles(){
     );
 
   const start =
-    (bundlePage-1) *
-    GROUP_PAGE_SIZE;
+    (
+      bundlePage - 1
+    ) * GROUP_PAGE_SIZE;
 
   const pageItems =
     items.slice(
       start,
-      start+GROUP_PAGE_SIZE
+      start +
+        GROUP_PAGE_SIZE
     );
 
   $("#bundlePageInfo")
     .textContent =
-      items.length
-        ? `${items.length}개`
-        : "";
+    items.length
+      ? `${items.length}개`
+      : "";
 
-  const box =
+  const list =
     $("#bundleList");
 
   if(!pageItems.length){
 
-    box.innerHTML = `
-      <div class="empty">
+    list.innerHTML =
+      `
+        <div class="empty">
 
-        📚 아직 묶음이 없습니다.
+          📚 표시할 묶음이 없습니다.
 
-        <br><br>
+          <br><br>
 
-        <button
-          id="emptyAddBundle"
-          class="primary-btn"
-        >
-          ＋ 묶음 추가
-        </button>
+          <button
+            id="emptyAddBundle"
+            class="primary-btn"
+          >
+            ＋ 묶음 추가
+          </button>
 
-      </div>
-    `;
+        </div>
+      `;
 
     $("#emptyAddBundle")
       ?.addEventListener(
@@ -1351,113 +1798,72 @@ function renderBundles(){
 
   }else{
 
-    box.innerHTML =
-      pageItems
-        .map(
-          g=>renderGroupNode(g)
+    list.innerHTML =
+      pageItems.map(
+        group =>
+          renderGroupCard(
+            group
+          )
+      ).join("");
+
+  }
+
+  wireGroupCards();
+
+  setupDragAndDrop();
+
+}
+
+function renderGroupCard(
+  group
+){
+
+  const folder =
+    group.type === "folder";
+
+  const folderChildren =
+    folder
+      ? sortItems(
+          childrenOf(group.id)
         )
-        .join("");
-
-  }
-
-  $("#bundlePagination")
-    .innerHTML =
-      renderPagination(
-        pageCount,
-        bundlePage
-      );
-
-  wireGroupEvents();
-
-  enableGroupDrag();
-
-}
-
-function renderPagination(
-  pageCount,
-  current
-){
-
-  if(pageCount<=1){
-    return "";
-  }
-
-  let html="";
-
-  for(
-    let i=1;
-    i<=pageCount;
-    i++
-  ){
-
-    html += `
-      <button
-        class="${i===current?"active":""}"
-        data-bundle-page="${i}"
-      >
-        ${i}
-      </button>
-    `;
-
-  }
-
-  return html;
-
-}
-
-function renderGroupNode(
-  g
-){
-
-  const isFolder =
-    g.type==="folder";
-
-  const children =
-    isFolder
-      ? sortedItems(g.id)
       : [];
 
-  const open =
-    g.open !== false;
-
-  const icon =
-    isFolder
-      ? "📁"
-      : "📚";
-
   const count =
-    isFolder
-      ? children.length
-      : g.words.length;
+    folder
+      ? folderChildren.length
+      : group.words.length;
 
   return `
     <div
       class="bundle-wrap"
-      data-group-id="${g.id}"
+      data-group-wrap="${group.id}"
     >
 
       <div
         class="bundle-row"
-        data-row-id="${g.id}"
+        data-group-row="${group.id}"
       >
 
         <button
           class="drag-handle"
-          data-drag-id="${g.id}"
+          data-drag-id="${group.id}"
           title="드래그"
         >
           ☷
         </button>
 
         ${
-          isFolder
+          folder
             ? `
               <button
                 class="folder-toggle"
-                data-toggle-folder="${g.id}"
-                aria-label="폴더 열기"
+                data-folder-toggle="${group.id}"
               >
-                ${open ? "▾" : "▸"}
+                ${
+                  group.open === false
+                    ? "▸"
+                    : "▾"
+                }
               </button>
             `
             : ""
@@ -1465,68 +1871,82 @@ function renderGroupNode(
 
         <button
           class="bundle-star"
-          data-important-group="${g.id}"
+          data-group-important="${group.id}"
           title="중요 표시"
         >
-          ${g.important ? "⭐" : "☆"}
+          ${
+            group.important
+              ? "⭐"
+              : "☆"
+          }
         </button>
 
         <div
           class="bundle-main"
-          data-open-group="${g.id}"
+          data-open-group="${group.id}"
         >
 
           <div class="bundle-name">
 
             <span>
-              ${icon}
+              ${
+                folder
+                  ? "📁"
+                  : "📚"
+              }
             </span>
 
             <span>
-              ${escapeHTML(g.name)}
+              ${escapeHTML(
+                group.name
+              )}
             </span>
 
           </div>
 
           <div class="bundle-meta">
-            생성일
-            ${fmtDateTime(g.createdAt)}
+
+            생성일:
+            ${fmtDateTime(
+              group.createdAt
+            )}
+
           </div>
 
         </div>
 
         <div class="bundle-count">
+
           ${
-            isFolder
+            folder
               ? `${count}개 묶음`
               : `${count}개 단어`
           }
+
         </div>
 
       </div>
 
       ${
-        isFolder &&
-        open
+        folder &&
+        group.open !== false
           ? `
             <div
               class="child-list"
-              data-parent-folder="${g.id}"
+              data-folder-children="${group.id}"
             >
 
               ${
-                children.length
-                  ? children
-                      .map(
-                        child =>
-                          renderGroupNode(
-                            child
-                          )
-                      )
-                      .join("")
+                folderChildren.length
+                  ? folderChildren.map(
+                      child =>
+                        renderGroupCard(
+                          child
+                        )
+                    ).join("")
                   : `
                     <div class="child-empty">
-                      아직 들어있는 묶음이 없습니다.
+                      아직 이 폴더에 들어있는 묶음이 없습니다.
                     </div>
                   `
               }
@@ -1541,269 +1961,296 @@ function renderGroupNode(
 
 }
 
-function wireGroupEvents(){
+function wireGroupCards(){
 
   $$("[data-open-group]")
     .forEach(
-      el=>{
-        el.onclick = e=>{
-
-          if(
-            el.dataset.dragClicked==="1"
-          ){
-            return;
-          }
-
-          openGroup(
-            el.dataset.openGroup
-          );
-
-        };
+      element=>{
+        element.onclick =
+          ()=>{
+            openGroup(
+              element.dataset
+                .openGroup
+            );
+          };
       }
     );
 
-  $$("[data-toggle-folder]")
+  $$("[data-folder-toggle]")
     .forEach(
-      el=>{
-        el.onclick = e=>{
-          e.stopPropagation();
+      button=>{
+        button.onclick =
+          event=>{
+            event.stopPropagation();
 
-          const g =
-            getGroup(
-              el.dataset.toggleFolder
-            );
+            const folder =
+              getFolder(
+                button.dataset
+                  .folderToggle
+              );
 
-          if(!g){
-            return;
-          }
+            if(!folder){
+              return;
+            }
 
-          g.open =
-            g.open === false;
+            folder.open =
+              folder.open === false;
 
-          autoSave();
+            autoSave();
 
-          renderBundles();
+            renderRootItems();
 
-        };
+          };
       }
     );
 
-  $$("[data-important-group]")
+  $$("[data-group-important]")
     .forEach(
-      el=>{
-        el.onclick = e=>{
-          e.stopPropagation();
+      button=>{
+        button.onclick =
+          event=>{
+            event.stopPropagation();
 
-          const g =
-            getGroup(
-              el.dataset.importantGroup
-            );
+            const group =
+              getGroup(
+                button.dataset
+                  .groupImportant
+              );
 
-          if(!g){
-            return;
-          }
+            if(!group){
+              return;
+            }
 
-          g.important =
-            !g.important;
+            group.important =
+              !group.important;
 
-          autoSave();
+            autoSave();
 
-          renderBundles();
+            if(
+              currentView.type ===
+              "folder"
+            ){
 
-        };
-      }
-    );
+              renderFolderPage();
 
-  $$("[data-bundle-page]")
-    .forEach(
-      el=>{
-        el.onclick=()=>{
-          bundlePage =
-            Number(
-              el.dataset.bundlePage
-            );
+            }else{
 
-          renderBundles();
+              renderRootItems();
 
-          window.scrollTo({
-            top:0,
-            behavior:"smooth"
-          });
+            }
 
-        };
+          };
       }
     );
 
 }
 
-let dragState = null;
+let dragData = null;
 
-function enableGroupDrag(){
+function setupDragAndDrop(){
 
   $$("[data-drag-id]")
     .forEach(
       handle=>{
 
         handle.onpointerdown =
-          e=>{
-            e.preventDefault();
+          event=>{
 
             const id =
               handle.dataset.dragId;
 
-            const row =
-              document.querySelector(
-                `[data-row-id="${id}"]`
-              );
+            const group =
+              getGroup(id);
 
-            if(!row){
+            if(
+              !group ||
+              group.type !==
+                "bundle"
+            ){
+
               return;
             }
 
-            dragState = {
+            dragData = {
               id,
-              startX:e.clientX,
-              startY:e.clientY,
+              pointerId:
+                event.pointerId,
               active:false,
-              row,
-              pointerId:e.pointerId,
-              lastOverFolder:null
+              startX:
+                event.clientX,
+              startY:
+                event.clientY,
+              targetFolder:null
             };
 
             handle.setPointerCapture?.(
-              e.pointerId
+              event.pointerId
             );
 
             document.body.style.userSelect =
               "none";
+
           };
 
         handle.onpointermove =
-          e=>{
+          event=>{
 
             if(
-              !dragState ||
-              dragState.pointerId !==
-              e.pointerId
+              !dragData ||
+              dragData.pointerId !==
+                event.pointerId
             ){
+
               return;
+
             }
 
-            const dx =
-              e.clientX -
-              dragState.startX;
-
-            const dy =
-              e.clientY -
-              dragState.startY;
-
-            if(
-              !dragState.active &&
-              Math.hypot(dx,dy) < 6
-            ){
-              return;
-            }
-
-            dragState.active=true;
-
-            dragState.row
-              .classList.add(
-                "dragging"
+            const distance =
+              Math.hypot(
+                event.clientX -
+                  dragData.startX,
+                event.clientY -
+                  dragData.startY
               );
 
-            const target =
+            if(
+              !dragData.active &&
+              distance < 7
+            ){
+
+              return;
+
+            }
+
+            dragData.active =
+              true;
+
+            const row =
+              document.querySelector(
+                `[data-group-row="${dragData.id}"]`
+              );
+
+            row?.classList.add(
+              "dragging"
+            );
+
+            const element =
               document.elementFromPoint(
-                e.clientX,
-                e.clientY
+                event.clientX,
+                event.clientY
               );
 
-            const folderWrap =
-              target?.closest(
-                '.bundle-wrap[data-group-id]'
+            const wrap =
+              element?.closest(
+                "[data-group-wrap]"
               );
-
-            let folder =
-              folderWrap
-                ? getGroup(
-                    folderWrap.dataset.groupId
-                  )
-                : null;
-
-            if(
-              folder &&
-              folder.type !== "folder"
-            ){
-              folder=null;
-            }
 
             $$(
               ".drag-folder-target"
-            )
-              .forEach(
-                x =>
-                  x.classList.remove(
-                    "drag-folder-target"
-                  )
-              );
-
-            if(
-              folder &&
-              folder.id !==
-                dragState.id
-            ){
-
-              dragState.lastOverFolder =
-                folder.id;
-
-              folderWrap
-                .querySelector(
-                  ".bundle-row"
+            ).forEach(
+              item =>
+                item.classList.remove(
+                  "drag-folder-target"
                 )
-                ?.classList.add(
+            );
+
+            dragData.targetFolder =
+              null;
+
+            if(wrap){
+
+              const target =
+                getGroup(
+                  wrap.dataset
+                    .groupWrap
+                );
+
+              if(
+                target &&
+                target.type ===
+                  "folder" &&
+                target.id !==
+                  dragData.id
+              ){
+
+                dragData.targetFolder =
+                  target.id;
+
+                const targetRow =
+                  wrap.querySelector(
+                    ".bundle-row"
+                  );
+
+                targetRow?.classList.add(
                   "drag-folder-target"
                 );
 
-              return;
+                return;
+              }
 
             }
 
-            dragState.lastOverFolder = null;
-
             const parent =
-              dragState.row
-                .closest(
-                  ".child-list"
-                ) ||
+              element?.closest(
+                "[data-folder-children]"
+              );
+
+            const container =
+              parent ||
               $("#bundleList");
 
-            const candidates =
+            if(!container){
+              return;
+            }
+
+            const siblings =
               [
-                ...parent.children
-              ].filter(
-                el =>
-                  el.classList.contains(
-                    "bundle-wrap"
-                  ) &&
-                  el.dataset.groupId !==
-                    dragState.id
-              );
+                ...container.children
+              ]
+                .filter(
+                  child =>
+                    child.dataset
+                      .groupWrap &&
+                    child.dataset
+                      .groupWrap !==
+                      dragData.id
+                );
 
             const before =
-              candidates.find(
-                el =>
-                  e.clientY <
-                    el.getBoundingClientRect()
-                      .top +
-                    el.getBoundingClientRect()
-                      .height/2
+              siblings.find(
+                sibling =>
+                  event.clientY <
+                  sibling
+                    .getBoundingClientRect()
+                    .top +
+                  sibling
+                    .getBoundingClientRect()
+                    .height /
+                  2
               );
 
-            if(before){
+            const draggedWrap =
+              document.querySelector(
+                `[data-group-wrap="${dragData.id}"]`
+              );
 
-              parent.insertBefore(
-                dragState.row
-                  .parentElement,
+            if(
+              draggedWrap &&
+              before
+            ){
+
+              container.insertBefore(
+                draggedWrap,
                 before
+              );
+
+            }else if(
+              draggedWrap &&
+              !before
+            ){
+
+              container.appendChild(
+                draggedWrap
               );
 
             }
@@ -1811,91 +2258,109 @@ function enableGroupDrag(){
           };
 
         handle.onpointerup =
-          e=>{
-            if(
-              !dragState ||
-              dragState.pointerId !==
-              e.pointerId
-            ){
-              return;
-            }
-
-            const d =
-              dragState;
-
-            dragState=null;
-
-            document.body.style.userSelect =
-              "";
-
-            d.row
-              .classList.remove(
-                "dragging"
-              );
-
-            $$(".drag-folder-target")
-              .forEach(
-                x =>
-                  x.classList.remove(
-                    "drag-folder-target"
-                  )
-              );
-
-            if(!d.active){
-              return;
-            }
+          event=>{
 
             if(
-              d.lastOverFolder &&
-              canDropIntoFolder(
-                d.id,
-                d.lastOverFolder
-              )
+              !dragData ||
+              dragData.pointerId !==
+                event.pointerId
             ){
 
-              moveBundleToFolder(
-                d.id,
-                d.lastOverFolder
-              );
-
-              updateGroupOrders();
-              autoSave();
-              renderHome();
-
               return;
 
             }
 
-            syncRenderedGroupOrder();
+            const drag =
+              dragData;
 
-          };
-
-        handle.onpointercancel =
-          ()=>{
-            if(!dragState){
-              return;
-            }
-
-            dragState=null;
+            dragData = null;
 
             document.body.style.userSelect =
               "";
 
             $$(".dragging")
               .forEach(
-                x =>
-                  x.classList.remove(
+                item =>
+                  item.classList.remove(
                     "dragging"
                   )
               );
 
             $$(".drag-folder-target")
               .forEach(
-                x =>
-                  x.classList.remove(
+                item =>
+                  item.classList.remove(
                     "drag-folder-target"
                   )
               );
+
+            if(!drag.active){
+              return;
+            }
+
+            const group =
+              getBundle(
+                drag.id
+              );
+
+            if(!group){
+              return;
+            }
+
+            if(
+              drag.targetFolder
+            ){
+
+              group.parentId =
+                drag.targetFolder;
+
+              const children =
+                childrenOf(
+                  drag.targetFolder
+                ).filter(
+                  child =>
+                    child.id !==
+                    drag.id
+                );
+
+              children.push(
+                group
+              );
+
+              children.forEach(
+                (child,index)=>{
+                  child.order =
+                    index;
+                }
+              );
+
+            }
+
+            syncOrdersFromDOM();
+
+            autoSave();
+
+            if(
+              currentView.type ===
+              "folder"
+            ){
+
+              renderFolderPage();
+
+            }else{
+
+              renderHome();
+
+            }
+
+          };
+
+        handle.onpointercancel =
+          ()=>{
+            dragData=null;
+
+            document.body.style.userSelect =
+              "";
 
             renderHome();
 
@@ -1906,295 +2371,400 @@ function enableGroupDrag(){
 
 }
 
-function syncRenderedGroupOrder(){
+function syncOrdersFromDOM(){
 
-  const containers = [
-    $("#bundleList"),
-    ...$$(
-      "#bundleList .child-list"
-    )
-  ];
+  const rootContainer =
+    $("#bundleList");
 
-  for(
-    const container
-    of containers
-  ){
+  if(rootContainer){
 
-    if(!container){
-      continue;
-    }
-
-    const folderParent =
-      container.dataset
-        ?.parentFolder ||
-      null;
-
-    const ids =
+    const rootIds =
       [
-        ...container.children
+        ...rootContainer.children
       ]
         .map(
-          x=>x.dataset.groupId
+          element =>
+            element.dataset.groupWrap
         )
         .filter(Boolean);
 
-    ids.forEach(
-      (id,index)=>{
-        const g =
-          getGroup(id);
+    const rootGroups =
+      rootIds.map(
+        getGroup
+      ).filter(Boolean);
 
-        if(!g){
-          return;
-        }
-
-        g.parentId =
-          folderParent;
-
-        g.order =
-          index;
-
+    rootGroups.forEach(
+      (group,index)=>{
+        group.parentId = null;
+        group.order = index;
       }
     );
 
   }
 
-  autoSave();
+  $$(
+    "[data-folder-children]"
+  ).forEach(
+    container=>{
 
-  renderHome();
+      const folderId =
+        container.dataset
+          .folderChildren;
 
-}
-
-function openGroup(
-  id,
-  focusWordId=null
-){
-
-  const g =
-    getGroup(id);
-
-  if(!g){
-    return;
-  }
-
-  if(
-    g.type === "folder"
-  ){
-
-    g.open=true;
-
-    autoSave();
-
-    return;
-
-  }
-
-  currentBundleId=id;
-
-  showPageSilent(
-    "bundlePage"
-  );
-
-  renderBundlePage();
-
-  if(focusWordId){
-
-    setTimeout(
-      ()=>{
-        document
-          .querySelector(
-            `[data-word-id="${focusWordId}"]`
+      const ids =
+        [
+          ...container.children
+        ]
+          .map(
+            element =>
+              element.dataset.groupWrap
           )
-          ?.scrollIntoView({
-            behavior:"smooth",
-            block:"center"
-          });
-      },
-      120
-    );
+          .filter(Boolean);
 
-  }
+      ids.forEach(
+        (id,index)=>{
 
-}
+          const group =
+            getBundle(id);
 
-function renderBreadcrumbsForBundle(
-  bundleId
-){
+          if(!group){
+            return;
+          }
 
-  const g =
-    getBundle(bundleId);
+          group.parentId =
+            folderId;
 
-  if(!g){
-    return;
-  }
+          group.order =
+            index;
 
-  const chain=[];
-  let current=g;
-
-  while(current){
-
-    chain.unshift(current);
-
-    current =
-      getGroup(
-        current.parentId
+        }
       );
 
-  }
+    }
+  );
 
-  let html = `
-    <button
-      data-crumb-home
-    >
-      🏠 홈
-    </button>
-  `;
-
-  for(
-    const item
-    of chain
-  ){
-
-    html += `
-      <span>›</span>
-    `;
-
-    html += `
-      <button
-        data-crumb-id="${item.id}"
-      >
-        ${escapeHTML(item.name)}
-      </button>
-    `;
-
-  }
-
-  $("#bundleBreadcrumbs")
-    .innerHTML = html;
-
-  $("[data-crumb-home]")
-    ?.addEventListener(
-      "click",
-      ()=>{
-        navigate(
-          "homePage"
-        );
-      }
-    );
-
-  $$("[data-crumb-id]")
-    .forEach(
-      b=>{
-        b.onclick=()=>{
-          const id =
-            b.dataset.crumbId;
-
-          const g =
-            getGroup(id);
-
-          if(
-            g?.type==="bundle"
-          ){
-            openGroup(id);
-          }
-        };
-      }
-    );
+  renumberOrders();
 
 }
 
 function renderBundlePage(){
 
-  const g =
+  const bundle =
     getBundle(
       currentBundleId
     );
 
-  if(!g){
-
-    navigate(
-      "homePage"
-    );
-
+  if(!bundle){
     return;
-
   }
 
   $("#bundleTitle")
     .textContent =
-      g.name;
+    bundle.name;
 
   $("#bundleInfo")
     .textContent =
-      `${g.words.length}개 단어 · 생성일 ${fmtDateTime(g.createdAt)}`;
+    `${bundle.words.length}개 단어 · 생성일 ${fmtDateTime(bundle.createdAt)}`;
 
-  renderBreadcrumbsForBundle(
-    g.id
+  renderBundleBreadcrumbs(
+    bundle
   );
+
+  $("#bundleWordCard")
+    .classList.remove(
+      "hidden"
+    );
+
+  $("#folderAddOpenBtn")
+    .classList.toggle(
+      "hidden",
+      !bundle.parentId
+    );
 
   $("#importantBundleBtn")
     .textContent =
-      g.important
+      bundle.important
         ? "⭐ 중요 해제"
         : "☆ 중요";
 
   renderBundleNavigation();
 
-  $("#folderAddOpenBtn")
+  renderWords();
+
+}
+
+function renderFolderPage(){
+
+  const folder =
+    getFolder(
+      currentView.id
+    );
+
+  if(!folder){
+    return;
+  }
+
+  $("#bundleTitle")
+    .textContent =
+    folder.name;
+
+  $("#bundleInfo")
+    .textContent =
+    `폴더 · ${childrenOf(folder.id).length}개 묶음`;
+
+  renderFolderBreadcrumbs(
+    folder
+  );
+
+  $("#bundleWordCard")
     .classList.add(
       "hidden"
     );
 
-  const parent =
-    g.parentId
-      ? getGroup(g.parentId)
-      : null;
+  $("#folderAddOpenBtn")
+    .classList.remove(
+      "hidden"
+    );
 
-  if(parent?.type === "folder"){
+  $("#prevBundleBtn")
+    .classList.add(
+      "hidden"
+    );
+
+  $("#nextBundleBtn")
+    .classList.add(
+      "hidden"
+    );
+
+  $("#renameBundleBtn")
+    .classList.add(
+      "hidden"
+    );
+
+  $("#importantBundleBtn")
+    .classList.add(
+      "hidden"
+    );
+
+  $("#deleteBundleBtn")
+    .classList.remove(
+      "hidden"
+    );
+
+  $("#bundleTestMessage")
+    .innerHTML = "";
+
+  $("#wordList")
+    .innerHTML = "";
+
+  $("#visibleWordCount")
+    .textContent = "";
+
+  $("#wordSearch")
+    .value = "";
+
+  const children =
+    sortItems(
+      childrenOf(folder.id)
+    );
+
+  if(!children.length){
 
     $("#folderAddOpenBtn")
       .classList.remove(
         "hidden"
       );
 
-  }
+    $("#wordList")
+      .innerHTML = `
+        <div class="empty">
+          아직 이 폴더에 들어있는 묶음이 없습니다.
+        </div>
+      `;
 
-  renderWords();
+  }else{
+
+    $("#wordList")
+      .innerHTML =
+      children.map(
+        child =>
+          renderGroupCard(
+            child
+          )
+      ).join("");
+
+    wireGroupCards();
+
+    setupDragAndDrop();
+
+  }
 
 }
 
-function siblingBundles(
+function renderFolderBreadcrumbs(
+  folder
+){
+
+  let html = `
+    <button data-home-breadcrumb>
+      🏠 홈
+    </button>
+
+    <span>›</span>
+
+    <span>
+      📁 ${escapeHTML(
+        folder.name
+      )}
+    </span>
+  `;
+
+  $("#bundleBreadcrumbs")
+    .innerHTML =
+      html;
+
+  $("#bundleBreadcrumbs")
+    .querySelector(
+      "[data-home-breadcrumb]"
+    )
+    ?.addEventListener(
+      "click",
+      ()=>{
+        showPage(
+          "homePage"
+        );
+      }
+    );
+
+}
+
+function renderBundleBreadcrumbs(
   bundle
 ){
 
-  return sortedItems(
-    bundle.parentId || null
-  )
-    .filter(
-      g=>g.type==="bundle"
+  const chain=[];
+
+  let current =
+    bundle;
+
+  while(current){
+
+    chain.unshift(
+      current
     );
+
+    current =
+      current.parentId
+        ? getGroup(
+            current.parentId
+          )
+        : null;
+
+  }
+
+  let html = `
+    <button data-home-breadcrumb>
+      🏠 홈
+    </button>
+  `;
+
+  chain.forEach(
+    item=>{
+
+      html += `
+        <span>›</span>
+      `;
+
+      html += `
+        <button
+          data-group-breadcrumb="${item.id}"
+        >
+          ${
+            item.type==="folder"
+              ? "📁"
+              : "📚"
+          }
+          ${escapeHTML(
+            item.name
+          )}
+        </button>
+      `;
+
+    }
+  );
+
+  html += `
+    <span>›</span>
+    <span>📝 테스트 가능</span>
+  `;
+
+  $("#bundleBreadcrumbs")
+    .innerHTML =
+    html;
+
+  $("#bundleBreadcrumbs")
+    .querySelector(
+      "[data-home-breadcrumb]"
+    )
+    ?.addEventListener(
+      "click",
+      ()=>{
+        showPage(
+          "homePage"
+        );
+      }
+    );
+
+  $$(
+    "[data-group-breadcrumb]"
+  ).forEach(
+    button=>{
+      button.onclick =
+        ()=>{
+          const group =
+            getGroup(
+              button.dataset
+                .groupBreadcrumb
+            );
+
+          if(!group){
+            return;
+          }
+
+          openGroup(
+            group.id
+          );
+
+        };
+    }
+  );
 
 }
 
 function renderBundleNavigation(){
 
-  const g =
+  const bundle =
     getBundle(
       currentBundleId
     );
 
-  if(!g){
+  if(!bundle){
     return;
   }
 
   const siblings =
-    siblingBundles(g);
+    siblingBundles(
+      bundle
+    );
 
   const index =
     siblings.findIndex(
-      x=>x.id===g.id
+      group =>
+        group.id ===
+        bundle.id
     );
 
-  const prev =
+  const previous =
     index > 0
       ? siblings[index-1]
       : null;
@@ -2205,28 +2775,36 @@ function renderBundleNavigation(){
       ? siblings[index+1]
       : null;
 
-  const prevBtn =
-    $("#prevBundleBtn");
+  $("#prevBundleBtn")
+    .classList.remove(
+      "hidden"
+    );
 
-  const nextBtn =
-    $("#nextBundleBtn");
+  $("#nextBundleBtn")
+    .classList.remove(
+      "hidden"
+    );
 
-  prevBtn.disabled =
-    !prev;
+  $("#prevBundleBtn")
+    .disabled =
+      !previous;
 
-  nextBtn.disabled =
-    !next;
+  $("#nextBundleBtn")
+    .disabled =
+      !next;
 
-  prevBtn.onclick =
+  $("#prevBundleBtn")
+    .onclick =
     ()=>{
-      if(prev){
+      if(previous){
         openGroup(
-          prev.id
+          previous.id
         );
       }
     };
 
-  nextBtn.onclick =
+  $("#nextBundleBtn")
+    .onclick =
     ()=>{
       if(next){
         openGroup(
@@ -2237,70 +2815,158 @@ function renderBundleNavigation(){
 
 }
 
-function promptCreateBundle(){
+function deleteCurrentView(){
 
-  promptModal(
-    "묶음 추가",
-    "묶음 이름",
-    "",
-    val=>{
+  const group =
+    getGroup(
+      currentView.id ||
+      currentBundleId
+    );
 
-      const ok =
-        createBundle(
-          val,
-          null
+  if(!group){
+    return;
+  }
+
+  if(
+    group.type === "folder"
+  ){
+
+    const count =
+      childrenOf(
+        group.id
+      ).length;
+
+    openConfirmModal(
+      "폴더 삭제",
+      `이 폴더와 안에 들어있는 ${count}개의 묶음까지 모두 삭제됩니다. 계속하시겠습니까?`,
+      ()=>{
+
+        deleteGroupRecursive(
+          group.id
         );
 
-      return ok;
+        autoSave();
+
+        currentView = {
+          type:"home",
+          id:null
+        };
+
+        currentBundleId = null;
+
+        showPage(
+          "homePage"
+        );
+
+      }
+    );
+
+    return;
+
+  }
+
+  openConfirmModal(
+    "묶음 삭제",
+    `'${group.name}' 묶음을 삭제하시겠습니까?`,
+    ()=>{
+
+      deleteGroupRecursive(
+        group.id
+      );
+
+      autoSave();
+
+      currentBundleId = null;
+
+      currentView = {
+        type:"home",
+        id:null
+      };
+
+      showPage(
+        "homePage"
+      );
 
     }
   );
 
 }
 
-function promptRenameCurrent(){
+function deleteGroupRecursive(
+  id
+){
 
-  const g =
+  const children =
+    childrenOf(id);
+
+  children.forEach(
+    child=>{
+      deleteGroupRecursive(
+        child.id
+      );
+    }
+  );
+
+  state.groups =
+    state.groups.filter(
+      group =>
+        group.id !== id
+    );
+
+  renumberOrders();
+
+}
+
+function renameCurrentBundle(){
+
+  const bundle =
     getBundle(
       currentBundleId
     );
 
-  if(!g){
+  if(!bundle){
     return;
   }
 
-  promptModal(
+  openPromptModal(
     "묶음 이름 변경",
-    "새 이름",
-    g.name,
-    val=>{
+    "새 묶음 이름",
+    bundle.name,
+    value=>{
+
+      if(!value){
+
+        toast(
+          "⚠️ 이름을 입력해주세요."
+        );
+
+        return false;
+
+      }
 
       if(
         duplicateGroupName(
-          val,
-          g.id
+          value,
+          bundle.id
         )
       ){
 
         toast(
-          "⚠️ 이미 같은 이름의 묶음/폴더가 있습니다."
+          "⚠️ 이미 같은 이름의 묶음 또는 폴더가 있습니다."
         );
 
         return false;
+
       }
 
-      confirmModal(
-        "이름 변경",
-        `'${val}'로 변경하시겠습니까?`,
-        ()=>{
-          g.name=val;
+      bundle.name =
+        value;
 
-          autoSave();
+      autoSave();
 
-          renderBundlePage();
-          renderHome();
-        }
-      );
+      renderBundlePage();
+
+      renderHome();
 
       return true;
 
@@ -2311,17 +2977,17 @@ function promptRenameCurrent(){
 
 function toggleCurrentBundleImportant(){
 
-  const g =
+  const bundle =
     getBundle(
       currentBundleId
     );
 
-  if(!g){
+  if(!bundle){
     return;
   }
 
-  g.important =
-    !g.important;
+  bundle.important =
+    !bundle.important;
 
   autoSave();
 
@@ -2329,713 +2995,124 @@ function toggleCurrentBundleImportant(){
 
 }
 
-function deleteCurrentGroup(){
-
-  const g =
-    getGroup(
-      currentBundleId
-    );
-
-  if(!g){
-    return;
-  }
-
-  confirmModal(
-    "묶음 삭제",
-    `'${g.name}'을(를) 삭제하시겠습니까?`,
-    ()=>{
-      deleteGroupRecursive(
-        g.id
-      );
-
-      autoSave();
-
-      currentBundleId=null;
-
-      navigate(
-        "homePage"
-      );
-    }
-  );
-
-}
-
-function renderFolderAddCandidates(){
-
-  if(
-    !currentBundleId
-  ){
-    return;
-  }
+function openFolderAddModal(){
 
   const folder =
-    getGroup(
-      currentBundleId
+    getFolder(
+      currentView.type ===
+        "folder"
+        ? currentView.id
+        : getBundle(
+            currentBundleId
+          )?.parentId
     );
 
-  if(
-    !folder ||
-    folder.type!=="folder"
-  ){
+  if(!folder){
     return;
   }
 
-  const query =
-    norm(
-      $("#folderBundleSearch")
-        ?.value || ""
-    );
+  openFormModal(
+    "폴더에 묶음 추가",
+    `
+      <div class="search-box small-search">
 
-  const existing =
-    new Set(
-      childrenOf(folder.id)
-        .map(
-          g=>g.id
-        )
-    );
+        <span>🔎</span>
 
-  const candidates =
-    allBundles()
-      .filter(
-        g =>
-          !existing.has(g.id) &&
-          (
-            !g.parentId ||
-            g.parentId === null
-          ) &&
-          (
-            !query ||
-            norm(g.name)
-              .includes(query)
-          )
-      )
-      .sort(
-        (a,b)=>
-          new Date(a.createdAt) -
-          new Date(b.createdAt)
-      );
+        <input
+          id="folderCandidateSearch"
+          placeholder="묶음 이름 검색"
+          autocomplete="off"
+        >
 
-  const box =
-    $("#folderBundleCandidates");
-
-  if(!candidates.length){
-
-    box.innerHTML = `
-      <div class="empty">
-        추가할 묶음이 없습니다.
       </div>
-    `;
 
-    $("#folderCandidateCount")
-      .textContent="0개";
+      <div class="bulk-actions">
 
-    return;
-
-  }
-
-  box.innerHTML =
-    candidates
-      .map(
-        g=>`
-          <label
-            class="candidate-row"
-          >
-
-            <input
-              type="checkbox"
-              class="folder-candidate"
-              value="${g.id}"
-            >
-
-            <span>
-
-              <b>
-                ${escapeHTML(g.name)}
-              </b>
-
-              <small class="subtle">
-                ${g.words.length}개 단어 ·
-                ${fmtDate(g.createdAt)}
-              </small>
-
-            </span>
-
-          </label>
-        `
-      )
-      .join("");
-
-  $("#folderCandidateCount")
-    .textContent =
-      `${candidates.length}개`;
-
-}
-
-function openFolderAdd(){
-
-  const folder =
-    getGroup(
-      currentBundleId
-    );
-
-  if(
-    !folder ||
-    folder.type!=="folder"
-  ){
-    return;
-  }
-
-  $("#folderAddCard")
-    .classList.remove(
-      "hidden"
-    );
-
-  $("#folderBundleSearch")
-    .value="";
-
-  renderFolderAddCandidates();
-
-  setTimeout(
-    ()=>{
-      $("#folderBundleSearch")
-        .focus();
-    },
-    30
-  );
-
-}
-
-function closeFolderAdd(){
-
-  $("#folderAddCard")
-    .classList.add(
-      "hidden"
-    );
-
-}
-
-function selectAllFolderCandidates(
-  checked
-){
-
-  $$(".folder-candidate")
-    .forEach(
-      c=>{
-        c.checked=checked;
-      }
-    );
-
-}
-
-function addSelectedToFolder(){
-
-  const folder =
-    getGroup(
-      currentBundleId
-    );
-
-  if(
-    !folder ||
-    folder.type!=="folder"
-  ){
-    return;
-  }
-
-  const ids =
-    $$(
-      ".folder-candidate:checked"
-    )
-      .map(
-        c=>c.value
-      );
-
-  if(!ids.length){
-
-    toast(
-      "⚠️ 추가할 묶음을 선택해주세요."
-    );
-
-    return;
-
-  }
-
-  for(
-    const id
-    of ids
-  ){
-
-    moveBundleToFolder(
-      id,
-      folder.id
-    );
-
-  }
-
-  updateGroupOrders();
-
-  autoSave();
-
-  renderHome();
-
-  currentBundleId =
-    folder.id;
-
-  closeFolderAdd();
-
-  toast(
-    `✅ ${ids.length}개 묶음이 폴더에 추가되었습니다.`
-  );
-
-}
-function parseBulkInput(text){
-
-  const parts =
-    String(text || "")
-      .split("/")
-      .map(trim);
-
-  if(!parts.length){
-    return {
-      error:"입력한 단어가 없습니다."
-    };
-  }
-
-  const result=[];
-
-  for(
-    let i=0;
-    i<parts.length;
-    i++
-  ){
-
-    const part=parts[i];
-
-    if(!part){
-
-      return {
-        error:`${i+1}번째 단어가 비어 있습니다.`
-      };
-
-    }
-
-    const colon =
-      part.indexOf(":");
-
-    if(colon<0){
-
-      return {
-        error:
-          `${i+1}번째 단어에 ':'가 없습니다.`
-      };
-
-    }
-
-    const english =
-      trim(
-        part.slice(
-          0,
-          colon
-        )
-      );
-
-    const meanings =
-      part
-        .slice(colon+1)
-        .split(",")
-        .map(trim);
-
-    if(!english){
-
-      return {
-        error:
-          `${i+1}번째 단어의 영어가 비어 있습니다.`
-      };
-
-    }
-
-    if(
-      meanings.length===0 ||
-      meanings.some(
-        m=>!m
-      )
-    ){
-
-      return {
-        error:
-          `${i+1}번째 단어의 뜻 중 비어 있는 항목이 있습니다.`
-      };
-
-    }
-
-    const uniqueMeanings =
-      [
-        ...new Map(
-          meanings.map(
-            m=>[
-              norm(m),
-              {
-                id:uid("m"),
-                text:m
-              }
-            ]
-          )
-        ).values()
-      ];
-
-    result.push({
-      english,
-      meanings:uniqueMeanings
-    });
-
-  }
-
-  return {
-    items:result
-  };
-
-}
-
-function cleanupOtherWord(
-  english,
-  meaningList
-){
-
-  const other =
-    state.groups.find(
-      g =>
-        g.type==="bundle" &&
-        g.name==="기타 단어" &&
-        !g.parentId
-    );
-
-  if(!other){
-    return;
-  }
-
-  const word =
-    other.words.find(
-      w =>
-        norm(w.english) ===
-        norm(english)
-    );
-
-  if(!word){
-    return;
-  }
-
-  word.meanings =
-    word.meanings.filter(
-      m =>
-        !meaningList.some(
-          value =>
-            norm(value) ===
-            norm(m.text)
-        )
-    );
-
-  if(
-    word.meanings.length===0
-  ){
-
-    other.words =
-      other.words.filter(
-        w=>w.id!==word.id
-      );
-
-  }
-
-  if(
-    other.words.length===0
-  ){
-
-    state.groups =
-      state.groups.filter(
-        g=>g.id!==other.id
-      );
-
-  }
-
-}
-
-function getOrCreateOtherBundle(){
-
-  let other =
-    state.groups.find(
-      g =>
-        g.type==="bundle" &&
-        g.name==="기타 단어" &&
-        !g.parentId
-    );
-
-  if(other){
-    return other;
-  }
-
-  if(!storageAllows()){
-    return null;
-  }
-
-  other={
-    id:uid("bundle"),
-    type:"bundle",
-    name:"기타 단어",
-    parentId:null,
-    order:rootItemsRaw().length,
-    createdAt:nowISO(),
-    important:false,
-    words:[]
-  };
-
-  state.groups.push(other);
-
-  return other;
-
-}
-
-function addWordsToCurrentBundle(){
-
-  const g =
-    getBundle(
-      currentBundleId
-    );
-
-  if(!g){
-    return;
-  }
-
-  const parsed =
-    parseBulkInput(
-      $("#bulkInput").value
-    );
-
-  if(parsed.error){
-
-    setMsg(
-      "inputMessage",
-      `❌ ${parsed.error}`,
-      "error"
-    );
-
-    return;
-  }
-
-  let added=0;
-  let newMeanings=0;
-
-  for(
-    const item
-    of parsed.items
-  ){
-
-    let word =
-      g.words.find(
-        w =>
-          norm(w.english) ===
-          norm(item.english)
-      );
-
-    if(!word){
-
-      word={
-        id:uid("w"),
-        english:item.english,
-        meanings:[],
-        important:false,
-        createdAt:nowISO(),
-        stats:{
-          attempts:0,
-          wrong:0,
-          lastWrong:null
-        }
-      };
-
-      g.words.push(word);
-
-      added++;
-
-    }
-
-    ensureStats(word);
-
-    for(
-      const m
-      of item.meanings
-    ){
-
-      const exists =
-        word.meanings.some(
-          current =>
-            norm(current.text) ===
-            norm(m.text)
-        );
-
-      if(!exists){
-
-        word.meanings.push(m);
-
-        newMeanings++;
-
-      }
-
-    }
-
-    cleanupOtherWord(
-      item.english,
-      item.meanings.map(
-        m=>m.text
-      )
-    );
-
-  }
-
-  autoSave();
-
-  $("#bulkInput")
-    .value="";
-
-  setMsg(
-    "inputMessage",
-    `✅ ${added}개 단어, ${newMeanings}개 뜻이 추가되었습니다.`,
-    "ok"
-  );
-
-  renderBundlePage();
-
-}
-
-function addStandaloneWord(){
-
-  openModal(
-    "단어 및 뜻 추가",
-    `
-      <p class="muted">
-        추가된 단어는 자동으로
-        <b>기타 단어</b> 묶음에 들어갑니다.
-      </p>
-    `,
-    `
-      <label class="modal-form-label">
-        <span>영어</span>
-
-        <input
-          id="standaloneEnglish"
-          autocomplete="off"
+        <button
+          type="button"
+          id="folderSelectAllBtn"
+          class="secondary-btn"
         >
-      </label>
+          ☑ 모두 선택
+        </button>
 
-      <label class="modal-form-label">
-        <span>뜻</span>
-
-        <input
-          id="standaloneMeanings"
-          placeholder="여러 뜻은 , 로 구분"
-          autocomplete="off"
+        <button
+          type="button"
+          id="folderClearAllBtn"
+          class="secondary-btn"
         >
-      </label>
+          ☐ 모두 해제
+        </button>
+
+        <span
+          id="folderSelectedCount"
+          class="muted"
+        ></span>
+
+      </div>
+
+      <div
+        id="folderCandidateList"
+      ></div>
     `,
     ()=>{
-      const english =
-        trim(
-          $("#standaloneEnglish").value
-        );
+      const selected =
+        $$(".folder-candidate:checked")
+          .map(
+            checkbox =>
+              checkbox.value
+          );
 
-      const meanings =
-        $("#standaloneMeanings")
-          .value
-          .split(",")
-          .map(trim);
-
-      if(!english){
+      if(!selected.length){
 
         toast(
-          "⚠️ 영어 단어를 입력해주세요."
+          "⚠️ 추가할 묶음을 선택해주세요."
         );
 
         return false;
+
       }
+
+      selected.forEach(
+        id=>{
+          const bundle =
+            getBundle(id);
+
+          if(!bundle){
+            return;
+          }
+
+          bundle.parentId =
+            folder.id;
+
+          bundle.order =
+            childrenOf(
+              folder.id
+            ).length;
+        }
+      );
+
+      renumberOrders();
+
+      autoSave();
+
+      closeModal();
 
       if(
-        !meanings.length ||
-        meanings.some(
-          m=>!m
-        )
+        currentView.type ===
+        "folder"
       ){
 
-        toast(
-          "⚠️ 뜻을 모두 입력해주세요."
-        );
+        renderFolderPage();
 
-        return false;
-      }
+      }else{
 
-      const other =
-        getOrCreateOtherBundle();
-
-      if(!other){
-
-        toast(
-          "❌ 저장 공간이 부족해 기타 단어를 만들 수 없습니다."
-        );
-
-        return false;
-      }
-
-      let word =
-        other.words.find(
-          w =>
-            norm(w.english) ===
-            norm(english)
-        );
-
-      if(!word){
-
-        word={
-          id:uid("w"),
-          english,
-          meanings:[],
-          important:false,
-          createdAt:nowISO(),
-          stats:{
-            attempts:0,
-            wrong:0,
-            lastWrong:null
-          }
-        };
-
-        other.words.push(word);
+        renderBundlePage();
 
       }
-
-      ensureStats(word);
-
-      for(
-        const meaning
-        of meanings
-      ){
-
-        if(
-          !word.meanings.some(
-            m =>
-              norm(m.text) ===
-              norm(meaning)
-          )
-        ){
-
-          word.meanings.push({
-            id:uid("m"),
-            text:meaning
-          });
-
-        }
-
-      }
-
-      autoSave();
-
-      renderHome();
 
       toast(
-        "✅ 기타 단어에 추가되었습니다."
+        `✅ ${selected.length}개의 묶음을 추가했습니다.`
       );
 
       return true;
@@ -3043,21 +3120,478 @@ function addStandaloneWord(){
     }
   );
 
+  renderFolderCandidates(
+    folder.id
+  );
+
+  const search =
+    $("#folderCandidateSearch");
+
+  search?.addEventListener(
+    "input",
+    ()=>{
+      renderFolderCandidates(
+        folder.id
+      );
+    }
+  );
+
+  $("#folderSelectAllBtn")
+    ?.addEventListener(
+      "click",
+      ()=>{
+        $$(".folder-candidate")
+          .forEach(
+            checkbox=>{
+              checkbox.checked =
+                true;
+            }
+          );
+
+        updateFolderCandidateCount();
+      }
+    );
+
+  $("#folderClearAllBtn")
+    ?.addEventListener(
+      "click",
+      ()=>{
+        $$(".folder-candidate")
+          .forEach(
+            checkbox=>{
+              checkbox.checked =
+                false;
+            }
+          );
+
+        updateFolderCandidateCount();
+      }
+    );
+
 }
 
-function renderWords(){
+function closeModal(){
 
-  const g =
+  $("#modal")
+    .classList.add(
+      "hidden"
+    );
+
+}
+
+function renderFolderCandidates(
+  folderId
+){
+
+  const folder =
+    getFolder(
+      folderId
+    );
+
+  if(!folder){
+    return;
+  }
+
+  const query =
+    norm(
+      $("#folderCandidateSearch")
+        ?.value || ""
+    );
+
+  const existing =
+    new Set(
+      childrenOf(
+        folder.id
+      ).map(
+        group=>group.id
+      )
+    );
+
+  const candidates =
+    allBundles()
+      .filter(
+        bundle =>
+          !existing.has(
+            bundle.id
+          ) &&
+          !bundle.parentId &&
+          (
+            !query ||
+            norm(bundle.name)
+              .includes(query)
+          )
+      )
+      .sort(
+        (a,b)=>
+          new Date(
+            a.createdAt
+          ) -
+          new Date(
+            b.createdAt
+          )
+      );
+
+  if(!candidates.length){
+
+    $("#folderCandidateList")
+      .innerHTML = `
+        <div class="empty">
+          추가할 수 있는 묶음이 없습니다.
+        </div>
+      `;
+
+    updateFolderCandidateCount();
+
+    return;
+
+  }
+
+  $("#folderCandidateList")
+    .innerHTML =
+      candidates.map(
+        bundle=>`
+          <label
+            class="candidate-row"
+          >
+
+            <input
+              type="checkbox"
+              class="folder-candidate"
+              value="${bundle.id}"
+            >
+
+            <span>
+
+              <b>
+                ${escapeHTML(
+                  bundle.name
+                )}
+              </b>
+
+              <small class="subtle">
+                ${bundle.words.length}개 단어 ·
+                ${fmtDate(
+                  bundle.createdAt
+                )}
+              </small>
+
+            </span>
+
+          </label>
+        `
+      ).join("");
+
+  $$(".folder-candidate")
+    .forEach(
+      checkbox=>{
+        checkbox.onchange =
+          updateFolderCandidateCount;
+      }
+    );
+
+  updateFolderCandidateCount();
+
+}
+
+function updateFolderCandidateCount(){
+
+  const count =
+    $$(".folder-candidate:checked")
+      .length;
+
+  if(
+    $("#folderSelectedCount")
+  ){
+
+    $("#folderSelectedCount")
+      .textContent =
+      `${count}개 선택`;
+
+  }
+
+}
+
+function renderSearchResults(){
+
+  const query =
+    norm(
+      $("#globalSearch")
+        ?.value || ""
+    );
+
+  const box =
+    $("#searchResults");
+
+  if(!box){
+    return;
+  }
+
+  if(!query){
+
+    box.classList.add(
+      "hidden"
+    );
+
+    box.innerHTML="";
+
+    return;
+
+  }
+
+  const groupResults =
+    state.groups.filter(
+      group =>
+        norm(
+          group.name
+        ).includes(
+          query
+        )
+    );
+
+  const wordResults =
+    wordRefs().filter(
+      ({group,word}) =>
+        norm(
+          word.english
+        ).includes(
+          query
+        ) ||
+        meaningTexts(word)
+          .some(
+            meaning =>
+              norm(meaning)
+                .includes(query)
+          )
+    );
+
+  if(
+    !groupResults.length &&
+    !wordResults.length
+  ){
+
+    box.classList.remove(
+      "hidden"
+    );
+
+    box.innerHTML =
+      `
+        <div class="empty">
+          🔎 검색 결과가 없습니다.
+        </div>
+      `;
+
+    return;
+
+  }
+
+  let html="";
+
+  if(groupResults.length){
+
+    html += `
+      <div class="result-section">
+
+        <h4>
+          📚 묶음 및 폴더
+        </h4>
+
+        ${
+          groupResults
+            .map(
+              group=>`
+                <div
+                  class="result-item"
+                  data-search-group="${group.id}"
+                >
+
+                  <b>
+                    ${
+                      group.type==="folder"
+                        ? "📁"
+                        : "📚"
+                    }
+                    ${escapeHTML(
+                      group.name
+                    )}
+                  </b>
+
+                  <div class="muted">
+                    ${
+                      group.type==="folder"
+                        ? "폴더"
+                        : `${group.words.length}개 단어`
+                    }
+                  </div>
+
+                </div>
+              `
+            )
+            .join("")
+        }
+
+      </div>
+    `;
+
+  }
+
+  if(wordResults.length){
+
+    html += `
+      <div class="result-section">
+
+        <h4>
+          📖 단어
+        </h4>
+
+        ${
+          wordResults
+            .slice(0,80)
+            .map(
+              result=>`
+                <div
+                  class="result-item"
+                  data-search-word-group="${result.group.id}"
+                  data-search-word-id="${result.word.id}"
+                >
+
+                  <b>
+                    ${escapeHTML(
+                      result.word.english
+                    )}
+                  </b>
+
+                  <div>
+                    ${meaningTexts(
+                      result.word
+                    )
+                      .map(
+                        meaning =>
+                          escapeHTML(
+                            meaning
+                          )
+                      )
+                      .join(" · ")
+                    }
+                  </div>
+
+                  <div class="muted">
+                    📚 ${escapeHTML(
+                      result.group.name
+                    )}
+                  </div>
+
+                </div>
+              `
+            )
+            .join("")
+        }
+
+      </div>
+    `;
+
+  }
+
+  box.classList.remove(
+    "hidden"
+  );
+
+  box.innerHTML =
+    html;
+
+  $(
+    "[data-search-group]"
+  ).forEach(
+    item=>{
+      item.onclick =
+        ()=>{
+          openGroup(
+            item.dataset
+              .searchGroup
+          );
+        };
+    }
+  );
+
+  $$(
+    "[data-search-word-group]"
+  ).forEach(
+    item=>{
+      item.onclick =
+        ()=>{
+          const groupId =
+            item.dataset
+              .searchWordGroup;
+
+          const wordId =
+            item.dataset
+              .searchWordId;
+
+          openGroup(
+            groupId
+          );
+
+          setTimeout(
+            ()=>{
+              document
+                .querySelector(
+                  `[data-word-id="${wordId}"]`
+                )
+                ?.scrollIntoView({
+                  behavior:"smooth",
+                  block:"center"
+                });
+            },
+            150
+          );
+        };
+    }
+  );
+
+}
+
+function resetWordViewState(){
+
+  wordSearch="";
+  wordSort="order";
+  importantFilter=false;
+  wordVisibleLimit=WORD_CHUNK;
+
+  selectedWordIds.clear();
+
+  if($("#wordSearch")){
+    $("#wordSearch").value="";
+  }
+
+  if($("#wordSort")){
+    $("#wordSort").value=
+      "order";
+  }
+
+  if(
+    $("#importantFilterBtn")
+  ){
+
+    $("#importantFilterBtn")
+      .textContent =
+        "⭐ 중요 단어만";
+
+  }
+
+}
+
+function wordsForCurrentBundle(){
+
+  const bundle =
     getBundle(
       currentBundleId
     );
 
-  if(!g){
-    return;
+  if(!bundle){
+    return [];
   }
 
   let words =
-    [...g.words];
+    [...bundle.words];
 
   const query =
     norm(wordSearch);
@@ -3066,14 +3600,16 @@ function renderWords(){
 
     words =
       words.filter(
-        w =>
-          norm(w.english)
-            .includes(query) ||
-          meaningTexts(w).some(
-            m =>
-              norm(m)
-                .includes(query)
-          )
+        word =>
+          norm(
+            word.english
+          ).includes(query) ||
+          meaningTexts(word)
+            .some(
+              meaning =>
+                norm(meaning)
+                  .includes(query)
+            )
       );
 
   }
@@ -3082,7 +3618,8 @@ function renderWords(){
 
     words =
       words.filter(
-        w=>w.important
+        word =>
+          word.important
       );
 
   }
@@ -3108,32 +3645,44 @@ function renderWords(){
 
   }
 
-  if(wordSort==="recentWrong"){
+  if(
+    wordSort==="recentWrong"
+  ){
 
     words.sort(
       (a,b)=>
         String(
-          b.stats?.lastWrong || ""
+          b.stats?.lastWrong ||
+          ""
         ).localeCompare(
           String(
-            a.stats?.lastWrong || ""
+            a.stats?.lastWrong ||
+            ""
           )
         )
     );
 
   }
 
-  if(wordSort==="important"){
+  if(
+    wordSort==="important"
+  ){
 
     words.sort(
       (a,b)=>
-        Number(b.important) -
-        Number(a.important)
+        Number(
+          b.important
+        ) -
+        Number(
+          a.important
+        )
     );
 
   }
 
-  if(wordSort==="difficulty"){
+  if(
+    wordSort==="difficulty"
+  ){
 
     words.sort(
       (a,b)=>
@@ -3143,9 +3692,27 @@ function renderWords(){
 
   }
 
+  return words;
+
+}
+
+function renderWords(){
+
+  const bundle =
+    getBundle(
+      currentBundleId
+    );
+
+  if(!bundle){
+    return;
+  }
+
   $("#visibleWordCount")
     .textContent =
-      `${words.length}개`;
+      `${wordsForCurrentBundle().length}개`;
+
+  const words =
+    wordsForCurrentBundle();
 
   const visible =
     words.slice(
@@ -3156,13 +3723,16 @@ function renderWords(){
   if(!visible.length){
 
     $("#wordList")
-      .innerHTML = `
+      .innerHTML =
+      `
         <div class="empty">
+
           ${
             words.length
               ? "검색 결과가 없습니다."
               : "이 묶음에는 아직 단어가 없습니다."
           }
+
         </div>
       `;
 
@@ -3170,9 +3740,11 @@ function renderWords(){
 
     $("#wordList")
       .innerHTML =
-        visible.map(
+      visible
+        .map(
           renderWordCard
-        ).join("");
+        )
+        .join("");
 
   }
 
@@ -3182,11 +3754,10 @@ function renderWords(){
   ){
 
     $("#wordSentinel")
-      .innerHTML = `
-        <div
-          class="muted"
-          style="text-align:center;padding:14px"
-        >
+      .innerHTML =
+      `
+        <div class="muted"
+             style="text-align:center;padding:14px;">
           스크롤하면 더 표시됩니다.
         </div>
       `;
@@ -3206,54 +3777,66 @@ function renderWords(){
 
 }
 
-function renderWordCard(w){
+function renderWordCard(
+  word
+){
 
-  ensureStats(w);
-
-  const rate =
-    errorRate(w).toFixed(1);
+  ensureStats(word);
 
   return `
     <div
       class="word-card"
-      data-word-id="${w.id}"
+      data-word-id="${word.id}"
     >
 
       <div class="word-top">
 
         <input
           type="checkbox"
-          class="word-select"
-          data-select-word="${w.id}"
-          ${selectedWordIds.has(w.id)?"checked":""}
+          data-select-word="${word.id}"
+          ${
+            selectedWordIds.has(
+              word.id
+            )
+              ? "checked"
+              : ""
+          }
         >
 
         <button
           class="mini-btn"
-          data-important-word="${w.id}"
-          title="중요 단어"
+          data-important-word="${word.id}"
         >
-          ${w.important ? "⭐" : "☆"}
+          ${
+            word.important
+              ? "⭐"
+              : "☆"
+          }
         </button>
 
         <div class="word-en">
-          ${escapeHTML(w.english)}
+          ${escapeHTML(
+            word.english
+          )}
         </div>
 
         <div class="word-stats">
-          오답률 ${rate}%
+          오답률
+          ${errorRate(
+            word
+          ).toFixed(1)}%
         </div>
 
         <button
           class="mini-btn"
-          data-edit-word="${w.id}"
+          data-edit-word="${word.id}"
         >
           ✏️
         </button>
 
         <button
           class="mini-btn"
-          data-delete-word="${w.id}"
+          data-delete-word="${word.id}"
         >
           🗑
         </button>
@@ -3261,44 +3844,46 @@ function renderWordCard(w){
       </div>
 
       ${
-        w.meanings.map(
-          m=>`
-            <div
-              class="meaning-row"
-            >
+        word.meanings
+          .map(
+            meaning=>`
+              <div class="meaning-row">
 
-              <div class="meaning-text">
-                ${escapeHTML(m.text)}
+                <div class="meaning-text">
+                  ${escapeHTML(
+                    meaning.text
+                  )}
+                </div>
+
+                <div class="meaning-actions">
+
+                  <button
+                    class="mini-btn"
+                    data-edit-meaning="${word.id}"
+                    data-meaning-id="${meaning.id}"
+                  >
+                    ✏️
+                  </button>
+
+                  <button
+                    class="mini-btn"
+                    data-delete-meaning="${word.id}"
+                    data-meaning-id="${meaning.id}"
+                  >
+                    🗑
+                  </button>
+
+                </div>
+
               </div>
-
-              <div class="meaning-actions">
-
-                <button
-                  class="mini-btn"
-                  data-edit-meaning="${w.id}"
-                  data-meaning-id="${m.id}"
-                >
-                  ✏️
-                </button>
-
-                <button
-                  class="mini-btn"
-                  data-delete-meaning="${w.id}"
-                  data-meaning-id="${m.id}"
-                >
-                  🗑
-                </button>
-
-              </div>
-
-            </div>
-          `
-        ).join("")
+            `
+          )
+          .join("")
       }
 
       <button
         class="mini-btn"
-        data-add-meaning="${w.id}"
+        data-add-meaning="${word.id}"
       >
         ＋ 뜻 추가
       </button>
@@ -3312,116 +3897,132 @@ function wireWordEvents(){
 
   $$("[data-select-word]")
     .forEach(
-      el=>{
-        el.onchange=()=>{
+      checkbox=>{
+        checkbox.onchange =
+          ()=>{
+            if(
+              checkbox.checked
+            ){
 
-          if(el.checked){
+              selectedWordIds.add(
+                checkbox.dataset
+                  .selectWord
+              );
 
-            selectedWordIds.add(
-              el.dataset.selectWord
-            );
+            }else{
 
-          }else{
+              selectedWordIds.delete(
+                checkbox.dataset
+                  .selectWord
+              );
 
-            selectedWordIds.delete(
-              el.dataset.selectWord
-            );
+            }
 
-          }
+            updateBulkActions();
+            updateSelectAll();
 
-          updateBulkActions();
-          updateSelectAll();
-
-        };
+          };
       }
     );
 
   $$("[data-important-word]")
     .forEach(
-      el=>{
-        el.onclick=()=>{
+      button=>{
+        button.onclick =
+          ()=>{
 
-          const g =
-            getBundle(
-              currentBundleId
-            );
+            const word =
+              getBundle(
+                currentBundleId
+              )
+              ?.words.find(
+                item =>
+                  item.id ===
+                  button.dataset
+                    .importantWord
+              );
 
-          const w =
-            g?.words.find(
-              x =>
-                x.id ===
-                el.dataset.importantWord
-            );
+            if(!word){
+              return;
+            }
 
-          if(!w){
-            return;
-          }
+            word.important =
+              !word.important;
 
-          w.important =
-            !w.important;
+            autoSave();
 
-          autoSave();
+            renderWords();
 
-          renderWords();
-
-        };
+          };
       }
     );
 
   $$("[data-edit-word]")
     .forEach(
-      el=>{
-        el.onclick=()=>{
-          editWord(
-            el.dataset.editWord
-          );
-        };
+      button=>{
+        button.onclick =
+          ()=>{
+            editWord(
+              button.dataset
+                .editWord
+            );
+          };
       }
     );
 
   $$("[data-delete-word]")
     .forEach(
-      el=>{
-        el.onclick=()=>{
-          deleteWord(
-            el.dataset.deleteWord
-          );
-        };
+      button=>{
+        button.onclick =
+          ()=>{
+            deleteWord(
+              button.dataset
+                .deleteWord
+            );
+          };
       }
     );
 
   $$("[data-edit-meaning]")
     .forEach(
-      el=>{
-        el.onclick=()=>{
-          editMeaning(
-            el.dataset.editMeaning,
-            el.dataset.meaningId
-          );
-        };
+      button=>{
+        button.onclick =
+          ()=>{
+            editMeaning(
+              button.dataset
+                .editMeaning,
+              button.dataset
+                .meaningId
+            );
+          };
       }
     );
 
   $$("[data-delete-meaning]")
     .forEach(
-      el=>{
-        el.onclick=()=>{
-          deleteMeaning(
-            el.dataset.deleteMeaning,
-            el.dataset.meaningId
-          );
-        };
+      button=>{
+        button.onclick =
+          ()=>{
+            deleteMeaning(
+              button.dataset
+                .deleteMeaning,
+              button.dataset
+                .meaningId
+            );
+          };
       }
     );
 
   $$("[data-add-meaning]")
     .forEach(
-      el=>{
-        el.onclick=()=>{
-          addMeaning(
-            el.dataset.addMeaning
-          );
-        };
+      button=>{
+        button.onclick =
+          ()=>{
+            addMeaning(
+              button.dataset
+                .addMeaning
+            );
+          };
       }
     );
 
@@ -3429,119 +4030,71 @@ function wireWordEvents(){
 
 function updateBulkActions(){
 
-  const n =
+  const count =
     selectedWordIds.size;
 
   $("#bulkActions")
     .classList.toggle(
       "hidden",
-      n===0
+      count===0
     );
 
   $("#selectedCount")
     .textContent =
-      `${n}개 선택`;
+      `${count}개 선택`;
 
 }
 
 function updateSelectAll(){
 
-  const g =
-    getBundle(
-      currentBundleId
-    );
-
-  if(!g){
-    return;
-  }
-
-  const visibleIds =
-    wordsForCurrentView()
-      .map(w=>w.id);
+  const words =
+    wordsForCurrentBundle();
 
   $("#selectAllWords")
     .checked =
-      visibleIds.length > 0 &&
-      visibleIds.every(
-        id =>
-          selectedWordIds.has(id)
-      );
-
-}
-
-function wordsForCurrentView(){
-
-  const g =
-    getBundle(
-      currentBundleId
-    );
-
-  if(!g){
-    return [];
-  }
-
-  let words =
-    [...g.words];
-
-  const query =
-    norm(wordSearch);
-
-  if(query){
-
-    words =
-      words.filter(
-        w =>
-          norm(w.english)
-            .includes(query) ||
-          meaningTexts(w).some(
-            m =>
-              norm(m)
-                .includes(query)
+      words.length > 0 &&
+      words.every(
+        word =>
+          selectedWordIds.has(
+            word.id
           )
       );
 
-  }
-
-  if(importantFilter){
-
-    words =
-      words.filter(
-        w=>w.important
-      );
-
-  }
-
-  return words;
-
 }
 
-function editWord(wordId){
+function editWord(
+  wordId
+){
 
-  const g =
+  const bundle =
     getBundle(
       currentBundleId
     );
 
-  const w =
-    g?.words.find(
-      x=>x.id===wordId
+  const word =
+    bundle?.words.find(
+      item =>
+        item.id === wordId
     );
 
-  if(!w){
+  if(!word){
     return;
   }
 
-  openModal(
+  openFormModal(
     "단어 수정",
-    "",
     `
       <label class="modal-form-label">
 
-        <span>영어</span>
+        <span>
+          영어
+        </span>
 
         <input
           id="editWordEnglish"
-          value="${escapeHTML(w.english)}"
+          value="${escapeHTML(
+            word.english
+          )}"
           autocomplete="off"
         >
 
@@ -3551,18 +4104,22 @@ function editWord(wordId){
         <b>뜻</b>
       </div>
 
-      <div id="editMeaningList">
+      <div
+        id="editMeaningFields"
+      >
 
         ${
-          w.meanings.map(
-            m=>`
+          word.meanings.map(
+            meaning=>`
               <label
                 class="modal-form-label"
               >
 
                 <input
-                  value="${escapeHTML(m.text)}"
-                  data-edit-meaning-input="${m.id}"
+                  data-edit-meaning-input="${meaning.id}"
+                  value="${escapeHTML(
+                    meaning.text
+                  )}"
                   autocomplete="off"
                 >
 
@@ -3574,24 +4131,22 @@ function editWord(wordId){
       </div>
     `,
     ()=>{
-
       const english =
         trim(
           $("#editWordEnglish")
             .value
         );
 
-      const meaningInputs =
+      const values =
         $$(
           "[data-edit-meaning-input]"
-        );
-
-      const values =
-        meaningInputs.map(
-          input=>trim(
-            input.value
-          )
-        );
+        )
+          .map(
+            input =>
+              trim(
+                input.value
+              )
+          );
 
       if(!english){
 
@@ -3617,11 +4172,14 @@ function editWord(wordId){
       }
 
       const duplicate =
-        g.words.some(
+        bundle.words.some(
           other =>
-            other.id!==w.id &&
-            norm(other.english) ===
-            norm(english)
+            other.id !== word.id &&
+            norm(
+              other.english
+            ) === norm(
+              english
+            )
         );
 
       if(duplicate){
@@ -3633,15 +4191,17 @@ function editWord(wordId){
         return false;
       }
 
-      const duplicateMeaning =
+      const duplicateMeanings =
         values.some(
           (value,index)=>
             values.findIndex(
-              x=>norm(x)===norm(value)
+              current =>
+                norm(current) ===
+                norm(value)
             ) !== index
         );
 
-      if(duplicateMeaning){
+      if(duplicateMeanings){
 
         toast(
           "⚠️ 같은 뜻이 중복되어 있습니다."
@@ -3650,63 +4210,63 @@ function editWord(wordId){
         return false;
       }
 
-      w.english =
+      word.english =
         english;
 
-      w.meanings =
-        meaningInputs.map(
-          input=>({
+      word.meanings =
+        word.meanings.map(
+          (
+            meaning,
+            index
+          )=>({
             id:
-              input.dataset
-                .editMeaningInput,
+              meaning.id,
             text:
-              trim(input.value)
+              values[index]
           })
         );
-
-      cleanupOtherWord(
-        w.english,
-        meaningTexts(w)
-      );
 
       autoSave();
 
       renderBundlePage();
 
       return true;
-
     }
   );
 
 }
 
-function addMeaning(wordId){
+function addMeaning(
+  wordId
+){
 
-  const g =
+  const bundle =
     getBundle(
       currentBundleId
     );
 
-  const w =
-    g?.words.find(
-      x=>x.id===wordId
+  const word =
+    bundle?.words.find(
+      item =>
+        item.id === wordId
     );
 
-  if(!w){
+  if(!word){
     return;
   }
 
-  promptModal(
+  openPromptModal(
     "뜻 추가",
     "새 뜻",
     "",
     value=>{
 
       if(
-        w.meanings.some(
-          m =>
-            norm(m.text) ===
-            norm(value)
+        word.meanings.some(
+          meaning =>
+            norm(
+              meaning.text
+            ) === norm(value)
         )
       ){
 
@@ -3715,17 +4275,13 @@ function addMeaning(wordId){
         );
 
         return false;
+
       }
 
-      w.meanings.push({
-        id:uid("m"),
+      word.meanings.push({
+        id:uid("meaning"),
         text:value
       });
-
-      cleanupOtherWord(
-        w.english,
-        [value]
-      );
 
       autoSave();
 
@@ -3743,37 +4299,39 @@ function editMeaning(
   meaningId
 ){
 
-  const g =
+  const bundle =
     getBundle(
       currentBundleId
     );
 
-  const w =
-    g?.words.find(
-      x=>x.id===wordId
+  const word =
+    bundle?.words.find(
+      item =>
+        item.id === wordId
     );
 
-  const m =
-    w?.meanings.find(
-      x=>x.id===meaningId
+  const meaning =
+    word?.meanings.find(
+      item =>
+        item.id === meaningId
     );
 
-  if(!m){
+  if(!meaning){
     return;
   }
 
-  promptModal(
+  openPromptModal(
     "뜻 수정",
     "새 뜻",
-    m.text,
+    meaning.text,
     value=>{
 
       if(
-        w.meanings.some(
-          x =>
-            x.id!==m.id &&
-            norm(x.text) ===
-            norm(value)
+        word.meanings.some(
+          item =>
+            item.id !== meaning.id &&
+            norm(item.text) ===
+              norm(value)
         )
       ){
 
@@ -3782,15 +4340,11 @@ function editMeaning(
         );
 
         return false;
+
       }
 
-      m.text =
+      meaning.text =
         value;
-
-      cleanupOtherWord(
-        w.english,
-        [value]
-      );
 
       autoSave();
 
@@ -3808,43 +4362,49 @@ function deleteMeaning(
   meaningId
 ){
 
-  const g =
+  const bundle =
     getBundle(
       currentBundleId
     );
 
-  const w =
-    g?.words.find(
-      x=>x.id===wordId
+  const word =
+    bundle?.words.find(
+      item =>
+        item.id === wordId
     );
 
-  if(!w){
+  if(!word){
     return;
   }
 
   if(
-    w.meanings.length===1
+    word.meanings.length === 1
   ){
 
-    confirmModal(
+    openConfirmModal(
       "단어 전체 삭제",
       "마지막 뜻을 삭제하면 단어 전체가 삭제됩니다.",
       ()=>{
-        deleteWord(wordId);
+        deleteWord(
+          wordId
+        );
       }
     );
 
     return;
+
   }
 
-  confirmModal(
+  openConfirmModal(
     "뜻 삭제",
     "이 뜻을 삭제하시겠습니까?",
     ()=>{
 
-      w.meanings =
-        w.meanings.filter(
-          m=>m.id!==meaningId
+      word.meanings =
+        word.meanings.filter(
+          meaning =>
+            meaning.id !==
+            meaningId
         );
 
       autoSave();
@@ -3856,30 +4416,34 @@ function deleteMeaning(
 
 }
 
-function deleteWord(wordId){
+function deleteWord(
+  wordId
+){
 
-  const g =
+  const bundle =
     getBundle(
       currentBundleId
     );
 
-  const w =
-    g?.words.find(
-      x=>x.id===wordId
+  const word =
+    bundle?.words.find(
+      item =>
+        item.id === wordId
     );
 
-  if(!w){
+  if(!word){
     return;
   }
 
-  confirmModal(
+  openConfirmModal(
     "단어 삭제",
-    `'${w.english}' 단어 전체를 삭제하시겠습니까?`,
+    `'${word.english}' 단어를 삭제하시겠습니까?`,
     ()=>{
 
-      g.words =
-        g.words.filter(
-          x=>x.id!==wordId
+      bundle.words =
+        bundle.words.filter(
+          item =>
+            item.id !== wordId
         );
 
       selectedWordIds.delete(
@@ -3896,37 +4460,37 @@ function deleteWord(wordId){
 }
 
 function bulkWordAction(
-  action
+  type
 ){
 
-  const g =
+  const bundle =
     getBundle(
       currentBundleId
     );
 
-  if(!g){
+  if(!bundle){
     return;
   }
 
-  const ids =
+  const selected =
     [...selectedWordIds];
 
-  if(!ids.length){
+  if(!selected.length){
     return;
   }
 
-  if(action==="delete"){
+  if(type==="delete"){
 
-    confirmModal(
-      "선택 단어 삭제",
-      `선택한 ${ids.length}개의 단어를 삭제하시겠습니까?`,
+    openConfirmModal(
+      "단어 삭제",
+      `선택한 ${selected.length}개의 단어를 삭제하시겠습니까?`,
       ()=>{
 
-        g.words =
-          g.words.filter(
-            w =>
+        bundle.words =
+          bundle.words.filter(
+            word =>
               !selectedWordIds.has(
-                w.id
+                word.id
               )
           );
 
@@ -3940,26 +4504,24 @@ function bulkWordAction(
     );
 
     return;
-
   }
 
-  for(
-    const w
-    of g.words
-  ){
+  bundle.words.forEach(
+    word=>{
 
-    if(
-      !selectedWordIds.has(
-        w.id
-      )
-    ){
-      continue;
+      if(
+        selectedWordIds.has(
+          word.id
+        )
+      ){
+
+        word.important =
+          type === "on";
+
+      }
+
     }
-
-    w.important =
-      action === "on";
-
-  }
+  );
 
   autoSave();
 
@@ -3967,37 +4529,448 @@ function bulkWordAction(
 
 }
 
-function openMoveCandidateInfo(){
+function parseBulkInput(
+  text
+){
 
-  /*
+  const parts =
+    String(text || "")
+      .split("/")
+      .map(trim);
 
-    폴더 이동은 별도의 "이동" 버튼을 사용하지 않습니다.
-    묶음 간 이동은 드래그 방식으로만 처리합니다.
+  if(
+    !parts.length ||
+    parts.every(
+      part=>!part
+    )
+  ){
 
-  */
+    return {
+      error:
+        "입력한 단어가 없습니다."
+    };
+
+  }
+
+  const result=[];
+
+  for(
+    let index=0;
+    index<parts.length;
+    index++
+  ){
+
+    const part =
+      parts[index];
+
+    if(!part){
+
+      return {
+        error:
+          `${index+1}번째 항목이 비어 있습니다.`
+      };
+
+    }
+
+    const colon =
+      part.indexOf(":");
+
+    if(colon < 0){
+
+      return {
+        error:
+          `${index+1}번째 항목에 ':'가 없습니다.`
+      };
+
+    }
+
+    const english =
+      trim(
+        part.slice(
+          0,
+          colon
+        )
+      );
+
+    const meanings =
+      part
+        .slice(
+          colon + 1
+        )
+        .split(",")
+        .map(trim);
+
+    if(!english){
+
+      return {
+        error:
+          `${index+1}번째 단어의 영어가 비어 있습니다.`
+      };
+
+    }
+
+    if(
+      !meanings.length ||
+      meanings.some(
+        meaning=>!meaning
+      )
+    ){
+
+      return {
+        error:
+          `${index+1}번째 단어의 뜻 중 비어 있는 항목이 있습니다.`
+      };
+
+    }
+
+    const unique =
+      [];
+
+    meanings.forEach(
+      meaning=>{
+
+        if(
+          !unique.some(
+            current =>
+              norm(current) ===
+              norm(meaning)
+          )
+        ){
+
+          unique.push(
+            meaning
+          );
+
+        }
+
+      }
+    );
+
+    result.push({
+      english,
+      meanings:unique
+    });
+
+  }
+
+  return {
+    items:result
+  };
+
+}
+
+function addWordsToCurrentBundle(){
+
+  const bundle =
+    getBundle(
+      currentBundleId
+    );
+
+  if(!bundle){
+    return;
+  }
+
+  const parsed =
+    parseBulkInput(
+      $("#bulkInput").value
+    );
+
+  if(parsed.error){
+
+    setMessage(
+      "inputMessage",
+      parsed.error,
+      "error"
+    );
+
+    return;
+
+  }
+
+  let addedWords=0;
+  let addedMeanings=0;
+
+  parsed.items.forEach(
+    item=>{
+
+      let word =
+        bundle.words.find(
+          current =>
+            norm(
+              current.english
+            ) ===
+            norm(
+              item.english
+            )
+        );
+
+      if(!word){
+
+        word = {
+          id:uid("word"),
+          english:item.english,
+          meanings:[],
+          important:false,
+          createdAt:nowISO(),
+          stats:{
+            attempts:0,
+            wrong:0,
+            lastWrong:null
+          }
+        };
+
+        bundle.words.push(
+          word
+        );
+
+        addedWords++;
+
+      }
+
+      ensureStats(word);
+
+      item.meanings.forEach(
+        meaning=>{
+
+          if(
+            !word.meanings.some(
+              current =>
+                norm(
+                  current.text
+                ) ===
+                norm(meaning)
+            )
+          ){
+
+            word.meanings.push({
+              id:uid("meaning"),
+              text:meaning
+            });
+
+            addedMeanings++;
+
+          }
+
+        }
+      );
+
+    }
+  );
+
+  autoSave();
+
+  $("#bulkInput")
+    .value="";
+
+  setMessage(
+    "inputMessage",
+    `${addedWords}개 단어, ${addedMeanings}개 뜻이 추가되었습니다.`,
+    "ok"
+  );
+
+  renderBundlePage();
+
+}
+
+function addStandaloneWord(){
+
+  openFormModal(
+    "단어 및 뜻 추가",
+    `
+      <p class="muted">
+        입력한 단어는 자동으로
+        <b>기타 단어</b> 묶음에 저장됩니다.
+      </p>
+
+      <label class="modal-form-label">
+
+        <span>
+          영어
+        </span>
+
+        <input
+          id="standaloneEnglish"
+          autocomplete="off"
+        >
+
+      </label>
+
+      <label class="modal-form-label">
+
+        <span>
+          뜻
+        </span>
+
+        <input
+          id="standaloneMeanings"
+          placeholder="여러 뜻은 , 로 구분"
+          autocomplete="off"
+        >
+
+      </label>
+    `,
+    ()=>{
+      const english =
+        trim(
+          $("#standaloneEnglish")
+            .value
+        );
+
+      const meanings =
+        $("#standaloneMeanings")
+          .value
+          .split(",")
+          .map(trim);
+
+      if(!english){
+
+        toast(
+          "⚠️ 영어 단어를 입력해주세요."
+        );
+
+        return false;
+
+      }
+
+      if(
+        !meanings.length ||
+        meanings.some(
+          meaning=>!meaning
+        )
+      ){
+
+        toast(
+          "⚠️ 뜻을 모두 입력해주세요."
+        );
+
+        return false;
+
+      }
+
+      let other =
+        state.groups.find(
+          group =>
+            group.type ===
+              "bundle" &&
+            group.name ===
+              "기타 단어" &&
+            !group.parentId
+        );
+
+      if(!other){
+
+        other = {
+          id:uid("bundle"),
+          type:"bundle",
+          name:"기타 단어",
+          parentId:null,
+          order:
+            rootItems().length,
+          createdAt:nowISO(),
+          important:false,
+          open:true,
+          words:[]
+        };
+
+        state.groups.push(
+          other
+        );
+
+      }
+
+      let word =
+        other.words.find(
+          current =>
+            norm(
+              current.english
+            ) ===
+            norm(english)
+        );
+
+      if(!word){
+
+        word = {
+          id:uid("word"),
+          english,
+          meanings:[],
+          important:false,
+          createdAt:nowISO(),
+          stats:{
+            attempts:0,
+            wrong:0,
+            lastWrong:null
+          }
+        };
+
+        other.words.push(
+          word
+        );
+
+      }
+
+      meanings.forEach(
+        meaning=>{
+
+          if(
+            !word.meanings.some(
+              current =>
+                norm(
+                  current.text
+                ) ===
+                norm(meaning)
+            )
+          ){
+
+            word.meanings.push({
+              id:uid("meaning"),
+              text:meaning
+            });
+
+          }
+
+        }
+      );
+
+      autoSave();
+
+      closeModal();
+
+      renderHome();
+
+      toast(
+        "✅ 기타 단어에 추가되었습니다."
+      );
+
+      return true;
+
+    }
+  );
 
 }
 
 function startBundleTest(){
 
-  const g =
+  const bundle =
     getBundle(
       currentBundleId
     );
 
-  if(!g){
+  if(!bundle){
     return;
   }
 
   const invalid =
-    g.words.find(
-      w=>!isValidWord(w)
+    bundle.words.find(
+      word =>
+        !isValidWord(
+          word
+        )
     );
 
   if(invalid){
 
     toast(
-      "⚠️ 비어 있는 영어 또는 뜻이 있어 테스트를 시작할 수 없습니다."
+      "⚠️ 비어 있는 영어 또는 뜻이 있는 단어가 있어 테스트를 시작할 수 없습니다."
     );
 
     setTimeout(
@@ -4015,19 +4988,21 @@ function startBundleTest(){
     );
 
     return;
+
   }
 
-  if(!g.words.length){
+  if(!bundle.words.length){
 
     toast(
       "⚠️ 이 묶음에는 아직 단어가 없습니다."
     );
 
     return;
+
   }
 
   let candidates =
-    [...g.words];
+    [...bundle.words];
 
   if(
     $("#importantOnly").checked
@@ -4035,7 +5010,8 @@ function startBundleTest(){
 
     candidates =
       candidates.filter(
-        w=>w.important
+        word =>
+          word.important
       );
 
   }
@@ -4046,9 +5022,9 @@ function startBundleTest(){
 
     candidates =
       candidates.filter(
-        w =>
+        word =>
           (
-            w.stats?.wrong ||
+            word.stats?.wrong ||
             0
           ) > 0
       );
@@ -4058,30 +5034,31 @@ function startBundleTest(){
   if(!candidates.length){
 
     toast(
-      "⚠️ 선택한 조건에 해당하는 단어가 없습니다."
+      "⚠️ 선택 조건에 맞는 단어가 없습니다."
     );
 
     return;
+
   }
 
-  const selected =
-    $("#countSelect")
-      .value;
+  const count =
+    $("#countSelect").value;
 
   if(
-    selected!=="all" &&
-    Number(selected) >
+    count !== "all" &&
+    Number(count) >
       candidates.length
   ){
 
-    confirmModal(
+    openConfirmModal(
       "문제 수 확인",
       `현재 선택된 단어는 ${candidates.length}개입니다. ${candidates.length}문제로 테스트하시겠습니까?`,
       ()=>{
-
         beginTest({
           source:"bundle",
-          groupIds:[g.id],
+          groupIds:[
+            bundle.id
+          ],
           candidates,
           count:"all",
           direction:
@@ -4089,18 +5066,20 @@ function startBundleTest(){
               .value,
           quickType:null
         });
-
       }
     );
 
     return;
+
   }
 
   beginTest({
     source:"bundle",
-    groupIds:[g.id],
+    groupIds:[
+      bundle.id
+    ],
     candidates,
-    count:selected,
+    count,
     direction:
       $("#directionSelect")
         .value,
@@ -4109,33 +5088,102 @@ function startBundleTest(){
 
 }
 
-function getRecentWrongWords(){
+function recentWrongRefs(){
 
   const limit =
     Date.now() -
-    7 * 24 * 60 * 60 * 1000;
+    7*24*60*60*1000;
 
   return wordRefs()
     .filter(
-      ({word}) =>
-        word.stats?.lastWrong &&
-        new Date(
-          word.stats.lastWrong
-        ).getTime() >= limit
+      ({word}) => {
+
+        const lastWrong =
+          word.stats?.lastWrong;
+
+        if(!lastWrong){
+          return false;
+        }
+
+        return (
+          new Date(
+            lastWrong
+          ).getTime() >=
+          limit
+        );
+
+      }
     );
 
 }
 
-function getQuickCandidates(
+function quickCandidates(
   type
 ){
 
   const refs =
     wordRefs();
 
-  if(type==="all"){
+  if(type==="recentWrong"){
 
-    return refs.map(
+    return recentWrongRefs()
+      .map(
+        ({group,word})=>({
+          word:clone(word),
+          groupId:group.id,
+          refs:[
+            {
+              groupId:group.id,
+              wordId:word.id
+            }
+          ]
+        })
+      );
+
+  }
+
+  return refs
+    .filter(
+      ({word})=>{
+
+        ensureStats(
+          word
+        );
+
+        if(
+          type === "all"
+        ){
+          return true;
+        }
+
+        if(
+          type === "important"
+        ){
+          return word.important;
+        }
+
+        if(
+          type === "wrong"
+        ){
+          return (
+            word.stats.wrong ||
+            0
+          ) > 0;
+        }
+
+        if(
+          type === "difficult"
+        ){
+          return (
+            errorRate(word)
+          ) > 5;
+        }
+
+        return false;
+
+      }
+    )
+    .map(
       ({group,word})=>({
         word:clone(word),
         groupId:group.id,
@@ -4148,108 +5196,6 @@ function getQuickCandidates(
       })
     );
 
-  }
-
-  if(type==="important"){
-
-    return refs
-      .filter(
-        ({word}) =>
-          word.important
-      )
-      .map(
-        ({group,word})=>({
-          word:clone(word),
-          groupId:group.id,
-          refs:[
-            {
-              groupId:group.id,
-              wordId:word.id
-            }
-          ]
-        })
-      );
-
-  }
-
-  if(type==="difficult"){
-
-    return refs
-      .filter(
-        ({word}) =>
-          errorRate(word)>5
-      )
-      .map(
-        ({group,word})=>({
-          word:clone(word),
-          groupId:group.id,
-          refs:[
-            {
-              groupId:group.id,
-              wordId:word.id
-            }
-          ]
-        })
-      );
-
-  }
-
-  if(type==="wrong"){
-
-    return refs
-      .filter(
-        ({word}) =>
-          (word.stats?.wrong || 0)>0
-      )
-      .map(
-        ({group,word})=>({
-          word:clone(word),
-          groupId:group.id,
-          refs:[
-            {
-              groupId:group.id,
-              wordId:word.id
-            }
-          ]
-        })
-      );
-
-  }
-
-  if(type==="recentWrong"){
-
-    return getRecentWrongWords()
-      .map(
-        ({group,word})=>({
-          word:clone(word),
-          groupId:group.id,
-          refs:[
-            {
-              groupId:group.id,
-              wordId:word.id
-            }
-          ]
-        })
-      );
-
-  }
-
-  return [];
-
-}
-
-function randomDirection(
-  mode
-){
-
-  if(mode!=="mixed"){
-    return mode;
-  }
-
-  return Math.random() < .5
-    ? "en-ko"
-    : "ko-en";
-
 }
 
 function mergeQuickCandidates(
@@ -4259,62 +5205,79 @@ function mergeQuickCandidates(
   const map =
     new Map();
 
-  for(
-    const item
-    of candidates
-  ){
+  candidates.forEach(
+    item=>{
 
-    const key =
-      norm(item.word.english);
-
-    if(!map.has(key)){
-
-      const word =
-        clone(
-          item.word
+      const key =
+        norm(
+          item.word.english
         );
 
-      word.meanings = [];
-
-      map.set(
-        key,
-        {
-          word,
-          refs:[]
-        }
-      );
-
-    }
-
-    const target =
-      map.get(key);
-
-    for(
-      const meaning
-      of item.word.meanings
-    ){
-
       if(
-        !target.word.meanings.some(
-          m =>
-            norm(m.text) ===
-            norm(meaning.text)
-        )
+        !map.has(key)
       ){
 
-        target.word.meanings.push(
-          clone(meaning)
+        map.set(
+          key,
+          {
+            word:{
+              id:uid("merged"),
+              english:
+                item.word.english,
+              meanings:[],
+              important:
+                item.word.important,
+              createdAt:
+                item.word.createdAt,
+              stats:{
+                attempts:0,
+                wrong:0,
+                lastWrong:null
+              }
+            },
+            refs:[]
+          }
         );
 
       }
 
+      const target =
+        map.get(key);
+
+      item.word.meanings
+        .forEach(
+          meaning=>{
+
+            if(
+              !target.word.meanings
+                .some(
+                  current =>
+                    norm(
+                      current.text
+                    ) ===
+                    norm(
+                      meaning.text
+                    )
+                )
+            ){
+
+              target.word.meanings.push(
+                clone(meaning)
+              );
+
+            }
+
+          }
+        );
+
+      target.refs.push(
+        ...clone(
+          item.refs
+        )
+      );
+
     }
-
-    target.refs.push(
-      ...item.refs
-    );
-
-  }
+  );
 
   return [
     ...map.values()
@@ -4334,7 +5297,7 @@ function beginTest({
   let pool;
 
   if(
-    source==="quick"
+    source === "quick"
   ){
 
     pool =
@@ -4347,7 +5310,8 @@ function beginTest({
     pool =
       candidates.map(
         word=>({
-          word:clone(word),
+          word:
+            clone(word),
           refs:[
             {
               groupId:
@@ -4363,11 +5327,11 @@ function beginTest({
 
   pool =
     pool.sort(
-      ()=>Math.random()-.5
+      ()=>Math.random()-0.5
     );
 
   if(
-    count!=="all"
+    count !== "all"
   ){
 
     pool =
@@ -4381,13 +5345,17 @@ function beginTest({
   const questions =
     pool.map(
       item=>({
-        id:uid("q"),
+        id:uid("question"),
         word:item.word,
         refs:item.refs,
         direction:
-          randomDirection(
-            direction
-          )
+          direction === "mixed"
+            ? (
+                Math.random() < .5
+                  ? "en-ko"
+                  : "ko-en"
+              )
+            : direction
       })
     );
 
@@ -4398,20 +5366,27 @@ function beginTest({
     );
 
     return;
+
   }
 
   testSession={
     source,
-    groupIds,
-    quickType,
+    groupIds:[
+      ...(groupIds || [])
+    ],
+    quickType:
+      quickType || null,
+    originalQuickType:
+      quickType || null,
     questions,
     index:0,
     correct:0,
     wrong:0,
     wrongItems:[],
     answered:false,
-    startAt:nowISO(),
-    selectedDirection:direction
+    startedAt:nowISO(),
+    selectedDirection:
+      direction
   };
 
   showPageSilent(
@@ -4422,144 +5397,115 @@ function beginTest({
 
 }
 
-function expectedAnswers(q){
+function expectedAnswers(
+  question
+){
 
-  return q.direction==="en-ko"
-    ? meaningTexts(q.word)
+  return question.direction ===
+    "en-ko"
+
+    ? meaningTexts(
+        question.word
+      )
+
     : [
-        q.word.english
+        question.word.english
       ];
 
 }
 
-function validEnglish(
-  input,
-  expected
+function answerIsCorrect(
+  question,
+  input
 ){
 
   const value =
-    String(input ?? "")
-      .trim();
+    trim(input);
 
   if(!value){
     return false;
   }
 
-  if(
-    expected.includes(" ")
-  ){
-
-    if(
-      /\s{2,}/.test(value)
-    ){
-      return false;
-    }
-
-  }else{
-
-    if(
-      /\s/.test(value)
-    ){
-      return false;
-    }
-
-  }
-
-  const lower =
-    expected.toLocaleLowerCase(
-      "en-US"
+  const answers =
+    expectedAnswers(
+      question
     );
 
-  const firstUpper =
-    lower.charAt(0)
-      .toUpperCase() +
-    lower.slice(1);
-
-  return (
-    value === expected ||
-    value === lower ||
-    value === expected.toUpperCase() ||
-    value === firstUpper
-  );
-
-}
-
-function answerCorrect(
-  q,
-  input
-){
-
-  const value =
-    String(input ?? "")
-      .trim();
-
   if(
-    q.direction==="en-ko"
+    question.direction ===
+    "en-ko"
   ){
 
-    return expectedAnswers(q)
-      .some(
-        answer =>
-          value === answer
-      );
+    return answers.some(
+      answer =>
+        norm(answer) ===
+        norm(value)
+    );
 
   }
 
-  return validEnglish(
-    value,
-    q.word.english
+  const expected =
+    question.word.english;
+
+  return (
+    norm(expected) ===
+    norm(value)
   );
 
 }
 
-function updateStatsForQuestion(
-  q,
+function updateQuestionStats(
+  question,
   correct
 ){
 
-  const seen =
+  const updated =
     new Set();
 
-  for(
-    const ref
-    of q.refs || []
-  ){
+  question.refs.forEach(
+    ref=>{
 
-    const key =
-      `${ref.groupId}:${ref.wordId}`;
+      const key =
+        `${ref.groupId}:${ref.wordId}`;
 
-    if(seen.has(key)){
-      continue;
-    }
+      if(
+        updated.has(key)
+      ){
+        return;
+      }
 
-    seen.add(key);
+      updated.add(key);
 
-    const w =
-      getBundle(
-        ref.groupId
-      )
-      ?.words.find(
-        x=>x.id===ref.wordId
+      const word =
+        getBundle(
+          ref.groupId
+        )?.words.find(
+          item =>
+            item.id ===
+            ref.wordId
+        );
+
+      if(!word){
+        return;
+      }
+
+      ensureStats(
+        word
       );
 
-    if(!w){
-      continue;
-    }
+      word.stats.attempts++;
 
-    ensureStats(w);
+      if(!correct){
 
-    w.stats.attempts++;
+        word.stats.wrong++;
 
-    if(!correct){
+        word.stats.lastWrong =
+          nowISO();
 
-      w.stats.wrong++;
-
-      w.stats.lastWrong =
-        nowISO();
+      }
 
     }
-
-  }
+  );
 
   autoSave();
 
@@ -4567,43 +5513,47 @@ function updateStatsForQuestion(
 
 function renderTest(){
 
-  const t =
-    testSession;
-
-  if(!t){
+  if(!testSession){
     return;
   }
 
-  const q =
-    t.questions[t.index];
+  const question =
+    testSession.questions[
+      testSession.index
+    ];
 
-  if(!q){
+  if(!question){
     return;
   }
 
   $("#progressText")
     .textContent =
-      `${t.index+1} / ${t.questions.length}`;
+    `${testSession.index + 1} / ${testSession.questions.length}`;
 
   $("#progressBar")
     .style.width =
-      `${(
-        t.index /
-        t.questions.length
-      ) * 100}%`;
+    `${
+      (
+        testSession.index /
+        testSession.questions.length
+      ) *
+      100
+    }%`;
 
   $("#questionDirection")
     .textContent =
-      q.direction==="en-ko"
+      question.direction ===
+        "en-ko"
         ? "영어 → 뜻"
         : "뜻 → 영어";
 
   $("#questionText")
     .textContent =
-      q.direction==="en-ko"
-        ? q.word.english
+      question.direction ===
+        "en-ko"
+        ? question.word.english
         : meaningTexts(
-            q.word
+            question.word
           ).join(" / ");
 
   $("#answerInput")
@@ -4634,101 +5584,122 @@ function renderTest(){
       "hidden"
     );
 
-  testSession.answered=false;
+  testSession.answered =
+    false;
 
-  renderTestBreadcrumb();
+  renderTestBreadcrumbs();
 
   setTimeout(
     ()=>{
       $("#answerInput")
-        .focus();
+        ?.focus();
     },
-    50
+    60
   );
 
 }
 
-function renderTestBreadcrumb(){
+function renderTestBreadcrumbs(){
 
-  let html=`
+  let html = `
     <button data-test-home>
       🏠 홈
     </button>
-    <span>›</span>
   `;
 
   if(
-    testSession.source==="bundle"
+    testSession.source ===
+    "bundle"
   ){
 
+    const bundleId =
+      testSession.groupIds[0];
+
     html += `
+      <span>›</span>
+
       <button
         data-test-source
       >
         📚 ${escapeHTML(
           groupName(
-            testSession.groupIds[0]
+            bundleId
           )
         )}
       </button>
-      <span>›</span>
     `;
 
   }else{
 
     html += `
+      <span>›</span>
+
       <button
         data-test-quick
       >
         ⚡ 빠른 테스트
       </button>
-      <span>›</span>
     `;
 
   }
 
   html += `
-    <span>📝 테스트</span>
+    <span>›</span>
+
+    <span>
+      📝 테스트
+    </span>
   `;
 
   $("#testBreadcrumbs")
-    .innerHTML=html;
+    .innerHTML =
+    html;
 
-  $("[data-test-home]")
+  $("#testBreadcrumbs")
+    .querySelector(
+      "[data-test-home]"
+    )
     ?.addEventListener(
       "click",
       ()=>{
-        leaveTest(
-          ()=>{
-            testSession=null;
-            showPage("homePage");
-          }
+        leaveTestTo(
+          "homePage"
         );
       }
     );
 
-  $("[data-test-source]")
+  $("#testBreadcrumbs")
+    .querySelector(
+      "[data-test-source]"
+    )
     ?.addEventListener(
       "click",
       ()=>{
-        leaveTest(
+        const id =
+          testSession
+            .groupIds[0];
+
+        openConfirmModal(
+          "테스트 종료",
+          "진행 중인 테스트를 종료하시겠습니까?",
           ()=>{
-            const id =
-              testSession.groupIds[0];
-
             testSession=null;
-
             openGroup(id);
           }
         );
       }
     );
 
-  $("[data-test-quick]")
+  $("#testBreadcrumbs")
+    .querySelector(
+      "[data-test-quick]"
+    )
     ?.addEventListener(
       "click",
       ()=>{
-        leaveTest(
+        openConfirmModal(
+          "테스트 종료",
+          "진행 중인 테스트를 종료하시겠습니까?",
           ()=>{
             testSession=null;
             openQuickTest();
@@ -4736,6 +5707,29 @@ function renderTestBreadcrumb(){
         );
       }
     );
+
+}
+
+function leaveTestTo(
+  target
+){
+
+  if(!testSession){
+
+    showPage(target);
+
+    return;
+
+  }
+
+  openConfirmModal(
+    "테스트 종료",
+    "진행 중인 테스트를 종료하시겠습니까?",
+    ()=>{
+      testSession=null;
+      showPage(target);
+    }
+  );
 
 }
 
@@ -4748,17 +5742,18 @@ function checkAnswer(){
     return;
   }
 
-  const q =
+  const question =
     testSession.questions[
       testSession.index
     ];
 
   const input =
-    $("#answerInput").value;
+    $("#answerInput")
+      .value;
 
   const correct =
-    answerCorrect(
-      q,
+    answerIsCorrect(
+      question,
       input
     );
 
@@ -4779,46 +5774,47 @@ function checkAnswer(){
 
     $("#answerResult")
       .className =
-        "answer-result correct";
+      "answer-result correct";
 
     $("#answerResult")
       .innerHTML =
-        "✅ 정답!";
+      "✅ 정답!";
 
   }else{
 
     testSession.wrong++;
 
     testSession.wrongItems.push(
-      q
+      question
     );
 
     $("#answerResult")
       .className =
-        "answer-result incorrect";
+      "answer-result incorrect";
 
     $("#answerResult")
       .innerHTML =
-        `
-          ❌ 오답
-          <br>
-          <b>정답:</b>
-          ${escapeHTML(
-            expectedAnswers(q)
-              .join(" / ")
-          )}
-        `;
+      `
+        ❌ 오답
+        <br>
+        <b>정답:</b>
+        ${escapeHTML(
+          expectedAnswers(
+            question
+          ).join(" / ")
+        )}
+      `;
 
   }
 
-  updateStatsForQuestion(
-    q,
+  updateQuestionStats(
+    question,
     correct
   );
 
   const last =
     testSession.index ===
-    testSession.questions.length-1;
+    testSession.questions.length - 1;
 
   if(last){
 
@@ -4827,30 +5823,30 @@ function checkAnswer(){
         "hidden"
       );
 
-  }else{
+    return;
 
-    $("#nextQuestionBtn")
-      .classList.remove(
-        "hidden"
-      );
+  }
 
-    if(
-      draftSettings.autoNext
-    ){
+  $("#nextQuestionBtn")
+    .classList.remove(
+      "hidden"
+    );
 
-      setTimeout(
-        ()=>{
-          if(
-            testSession &&
-            testSession.answered
-          ){
-            nextQuestion();
-          }
-        },
-        850
-      );
+  if(
+    savedSettings.autoNext
+  ){
 
-    }
+    setTimeout(
+      ()=>{
+        if(
+          testSession &&
+          testSession.answered
+        ){
+          nextQuestion();
+        }
+      },
+      850
+    );
 
   }
 
@@ -4867,7 +5863,7 @@ function nextQuestion(){
 
   if(
     testSession.index >=
-    testSession.questions.length-1
+    testSession.questions.length - 1
   ){
     return;
   }
@@ -4887,76 +5883,98 @@ function finishTest(){
     return;
   }
 
-  const t =
+  const session =
     testSession;
 
-  const record={
+  const record = {
+
     id:uid("history"),
-    startedAt:t.startAt,
-    endedAt:nowISO(),
-    source:t.source,
-    quickType:t.quickType,
+
+    startedAt:
+      session.startedAt,
+
+    endedAt:
+      nowISO(),
+
+    source:
+      session.source,
+
+    quickType:
+      session.quickType,
+
     groupIds:[
-      ...t.groupIds
+      ...session.groupIds
     ],
+
     questionCount:
-      t.questions.length,
-    correct:t.correct,
-    wrong:t.wrong,
+      session.questions.length,
+
+    correct:
+      session.correct,
+
+    wrong:
+      session.wrong,
+
     accuracy:
-      t.questions.length
-        ? t.correct /
-          t.questions.length
+      session.questions.length
+        ? session.correct /
+          session.questions.length
         : 0,
 
     questions:
-      t.questions.map(
-        q=>({
-          english:q.word.english,
-          direction:q.direction,
-          groupIds:
-            [
-              ...new Set(
-                (q.refs || [])
-                  .map(
-                    ref =>
-                      ref.groupId
-                  )
-              )
-            ],
+      session.questions.map(
+        question=>({
+          id:question.id,
+          english:
+            question.word.english,
+          direction:
+            question.direction,
+          groupIds:[
+            ...new Set(
+              question.refs
+                .map(
+                  ref =>
+                    ref.groupId
+                )
+            )
+          ],
           correct:
-            !t.wrongItems.some(
+            !session.wrongItems.some(
               wrong =>
-                wrong.id === q.id
+                wrong.id ===
+                question.id
             )
         })
       )
+
   };
 
-  state.history.push(record);
+  state.history.push(
+    record
+  );
 
   autoSave();
 
-  showResult();
+  renderResult();
 
 }
 
-function showResult(){
+function renderResult(){
 
-  const t =
+  const session =
     testSession;
 
-  if(!t){
+  if(!session){
     return;
   }
 
   const total =
-    t.questions.length;
+    session.questions.length;
 
   const accuracy =
     total
       ? Math.round(
-          t.correct /
+          session.correct /
           total *
           100
         )
@@ -4968,83 +5986,99 @@ function showResult(){
 
   $("#resultScore")
     .textContent =
-      `${accuracy}%`;
+    `${accuracy}%`;
 
   $("#resultStats")
     .textContent =
-      `${total}문제 · 정답 ${t.correct} · 오답 ${t.wrong}`;
+    `${total}문제 · 정답 ${session.correct} · 오답 ${session.wrong}`;
 
   $("#wrongResultList")
     .innerHTML =
-      t.wrongItems.length
-        ? t.wrongItems.map(
-            q=>`
-              <div class="word-card">
+      session.wrongItems.length
+        ? session.wrongItems
+            .map(
+              question=>`
+                <div class="word-card">
 
-                <b>
-                  ${escapeHTML(
-                    q.word.english
-                  )}
-                </b>
+                  <b>
+                    ${escapeHTML(
+                      question.word
+                        .english
+                    )}
+                  </b>
 
-                <div class="muted">
-                  정답:
-                  ${escapeHTML(
-                    expectedAnswers(q)
-                      .join(" / ")
-                  )}
+                  <div class="muted">
+
+                    정답:
+                    ${escapeHTML(
+                      expectedAnswers(
+                        question
+                      ).join(" / ")
+                    )}
+
+                  </div>
+
                 </div>
-
-              </div>
-            `
-          ).join("")
+              `
+            )
+            .join("")
         : `
-          <div class="empty">
-            🎉 틀린 단어가 없습니다.
-          </div>
-        `;
+            <div class="empty">
+              🎉 틀린 단어가 없습니다.
+            </div>
+          `;
 
   $("#retryWrongBtn")
     .classList.toggle(
       "hidden",
-      !t.wrongItems.length
+      !session.wrongItems.length
     );
 
   $("#returnSourceBtn")
     .textContent =
-      t.source==="bundle"
+      session.source ===
+      "bundle"
         ? "📚 단어장으로 돌아가기"
         : "⚡ 빠른 테스트로 돌아가기";
 
   $("#returnSourceBtn")
     .onclick =
-      ()=>{
-        if(
-          t.source==="bundle"
-        ){
+    ()=>{
+      if(
+        session.source ===
+        "bundle"
+      ){
 
-          const id =
-            t.groupIds[0];
+        const id =
+          session.groupIds[0];
 
-          testSession=null;
+        testSession=null;
 
-          openGroup(id);
+        openGroup(id);
 
-        }else{
+      }else{
 
-          testSession=null;
+        const type =
+          session.quickType;
 
-          openQuickTest();
+        testSession=null;
 
-        }
-      };
+        openQuickTest(
+          type
+        );
+
+      }
+    };
 
   $("#resultHomeBtn")
     .onclick =
-      ()=>{
-        testSession=null;
-        showPage("homePage");
-      };
+    ()=>{
+      testSession=null;
+
+      showPage(
+        "homePage"
+      );
+    };
 
 }
 
@@ -5057,49 +6091,65 @@ function retryWrong(){
     return;
   }
 
-  const wrong =
-    testSession.wrongItems.map(
-      q=>({
-        word:clone(q.word),
-        refs:clone(q.refs || [])
-      })
-    );
+  const oldSession =
+    testSession;
+
+  const retryItems =
+    oldSession.wrongItems
+      .map(
+        question=>({
+          word:clone(
+            question.word
+          ),
+          refs:clone(
+            question.refs
+          )
+        })
+      );
 
   const source =
-    testSession.source;
+    oldSession.source;
 
-  const groups =
-    clone(
-      testSession.groupIds
-    );
+  const groupIds =
+    [
+      ...oldSession.groupIds
+    ];
+
+  const quickType =
+    oldSession.quickType;
 
   testSession=null;
 
   beginTest({
     source,
-    groupIds:groups,
+    groupIds,
     candidates:
-      wrong.map(
-        x=>x.word
+      retryItems.map(
+        item =>
+          item.word
       ),
     count:"all",
     direction:"mixed",
-    quickType:null
+    quickType
   });
 
 }
 
-function openQuickTest(){
+function openQuickTest(
+  presetType=null
+){
 
-  openModal(
+  openFormModal(
     "빠른 테스트",
-    "",
     `
       <label class="modal-form-label">
 
-        <span>테스트 유형</span>
+        <span>
+          테스트 유형
+        </span>
 
         <select id="quickType">
+
           <option value="all">
             전체 단어
           </option>
@@ -5119,15 +6169,19 @@ function openQuickTest(){
           <option value="important">
             ⭐ 중요 단어
           </option>
+
         </select>
 
       </label>
 
       <label class="modal-form-label">
 
-        <span>문제 방향</span>
+        <span>
+          문제 방향
+        </span>
 
         <select id="quickDirection">
+
           <option value="en-ko">
             영어 → 뜻
           </option>
@@ -5139,15 +6193,19 @@ function openQuickTest(){
           <option value="mixed">
             영어 ↔ 뜻 혼합
           </option>
+
         </select>
 
       </label>
 
       <label class="modal-form-label">
 
-        <span>문제 수</span>
+        <span>
+          문제 수
+        </span>
 
         <select id="quickCount">
+
           <option value="all">
             전체
           </option>
@@ -5167,23 +6225,29 @@ function openQuickTest(){
           <option value="50">
             50문제
           </option>
+
         </select>
 
       </label>
     `,
     ()=>{
       const type =
-        $("#quickType").value;
+        presetType ||
+        $("#quickType")
+          .value;
 
       const direction =
         $("#quickDirection")
           .value;
 
       const count =
-        $("#quickCount").value;
+        $("#quickCount")
+          .value;
 
       const candidates =
-        getQuickCandidates(type);
+        quickCandidates(
+          type
+        );
 
       if(!candidates.length){
 
@@ -5192,6 +6256,7 @@ function openQuickTest(){
         );
 
         return false;
+
       }
 
       const invalid =
@@ -5205,26 +6270,26 @@ function openQuickTest(){
       if(invalid){
 
         toast(
-          "⚠️ 비어 있는 영어 또는 뜻이 있는 단어가 있어 테스트할 수 없습니다."
+          "⚠️ 비어 있는 영어 또는 뜻이 있는 단어가 있어 테스트를 시작할 수 없습니다."
         );
 
-        testSession=null;
-
         openGroup(
-          invalid.groupId,
-          invalid.word.id
+          invalid.groupId
         );
 
         return false;
+
       }
 
       if(
-        count!=="all" &&
+        count !== "all" &&
         Number(count) >
           candidates.length
       ){
 
-        confirmModal(
+        closeModal();
+
+        openConfirmModal(
           "문제 수 확인",
           `현재 선택된 단어는 ${candidates.length}개입니다. ${candidates.length}문제로 테스트하시겠습니까?`,
           ()=>{
@@ -5233,7 +6298,8 @@ function openQuickTest(){
               groupIds:[
                 ...new Set(
                   candidates.map(
-                    x=>x.groupId
+                    item =>
+                      item.groupId
                   )
                 )
               ],
@@ -5254,7 +6320,8 @@ function openQuickTest(){
         groupIds:[
           ...new Set(
             candidates.map(
-              x=>x.groupId
+              item =>
+                item.groupId
             )
           )
         ],
@@ -5269,50 +6336,26 @@ function openQuickTest(){
     }
   );
 
-}
+  if(
+    presetType
+  ){
 
-function historyDateKey(
-  iso
-){
+    setTimeout(
+      ()=>{
+        if(
+          $("#quickType")
+        ){
 
-  const d =
-    new Date(iso);
+          $("#quickType")
+            .value =
+            presetType;
 
-  return {
-    year:d.getFullYear(),
-    month:d.getMonth()+1,
-    day:d.getDate()
-  };
+        }
+      },
+      0
+    );
 
-}
-
-function sameDay(
-  a,
-  b
-){
-
-  return (
-    a.getFullYear() ===
-      b.getFullYear() &&
-    a.getMonth() ===
-      b.getMonth() &&
-    a.getDate() ===
-      b.getDate()
-  );
-
-}
-
-function sameMonth(
-  a,
-  b
-){
-
-  return (
-    a.getFullYear() ===
-      b.getFullYear() &&
-    a.getMonth() ===
-      b.getMonth()
-  );
+  }
 
 }
 
@@ -5324,30 +6367,38 @@ function renderStats(){
 
   $$(".period-btn")
     .forEach(
-      b =>
-        b.classList.toggle(
+      button =>
+        button.classList.toggle(
           "active",
-          b.dataset.period ===
+          button.dataset.period ===
             period
         )
     );
 
   const records =
-    filteredHistory(
+    filterHistory(
       period
     );
 
   const questions =
     records.reduce(
-      (a,h)=>
-        a+(h.questionCount||0),
+      (sum,history)=>
+        sum +
+        (
+          history.questionCount ||
+          0
+        ),
       0
     );
 
   const correct =
     records.reduce(
-      (a,h)=>
-        a+(h.correct||0),
+      (sum,history)=>
+        sum +
+        (
+          history.correct ||
+          0
+        ),
       0
     );
 
@@ -5373,8 +6424,8 @@ function renderStats(){
         "정확도",
         questions
           ? `${Math.round(
-              correct/
-              questions*
+              correct /
+              questions *
               100
             )}%`
           : "-"
@@ -5382,7 +6433,7 @@ function renderStats(){
 
     ].join("");
 
-  renderBundleStats(
+  renderBundleStatistics(
     records
   );
 
@@ -5392,9 +6443,10 @@ function renderStats(){
 
 }
 
-renderStats.period="all";
+renderStats.period =
+  "all";
 
-function filteredHistory(
+function filterHistory(
   period
 ){
 
@@ -5402,11 +6454,11 @@ function filteredHistory(
     new Date();
 
   return state.history.filter(
-    h=>{
+    history=>{
 
-      const d =
+      const date =
         new Date(
-          h.startedAt
+          history.startedAt
         );
 
       if(period==="all"){
@@ -5414,10 +6466,16 @@ function filteredHistory(
       }
 
       if(period==="today"){
-        return sameDay(
-          d,
-          now
+
+        return (
+          date.getFullYear() ===
+            now.getFullYear() &&
+          date.getMonth() ===
+            now.getMonth() &&
+          date.getDate() ===
+            now.getDate()
         );
+
       }
 
       if(period==="week"){
@@ -5426,22 +6484,27 @@ function filteredHistory(
           new Date(now);
 
         limit.setDate(
-          limit.getDate()-6
+          limit.getDate() - 6
         );
 
         limit.setHours(
-          0,0,0,0
+          0,
+          0,
+          0,
+          0
         );
 
-        return d >= limit;
+        return date >= limit;
 
       }
 
       if(period==="month"){
 
-        return sameMonth(
-          d,
-          now
+        return (
+          date.getFullYear() ===
+            now.getFullYear() &&
+          date.getMonth() ===
+            now.getMonth()
         );
 
       }
@@ -5453,73 +6516,82 @@ function filteredHistory(
 
 }
 
-function renderBundleStats(
+function renderBundleStatistics(
   records
 ){
 
   const map =
     new Map();
 
-  for(
-    const h
-    of records
-  ){
+  records.forEach(
+    history=>{
 
-    for(
-      const q
-      of h.questions
-    ){
+      history.questions
+        .forEach(
+          question=>{
 
-      const groups =
-        q.groupIds?.length
-          ? q.groupIds
-          : h.groupIds;
+            const labels =
+              question.groupIds?.length
+                ? question.groupIds.map(
+                    groupName
+                  )
+                : history.groupIds?.length
+                  ? history.groupIds.map(
+                      groupName
+                    )
+                  : [
+                      history.quickType
+                        ? `빠른 테스트 · ${
+                            quickTypeLabel(
+                              history.quickType
+                            )
+                          }`
+                        : "빠른 테스트"
+                    ];
 
-      const label =
-        groups?.length
-          ? groups.map(
-              id =>
-                groupName(id)
-            ).join(", ")
-          : (
-              h.quickType
-                ? `빠른 테스트 · ${quickTypeLabel(h.quickType)}`
-                : "빠른 테스트"
+            labels.forEach(
+              label=>{
+
+                if(!map.has(label)){
+
+                  map.set(
+                    label,
+                    {
+                      total:0,
+                      correct:0
+                    }
+                  );
+
+                }
+
+                const value =
+                  map.get(label);
+
+                value.total++;
+
+                if(
+                  question.correct
+                ){
+
+                  value.correct++;
+
+                }
+
+              }
             );
 
-      if(!map.has(label)){
-
-        map.set(
-          label,
-          {
-            total:0,
-            correct:0
           }
         );
 
-      }
-
-      const r =
-        map.get(label);
-
-      r.total++;
-
-      if(q.correct){
-        r.correct++;
-      }
-
     }
-
-  }
+  );
 
   $("#bundleStats")
     .innerHTML =
       map.size
-        ? [
-            ...map.entries()
-          ]
+        ? [...map.entries()]
             .map(
-              ([name,r])=>`
+              ([name,value])=>`
                 <div class="meaning-row">
 
                   <b>
@@ -5527,11 +6599,11 @@ function renderBundleStats(
                   </b>
 
                   <span class="meaning-text">
-                    ${r.total}문제 ·
+                    ${value.total}문제 ·
                     정확도
                     ${Math.round(
-                      r.correct/
-                      r.total*
+                      value.correct /
+                      value.total *
                       100
                     )}%
                   </span>
@@ -5559,7 +6631,8 @@ function quickTypeLabel(
       wrong:"틀린 적 있는 단어",
       recentWrong:"최근 틀린 단어",
       important:"⭐ 중요 단어"
-    }[type] || "빠른 테스트"
+    }[type] ||
+    "빠른 테스트"
   );
 
 }
@@ -5578,7 +6651,6 @@ function renderHistory(
       `;
 
     return;
-
   }
 
   const now =
@@ -5588,439 +6660,298 @@ function renderHistory(
     now.getFullYear();
 
   const currentMonth =
-    now.getMonth()+1;
+    now.getMonth();
 
-  /*
-    표시 규칙
+  const currentMonthRecords=[];
+  const previousMonthMap=
+    new Map();
+  const previousYearMap=
+    new Map();
 
-    현재 달:
-      날짜 → 시간
+  records.forEach(
+    history=>{
 
-    현재 연도의 이전 달:
-      월 → 날짜 → 시간
+      const date =
+        new Date(
+          history.startedAt
+        );
 
-    이전 연도:
-      연도 → 월 → 날짜 → 시간
-  */
+      const year =
+        date.getFullYear();
 
-  const groups = {
-    currentMonth:new Map(),
-    previousMonths:new Map(),
-    previousYears:new Map()
-  };
+      const month =
+        date.getMonth();
 
-  for(
-    const h
-    of records
-  ){
-
-    const d =
-      new Date(h.startedAt);
-
-    const y =
-      d.getFullYear();
-
-    const m =
-      d.getMonth()+1;
-
-    const day =
-      d.getDate();
-
-    if(
-      y===currentYear &&
-      m===currentMonth
-    ){
-
-      const key=
-        `${y}-${m}-${day}`;
+      const day =
+        date.getDate();
 
       if(
-        !groups.currentMonth.has(key)
+        year===currentYear &&
+        month===currentMonth
       ){
-        groups.currentMonth.set(
-          key,
-          {
-            year:y,
-            month:m,
-            day,
-            records:[]
-          }
+
+        currentMonthRecords.push(
+          history
         );
+
+        return;
+
       }
 
-      groups
-        .currentMonth
-        .get(key)
-        .records
-        .push(h);
-
-      continue;
-
-    }
-
-    if(y===currentYear){
-
-      const key =
-        `${y}-${m}`;
-
       if(
-        !groups.previousMonths.has(key)
+        year===currentYear
       ){
 
-        groups.previousMonths.set(
-          key,
-          {
-            year:y,
-            month:m,
-            days:new Map()
-          }
+        const key =
+          `${year}-${month}`;
+
+        if(
+          !previousMonthMap.has(
+            key
+          )
+        ){
+
+          previousMonthMap.set(
+            key,
+            {
+              year,
+              month,
+              records:[]
+            }
+          );
+
+        }
+
+        previousMonthMap
+          .get(key)
+          .records
+          .push(
+            history
+          );
+
+        return;
+
+      }
+
+      if(
+        !previousYearMap.has(
+          year
+        )
+      ){
+
+        previousYearMap.set(
+          year,
+          []
         );
 
       }
 
-      const monthGroup =
-        groups.previousMonths
-          .get(key);
-
-      const dayKey =
-        `${y}-${m}-${day}`;
-
-      if(
-        !monthGroup.days.has(dayKey)
-      ){
-
-        monthGroup.days.set(
-          dayKey,
-          {
-            year:y,
-            month:m,
-            day,
-            records:[]
-          }
+      previousYearMap
+        .get(year)
+        .push(
+          history
         );
 
-      }
-
-      monthGroup.days
-        .get(dayKey)
-        .records
-        .push(h);
-
-      continue;
-
     }
-
-    if(
-      !groups.previousYears.has(y)
-    ){
-
-      groups.previousYears.set(
-        y,
-        {
-          year:y,
-          months:new Map()
-        }
-      );
-
-    }
-
-    const yearGroup =
-      groups.previousYears
-        .get(y);
-
-    const monthKey =
-      `${y}-${m}`;
-
-    if(
-      !yearGroup.months.has(
-        monthKey
-      )
-    ){
-
-      yearGroup.months.set(
-        monthKey,
-        {
-          year:y,
-          month:m,
-          days:new Map()
-        }
-      );
-
-    }
-
-    const monthGroup =
-      yearGroup.months.get(
-        monthKey
-      );
-
-    const dayKey =
-      `${y}-${m}-${day}`;
-
-    if(
-      !monthGroup.days.has(dayKey)
-    ){
-
-      monthGroup.days.set(
-        dayKey,
-        {
-          year:y,
-          month:m,
-          day,
-          records:[]
-        }
-      );
-
-    }
-
-    monthGroup.days
-      .get(dayKey)
-      .records
-      .push(h);
-
-  }
+  );
 
   let html="";
 
-  const currentDays =
-    [
-      ...groups.currentMonth.values()
-    ]
-      .sort(
-        (a,b)=>
-          new Date(
-            b.year,
-            b.month-1,
-            b.day
-          ) -
-          new Date(
-            a.year,
-            a.month-1,
-            a.day
-          )
-      );
+  html +=
+    renderCurrentMonthHistory(
+      currentMonthRecords
+    );
 
-  for(
-    const day
-    of currentDays
-  ){
+  [...previousMonthMap.values()]
+    .sort(
+      (a,b)=>
+        new Date(
+          b.year,
+          b.month
+        ) -
+        new Date(
+          a.year,
+          a.month
+        )
+    )
+    .forEach(
+      month=>{
+        html +=
+          renderPreviousMonthHistory(
+            month
+          );
+      }
+    );
 
-    html +=
-      renderHistoryDay(
-        `${day.month}월 ${day.day}일`,
-        day.records,
-        "history-day"
-      );
-
-  }
-
-  const currentPreviousMonths =
-    [
-      ...groups.previousMonths.values()
-    ]
-      .sort(
-        (a,b)=>
-          new Date(
-            b.year,
-            b.month-1
-          ) -
-          new Date(
-            a.year,
-            a.month-1
-          )
-      );
-
-  for(
-    const month
-    of currentPreviousMonths
-  ){
-
-    html += `
-      <div class="history-month">
-
-        <button
-          data-history-toggle
-        >
-          <b>
-            ${month.month}월
-          </b>
-
-          <span>▾</span>
-        </button>
-
-        <div>
-          ${
-            [
-              ...month.days.values()
-            ]
-              .sort(
-                (a,b)=>
-                  b.day-a.day
-              )
-              .map(
-                day =>
-                  renderHistoryDay(
-                    `${day.day}일`,
-                    day.records,
-                    "history-day"
-                  )
-              )
-              .join("")
-          }
-        </div>
-
-      </div>
-    `;
-
-  }
-
-  const previousYears =
-    [
-      ...groups.previousYears.values()
-    ]
-      .sort(
-        (a,b)=>
-          b.year-a.year
-      );
-
-  for(
-    const year
-    of previousYears
-  ){
-
-    html += `
-      <div class="history-year">
-
-        <button
-          data-history-toggle
-        >
-          <b>
-            ${year.year}년
-          </b>
-
-          <span>▾</span>
-        </button>
-
-        <div>
-          ${
-            [
-              ...year.months.values()
-            ]
-              .sort(
-                (a,b)=>
-                  b.month-a.month
-              )
-              .map(
-                month=>`
-                  <div class="history-month">
-
-                    <button
-                      data-history-toggle
-                    >
-                      <b>
-                        ${month.month}월
-                      </b>
-
-                      <span>▾</span>
-                    </button>
-
-                    <div>
-                      ${
-                        [
-                          ...month.days.values()
-                        ]
-                          .sort(
-                            (a,b)=>
-                              b.day-a.day
-                          )
-                          .map(
-                            day =>
-                              renderHistoryDay(
-                                `${day.day}일`,
-                                day.records,
-                                "history-day"
-                              )
-                          )
-                          .join("")
-                      }
-                    </div>
-
-                  </div>
-                `
-              )
-              .join("")
-          }
-        </div>
-
-      </div>
-    `;
-
-  }
+  [...previousYearMap.entries()]
+    .sort(
+      (a,b)=>
+        b[0]-a[0]
+    )
+    .forEach(
+      ([year, histories])=>{
+        html +=
+          renderPreviousYearHistory(
+            year,
+            histories
+          );
+      }
+    );
 
   $("#historyList")
-    .innerHTML = html;
+    .innerHTML =
+    html ||
+    `
+      <div class="empty">
+        학습 기록이 없습니다.
+      </div>
+    `;
 
   wireHistoryToggles();
 
 }
 
-function renderHistoryDay(
-  label,
-  records,
-  className
+function renderCurrentMonthHistory(
+  histories
 ){
 
-  const sorted =
-    [...records].sort(
+  const map =
+    new Map();
+
+  histories.forEach(
+    history=>{
+
+      const date =
+        new Date(
+          history.startedAt
+        );
+
+      const key =
+        `${date.getFullYear()}-${
+          date.getMonth()
+        }-${
+          date.getDate()
+        }`;
+
+      if(
+        !map.has(key)
+      ){
+
+        map.set(
+          key,
+          {
+            date,
+            histories:[]
+          }
+        );
+
+      }
+
+      map
+        .get(key)
+        .histories
+        .push(
+          history
+        );
+
+    }
+  );
+
+  return [...map.values()]
+    .sort(
       (a,b)=>
-        b.startedAt.localeCompare(
-          a.startedAt
+        b.date-a.date
+    )
+    .map(
+      group =>
+        renderHistoryDay(
+          `${group.date.getMonth()+1}월 ${group.date.getDate()}일`,
+          group.histories
         )
+    )
+    .join("");
+
+}
+
+function renderPreviousMonthHistory(
+  month
+){
+
+  const date =
+    new Date(
+      month.year,
+      month.month
     );
 
+  const dayMap =
+    new Map();
+
+  month.records.forEach(
+    history=>{
+
+      const d =
+        new Date(
+          history.startedAt
+        );
+
+      const key =
+        d.getDate();
+
+      if(
+        !dayMap.has(key)
+      ){
+
+        dayMap.set(
+          key,
+          {
+            day:key,
+            date:d,
+            histories:[]
+          }
+        );
+
+      }
+
+      dayMap
+        .get(key)
+        .histories
+        .push(
+          history
+        );
+
+    }
+  );
+
+  const body =
+    [...dayMap.values()]
+      .sort(
+        (a,b)=>
+          b.day-a.day
+      )
+      .map(
+        group =>
+          renderHistoryDay(
+            `${group.day}일`,
+            group.histories
+          )
+      )
+      .join("");
+
   return `
-    <div class="${className}">
+    <div class="history-month">
 
       <button
         data-history-toggle
       >
         <b>
-          ${escapeHTML(label)}
+          ${date.getMonth()+1}월
         </b>
 
-        <span>▾</span>
+        <span>▸</span>
       </button>
 
-      <div>
-        ${
-          sorted.map(
-            h=>`
-              <div class="history-time">
-
-                <button
-                  data-history-record="${h.id}"
-                >
-                  <span>
-                    ${fmtTime(h.startedAt)}
-                  </span>
-
-                  <span>
-                    ${Math.round(
-                      h.accuracy*100
-                    )}%
-                  </span>
-                </button>
-
-                <div
-                  id="history-detail-${h.id}"
-                  class="history-detail hidden"
-                >
-                  ${historyDetail(h)}
-                </div>
-
-              </div>
-            `
-          ).join("")
-        }
+      <div class="hidden">
+        ${body}
       </div>
 
     </div>
@@ -6028,42 +6959,201 @@ function renderHistoryDay(
 
 }
 
-function historyDetail(h){
+function renderPreviousYearHistory(
+  year,
+  histories
+){
+
+  const monthMap =
+    new Map();
+
+  histories.forEach(
+    history=>{
+
+      const date =
+        new Date(
+          history.startedAt
+        );
+
+      const key =
+        date.getMonth();
+
+      if(
+        !monthMap.has(key)
+      ){
+
+        monthMap.set(
+          key,
+          {
+            year,
+            month:key,
+            histories:[]
+          }
+        );
+
+      }
+
+      monthMap
+        .get(key)
+        .histories
+        .push(
+          history
+        );
+
+    }
+  );
+
+  const body =
+    [...monthMap.values()]
+      .sort(
+        (a,b)=>
+          b.month-a.month
+      )
+      .map(
+        renderPreviousMonthHistory
+      )
+      .join("");
+
+  return `
+    <div class="history-year">
+
+      <button
+        data-history-toggle
+      >
+        <b>
+          ${year}년
+        </b>
+
+        <span>▸</span>
+      </button>
+
+      <div class="hidden">
+        ${body}
+      </div>
+
+    </div>
+  `;
+
+}
+
+function renderHistoryDay(
+  label,
+  histories
+){
+
+  const body =
+    [...histories]
+      .sort(
+        (a,b)=>
+          b.startedAt.localeCompare(
+            a.startedAt
+          )
+      )
+      .map(
+        history=>`
+          <div class="history-time">
+
+            <button
+              data-history-record="${history.id}"
+            >
+
+              <span>
+                ${fmtTime(
+                  history.startedAt
+                )}
+              </span>
+
+              <span>
+                ${Math.round(
+                  history.accuracy *
+                  100
+                )}%
+              </span>
+
+            </button>
+
+            <div
+              id="history-detail-${history.id}"
+              class="history-detail hidden"
+            >
+              ${historyDetail(
+                history
+              )}
+            </div>
+
+          </div>
+        `
+      )
+      .join("");
+
+  return `
+    <div class="history-day">
+
+      <button
+        data-history-toggle
+      >
+
+        <b>
+          ${escapeHTML(label)}
+        </b>
+
+        <span>▸</span>
+
+      </button>
+
+      <div class="hidden">
+        ${body}
+      </div>
+
+    </div>
+  `;
+
+}
+
+function historyDetail(
+  history
+){
 
   const source =
-    h.source==="bundle"
-      ? h.groupIds
+    history.source ===
+      "bundle"
+
+      ? history.groupIds
           .map(groupName)
           .join(", ")
+
       : `빠른 테스트 · ${
           quickTypeLabel(
-            h.quickType
+            history.quickType
           )
         }`;
 
   return `
-    <b>${escapeHTML(source)}</b>
+    <b>
+      ${escapeHTML(source)}
+    </b>
 
     <br>
 
-    문제 수:
-    ${h.questionCount}
+    문제:
+    ${history.questionCount}
 
-    <br>
+    ·
 
     정답:
-    ${h.correct}
+    ${history.correct}
 
     ·
 
     오답:
-    ${h.wrong}
+    ${history.wrong}
 
     <br>
 
     정확도:
     ${Math.round(
-      h.accuracy*100
+      history.accuracy *
+      100
     )}%
 
   `;
@@ -6075,53 +7165,55 @@ function wireHistoryToggles(){
   $$("[data-history-toggle]")
     .forEach(
       button=>{
-        button.onclick=()=>{
+        button.onclick =
+          ()=>{
+            const body =
+              button.nextElementSibling;
 
-          const content =
-            button.nextElementSibling;
+            if(!body){
+              return;
+            }
 
-          if(!content){
-            return;
-          }
-
-          content.classList.toggle(
-            "hidden"
-          );
-
-          const arrow =
-            button.querySelector(
-              "span"
+            body.classList.toggle(
+              "hidden"
             );
 
-          if(arrow){
+            const arrow =
+              button.querySelector(
+                "span"
+              );
 
-            arrow.textContent =
-              content.classList.contains(
-                "hidden"
-              )
-                ? "▸"
-                : "▾";
+            if(arrow){
 
-          }
+              arrow.textContent =
+                body.classList.contains(
+                  "hidden"
+                )
+                  ? "▸"
+                  : "▾";
 
-        };
+            }
+
+          };
       }
     );
 
   $$("[data-history-record]")
     .forEach(
       button=>{
-        button.onclick=()=>{
+        button.onclick =
+          ()=>{
+            const detail =
+              $("#history-detail-" +
+                button.dataset
+                  .historyRecord);
 
-          const detail =
-            $("#history-detail-" +
-              button.dataset.historyRecord);
-
-          detail?.classList.toggle(
-            "hidden"
-          );
-
-        };
+            if(detail){
+              detail.classList.toggle(
+                "hidden"
+              );
+            }
+          };
       }
     );
 
@@ -6131,26 +7223,39 @@ function renderSettings(){
 
   $("#autoNextToggle")
     .checked =
-      draftSettings.autoNext;
+    savedSettings.autoNext;
 
   $("#darkModeToggle")
-    .checked =
-      draftSettings.darkMode;
+    ?.removeAttribute(
+      "checked"
+    );
 
-  const changed =
-    hasUnsavedSettings();
+  if(
+    $("#darkModeToggle")
+  ){
+
+    const wrapper =
+      $("#darkModeToggle")
+        .closest(
+          ".setting-row"
+        );
+
+    wrapper?.remove();
+
+  }
 
   $("#saveSettingsBtn")
-    .classList.toggle(
-      "hidden",
-      !changed
+    .classList.add(
+      "hidden"
     );
 
   $("#cancelSettingsBtn")
-    .classList.toggle(
-      "hidden",
-      !changed
+    .classList.add(
+      "hidden"
     );
+
+  $("#settingsMessage")
+    .innerHTML = "";
 
   renderDataStatus();
 
@@ -6160,23 +7265,18 @@ function renderSettings(){
 
 function renderDataStatus(){
 
-  const bytes =
-    stateSizeBytes();
+  let dataSize = 0;
 
-  const mb =
-    (
-      bytes /
-      1024 /
-      1024
-    ).toFixed(2);
+  try{
 
-  const pct =
-    Math.min(
-      100,
-      bytes /
-      STORAGE_SOFT_LIMIT *
-      100
-    );
+    dataSize =
+      new Blob([
+        JSON.stringify(
+          state
+        )
+      ]).size;
+
+  }catch{}
 
   $("#dataUsage")
     .innerHTML = `
@@ -6184,27 +7284,28 @@ function renderDataStatus(){
         묶음:
         ${allBundles().length}개
         · 폴더:
-        ${getFolders().length}개
+        ${allFolders().length}개
         · 단어:
         ${wordRefs().length}개
         · 학습 기록:
         ${state.history.length}개
       </div>
 
-      <div class="storage-bar">
-        <div
-          style="width:${pct}%"
-        ></div>
-      </div>
-
       <div class="muted">
-        단어장 데이터 크기:
-        ${mb}MB
+        데이터 크기:
+        ${
+          (
+            dataSize /
+            1024 /
+            1024
+          ).toFixed(2)
+        }MB
       </div>
     `;
 
   $("#lastChanged")
-    .innerHTML = `
+    .innerHTML =
+    `
       <p class="muted">
         마지막 변경:
         ${fmtDateTime(
@@ -6217,133 +7318,142 @@ function renderDataStatus(){
 
 function renderGuide(){
 
-  const versions =
+  $("#guideContent")
+    .innerHTML =
     Object.entries(
       CHANGELOG
-    );
+    )
+      .map(
+        (
+          [version,data],
+          index
+        )=>`
+          <div class="guide-change">
 
-  $("#guideContent")
-    .innerHTML = `
+            <button
+              data-guide-version="${version}"
+            >
 
-      <div class="guide-version">
-        단어 암기장 v${APP_VERSION}
-      </div>
+              <b>
+                v${version}
+              </b>
 
-      <p class="muted">
-        현재 지원 기능과 각 버전의 변경 내용을 확인할 수 있습니다.
-      </p>
+              <span>
+                ${
+                  index===0
+                    ? "▾"
+                    : "▸"
+                }
+              </span>
 
-      ${
-        versions.map(
-          ([version,data],index)=>`
-            <div class="guide-change">
+            </button>
 
-              <button
-                data-guide-version="${version}"
-              >
-                <b>
-                  v${version}
-                </b>
-
-                <span>
-                  ${index===0 ? "▾" : "▸"}
-                </span>
-              </button>
-
-              <div
-                class="guide-body ${
+            <div
+              class="
+                guide-body
+                ${
                   index===0
                     ? ""
                     : "hidden"
-                }"
-              >
-
-                <b>
-                  추가된 기능
-                </b>
-
-                <ul>
-                  ${
-                    data.added
-                      .map(
-                        item =>
-                          `<li>${escapeHTML(item)}</li>`
-                      )
-                      .join("")
-                  }
-                </ul>
-
-                ${
-                  data.fixed.length
-                    ? `
-                      <b>
-                        수정된 기능
-                      </b>
-
-                      <ul>
-                        ${
-                          data.fixed
-                            .map(
-                              item =>
-                                `<li>${escapeHTML(item)}</li>`
-                            )
-                            .join("")
-                        }
-                      </ul>
-                    `
-                    : ""
                 }
+              "
+            >
 
-                <b>
-                  현재 지원
-                </b>
+              <b>
+                추가된 기능
+              </b>
 
-                <p>
-                  묶음 및 폴더 관리,
-                  단어 관리,
-                  테스트,
-                  통계,
-                  자동 저장,
-                  JSON 저장/불러오기,
-                  다크 모드,
-                  PWA 설치
-                </p>
+              <ul>
+                ${
+                  data.added
+                    .map(
+                      item =>
+                        `<li>${escapeHTML(item)}</li>`
+                    )
+                    .join("")
+                }
+              </ul>
 
-              </div>
+              ${
+                data.fixed.length
+                  ? `
+                    <b>
+                      수정된 기능
+                    </b>
+
+                    <ul>
+                      ${
+                        data.fixed
+                          .map(
+                            item =>
+                              `<li>${escapeHTML(item)}</li>`
+                          )
+                          .join("")
+                      }
+                    </ul>
+                  `
+                  : ""
+              }
+
+              <b>
+                현재 지원되는 기능
+              </b>
+
+              <p>
+                단어 및 뜻 관리,
+                묶음 관리,
+                폴더 관리,
+                검색,
+                테스트,
+                빠른 테스트,
+                통계,
+                자동 저장,
+                JSON 저장·불러오기,
+                다크 모드,
+                모바일 사용,
+                PWA 설치
+              </p>
 
             </div>
-          `
-        ).join("")
-      }
 
-    `;
+          </div>
+        `
+      )
+      .join("");
 
   $$("[data-guide-version]")
     .forEach(
       button=>{
-        button.onclick=()=>{
+        button.onclick =
+          ()=>{
+            const body =
+              button.nextElementSibling;
 
-          const body =
-            button
-              .nextElementSibling;
+            if(!body){
+              return;
+            }
 
-          body.classList.toggle(
-            "hidden"
-          );
-
-          const span =
-            button.querySelector(
-              "span"
+            body.classList.toggle(
+              "hidden"
             );
 
-          span.textContent =
-            body.classList.contains(
-              "hidden"
-            )
-              ? "▸"
-              : "▾";
+            const span =
+              button.querySelector(
+                "span"
+              );
 
-        };
+            if(span){
+
+              span.textContent =
+                body.classList.contains(
+                  "hidden"
+                )
+                  ? "▸"
+                  : "▾";
+
+            }
+
+          };
       }
     );
 
@@ -6357,22 +7467,33 @@ function renderGuide(){
 
 function saveSettings(){
 
+  const autoNext =
+    $("#autoNextToggle")
+      .checked;
+
+  draftSettings.autoNext =
+    autoNext;
+
   savedSettings =
-    {...draftSettings};
+    {
+      ...savedSettings,
+      autoNext
+    };
 
   if(
     persistSettings()
   ){
 
-    applyTheme();
+    draftSettings =
+      {...savedSettings};
 
     $("#settingsMessage")
       .innerHTML =
-        `
-          <div>
-            ✅ 변경된 설정이 저장되었습니다.
-          </div>
-        `;
+      `
+        <div>
+          ✅ 설정이 저장되었습니다.
+        </div>
+      `;
 
     renderSettings();
 
@@ -6380,34 +7501,15 @@ function saveSettings(){
 
 }
 
-function cancelSettings(){
-
-  draftSettings =
-    {...savedSettings};
-
-  applyTheme();
-
-  $("#settingsMessage")
-    .innerHTML =
-      `
-        <div>
-          변경사항을 취소했습니다.
-        </div>
-      `;
-
-  renderSettings();
-
-}
-
 function resetSettings(){
 
-  confirmModal(
-    "설정 전체 초기화",
-    "단어, 묶음, 통계, 학습 기록은 유지되고 설정만 기본값으로 돌아갑니다.",
+  openConfirmModal(
+    "설정 초기화",
+    "자동 넘기기 등의 설정만 초기화됩니다. 단어와 학습 기록은 유지됩니다.",
     ()=>{
 
       savedSettings =
-        initialSettings();
+        createInitialSettings();
 
       draftSettings =
         {...savedSettings};
@@ -6429,23 +7531,22 @@ function resetSettings(){
 
 function resetLearning(){
 
-  confirmModal(
+  openConfirmModal(
     "학습 기록 초기화",
-    "테스트 기록과 단어별 오답 기록을 모두 초기화합니다.",
+    "모든 테스트 기록과 단어별 오답 기록을 초기화합니다.",
     ()=>{
 
-      for(
-        const {word}
-        of wordRefs()
-      ){
+      wordRefs().forEach(
+        ({word})=>{
 
-        word.stats={
-          attempts:0,
-          wrong:0,
-          lastWrong:null
-        };
+          word.stats={
+            attempts:0,
+            wrong:0,
+            lastWrong:null
+          };
 
-      }
+        }
+      );
 
       state.history=[];
 
@@ -6464,21 +7565,26 @@ function resetLearning(){
 
 function deleteAllData(){
 
-  confirmModal(
+  openConfirmModal(
     "모든 데이터 삭제",
-    "모든 묶음, 단어, 통계, 학습 기록이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+    "모든 폴더, 묶음, 단어, 학습 기록이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
     ()=>{
 
       state =
-        initialData();
+        createInitialState();
 
       selectedWordIds.clear();
 
       currentBundleId=null;
 
+      currentView = {
+        type:"home",
+        id:null
+      };
+
       autoSave();
 
-      navigate(
+      showPage(
         "homePage"
       );
 
@@ -6520,24 +7626,37 @@ async function sha256(
 
 async function exportBackup(){
 
-  const base = {
-    format:"vocab-app-backup",
-    version:2,
-    appVersion:APP_VERSION,
-    savedAt:nowISO(),
-    data:clone(state),
-    settings:clone(savedSettings)
+  const data = {
+    format:
+      "vocab-app-backup",
+
+    version:3,
+
+    appVersion:
+      APP_VERSION,
+
+    savedAt:
+      nowISO(),
+
+    data:
+      clone(state),
+
+    settings:
+      clone(savedSettings)
   };
 
   const hash =
     await sha256(
-      JSON.stringify(base)
+      JSON.stringify(data)
     );
 
   const output = {
-    ...base,
+    ...data,
+
     integrity:{
-      algorithm:"SHA-256",
+      algorithm:
+        "SHA-256",
+
       hash
     }
   };
@@ -6552,7 +7671,8 @@ async function exportBackup(){
         )
       ],
       {
-        type:"application/json"
+        type:
+          "application/json"
       }
     );
 
@@ -6569,34 +7689,33 @@ async function exportBackup(){
       blob
     );
 
-  const d =
+  const date =
     new Date();
 
-  const baseName =
-    `단어장_${d.getFullYear()}-${
+  const fileName =
+    `단어장_${
+      date.getFullYear()
+    }-${
       String(
-        d.getMonth()+1
+        date.getMonth()+1
       ).padStart(2,"0")
     }-${
       String(
-        d.getDate()
+        date.getDate()
       ).padStart(2,"0")
     }_${
       String(
-        d.getHours()
+        date.getHours()
       ).padStart(2,"0")
     }${
       String(
-        d.getMinutes()
+        date.getMinutes()
       ).padStart(2,"0")
     }${
       String(
-        d.getSeconds()
+        date.getSeconds()
       ).padStart(2,"0")
-    }`;
-
-  lastExportName =
-    `${baseName}.json`;
+    }.json`;
 
   const link =
     $("#downloadLink");
@@ -6605,7 +7724,7 @@ async function exportBackup(){
     downloadUrl;
 
   link.download =
-    lastExportName;
+    fileName;
 
   link.classList.remove(
     "hidden"
@@ -6613,17 +7732,19 @@ async function exportBackup(){
 
   $("#saveMessage")
     .innerHTML =
-      `
-        <div>
-          ✅ 저장 파일이 준비되었습니다.
-          <br>
-          <span class="muted">
-            ${escapeHTML(
-              lastExportName
-            )}
-          </span>
-        </div>
-      `;
+    `
+      <div>
+        ✅ 저장 파일이 준비되었습니다.
+
+        <br>
+
+        <span class="muted">
+          ${escapeHTML(
+            fileName
+          )}
+        </span>
+      </div>
+    `;
 
 }
 
@@ -6636,14 +7757,14 @@ async function importBackup(
     const text =
       await file.text();
 
-    const obj =
+    const object =
       JSON.parse(text);
 
     if(
-      obj?.format !==
+      object?.format !==
         "vocab-app-backup" ||
-      !obj?.data ||
-      !obj?.integrity?.hash
+      !object?.data ||
+      !object?.integrity?.hash
     ){
 
       throw new Error(
@@ -6653,31 +7774,36 @@ async function importBackup(
     }
 
     const base = {
+      format:
+        object.format,
 
-      format:obj.format,
+      version:
+        object.version,
 
-      version:obj.version,
+      appVersion:
+        object.appVersion,
 
-      appVersion:obj.appVersion,
+      savedAt:
+        object.savedAt,
 
-      savedAt:obj.savedAt,
-
-      data:obj.data,
+      data:
+        object.data,
 
       settings:
-        obj.settings ||
-        initialSettings()
-
+        object.settings ||
+        createInitialSettings()
     };
 
     const calculated =
       await sha256(
-        JSON.stringify(base)
+        JSON.stringify(
+          base
+        )
       );
 
     if(
       calculated !==
-      obj.integrity.hash
+      object.integrity.hash
     ){
 
       throw new Error(
@@ -6688,10 +7814,10 @@ async function importBackup(
 
     if(
       !Array.isArray(
-        obj.data.groups
+        object.data.groups
       ) ||
       !Array.isArray(
-        obj.data.history
+        object.data.history
       )
     ){
 
@@ -6701,9 +7827,24 @@ async function importBackup(
 
     }
 
-    confirmModal(
+    const newState =
+      clone(
+        object.data
+      );
+
+    const newSettings =
+      {
+        ...createInitialSettings(),
+        ...(object.settings || {})
+      };
+
+    migrateState(
+      newState
+    );
+
+    openConfirmModal(
       "불러오기 확인",
-      "현재 단어장 데이터를 불러온 파일의 데이터로 교체할까요?",
+      "현재 단어장 데이터를 불러온 파일의 데이터로 교체하시겠습니까?",
       ()=>{
 
         const oldState =
@@ -6713,23 +7854,23 @@ async function importBackup(
           savedSettings;
 
         state =
-          obj.data;
-
-        migrateState(
-          state
-        );
+          newState;
 
         savedSettings =
-          {
-            ...initialSettings(),
-            ...(obj.settings || {})
-          };
+          newSettings;
 
         draftSettings =
           {...savedSettings};
 
+        const stateOK =
+          persistState();
+
+        const settingsOK =
+          persistSettings();
+
         if(
-          !persistState()
+          !stateOK ||
+          !settingsOK
         ){
 
           state =
@@ -6741,20 +7882,28 @@ async function importBackup(
           draftSettings =
             {...oldSettings};
 
+          persistState();
+          persistSettings();
+
           return;
 
         }
 
-        persistSettings();
-
-        applyTheme();
+        currentView = {
+          type:"home",
+          id:null
+        };
 
         currentBundleId=null;
 
-        renderHome();
+        applyTheme();
+
+        showPage(
+          "homePage"
+        );
 
         toast(
-          "✅ 불러오기가 완료되었습니다."
+          "✅ 데이터 불러오기가 완료되었습니다."
         );
 
       }
@@ -6762,128 +7911,50 @@ async function importBackup(
 
   }catch(error){
 
-    const message =
+    let message =
+      "파일을 읽을 수 없습니다.";
+
+    if(
       error.message ===
-        "CHANGED"
-        ? "저장된 파일의 내용이 변경되었거나 손상되었습니다."
-        : error.message ===
-          "FORMAT"
-          ? "올바른 단어장 저장 파일이 아닙니다."
-          : error.message ===
-            "DATA"
-            ? "파일의 데이터 구조가 올바르지 않습니다."
-            : "파일을 읽을 수 없습니다.";
+      "FORMAT"
+    ){
+
+      message =
+        "올바른 단어장 저장 파일이 아닙니다.";
+
+    }
+
+    if(
+      error.message ===
+      "CHANGED"
+    ){
+
+      message =
+        "파일의 내용이 변경되었거나 손상되었습니다.";
+
+    }
+
+    if(
+      error.message ===
+      "DATA"
+    ){
+
+      message =
+        "파일의 데이터 구조가 올바르지 않습니다.";
+
+    }
 
     $("#restoreMessage")
       .innerHTML =
-        `
-          <div class="incorrect">
-            ❌ ${escapeHTML(message)}
-          </div>
-        `;
-
-  }
-
-}
-
-function applyTheme(){
-
-  document.body
-    .classList.toggle(
-      "dark",
-      savedSettings.darkMode
-    );
-
-  $("#darkBtn")
-    .textContent =
-      savedSettings.darkMode
-        ? "☀️"
-        : "🌙";
-
-}
-
-function applyDraftTheme(){
-
-  document.body
-    .classList.toggle(
-      "dark",
-      draftSettings.darkMode
-    );
-
-  $("#darkBtn")
-    .textContent =
-      draftSettings.darkMode
-        ? "☀️"
-        : "🌙";
-
-}
-
-function installApp(){
-
-  if(!pendingInstallPrompt){
-    return;
-  }
-
-  pendingInstallPrompt
-    .prompt();
-
-  pendingInstallPrompt
-    .userChoice
-    .finally(
-      ()=>{
-        pendingInstallPrompt=null;
-        renderGuide();
-      }
-    );
-
-}
-
-function handleDarkMode(){
-
-  draftSettings.darkMode =
-    !draftSettings.darkMode;
-
-  applyDraftTheme();
-
-  renderSettings();
-
-  $("#settingsMessage")
-    .innerHTML =
       `
-        <div>
-          설정이 변경되었습니다.
-          <br>
-          <b>
-            변경 내용을 저장하시겠습니까?
-          </b>
+        <div class="incorrect">
+          ❌ ${escapeHTML(
+            message
+          )}
         </div>
       `;
 
-}
-
-function updateSettingsDraft(){
-
-  draftSettings.autoNext =
-    $("#autoNextToggle")
-      .checked;
-
-  draftSettings.darkMode =
-    $("#darkModeToggle")
-      .checked;
-
-  applyDraftTheme();
-
-  $("#settingsMessage")
-    .innerHTML =
-      `
-        <div>
-          설정이 변경되었습니다.
-          <br>
-          <b>
-            변경 내용을 저장하시겠습니까?
-          </b>
-        </div>
-      `;
+  }
 
 }
 
@@ -6891,225 +7962,211 @@ function setupEvents(){
 
   $("#addWordHomeBtn")
     .onclick =
-      addStandaloneWord;
+    addStandaloneWord;
 
   $("#addFolderBtn")
     .onclick =
-      promptCreateFolder;
+    promptCreateFolder;
 
   $("#addBundleBtn")
     .onclick =
-      promptCreateBundle;
+    promptCreateBundle;
 
   $("#quickTestOpenBtn")
     .onclick =
-      openQuickTest;
+    ()=>openQuickTest();
 
   $("#bundleSort")
     .onchange =
-      ()=>{
-        bundleSort =
-          $("#bundleSort")
-            .value;
+    ()=>{
+      bundleSort =
+        $("#bundleSort")
+          .value;
 
-        renderBundles();
-      };
+      if(
+        currentView.type ===
+        "folder"
+      ){
+
+        renderFolderPage();
+
+      }else{
+
+        renderRootItems();
+
+      }
+
+    };
 
   $("#globalSearch")
     .oninput =
-      ()=>{
-        renderSearchResults();
-        renderBundles();
-      };
+    renderSearchResults;
 
   $("#backHomeBtn")
     .onclick =
-      ()=>{
-        navigate(
-          "homePage"
-        );
-      };
-
-  $("#addWordsBtn")
-    .onclick =
-      addWordsToCurrentBundle;
-
-  $("#wordSearch")
-    .oninput =
-      ()=>{
-        wordSearch =
-          $("#wordSearch")
-            .value;
-
-        wordVisibleLimit =
-          WORD_CHUNK;
-
-        renderWords();
-      };
-
-  $("#wordSort")
-    .onchange =
-      ()=>{
-        wordSort =
-          $("#wordSort")
-            .value;
-
-        renderWords();
-      };
-
-  $("#importantFilterBtn")
-    .onclick =
-      ()=>{
-        importantFilter =
-          !importantFilter;
-
-        $("#importantFilterBtn")
-          .textContent =
-            importantFilter
-              ? "⭐ 전체 보기"
-              : "⭐ 중요 단어만";
-
-        wordVisibleLimit =
-          WORD_CHUNK;
-
-        renderWords();
-      };
-
-  $("#selectAllWords")
-    .onchange =
-      e=>{
-
-        for(
-          const w
-          of wordsForCurrentView()
-        ){
-
-          if(e.target.checked){
-
-            selectedWordIds.add(
-              w.id
-            );
-
-          }else{
-
-            selectedWordIds.delete(
-              w.id
-            );
-
-          }
-
-        }
-
-        updateBulkActions();
-        updateSelectAll();
-        renderWords();
-
-      };
-
-  $("#bulkImportantOnBtn")
-    .onclick =
-      ()=>{
-        bulkWordAction("on");
-      };
-
-  $("#bulkImportantOffBtn")
-    .onclick =
-      ()=>{
-        bulkWordAction("off");
-      };
-
-  $("#bulkDeleteBtn")
-    .onclick =
-      ()=>{
-        bulkWordAction("delete");
-      };
-
-  $("#startBundleTestBtn")
-    .onclick =
-      startBundleTest;
-
-  $("#renameBundleBtn")
-    .onclick =
-      promptRenameCurrent;
-
-  $("#importantBundleBtn")
-    .onclick =
-      toggleCurrentBundleImportant;
-
-  $("#deleteBundleBtn")
-    .onclick =
-      deleteCurrentGroup;
+    ()=>{
+      showPage(
+        "homePage"
+      );
+    };
 
   $("#folderAddOpenBtn")
     .onclick =
-      openFolderAdd;
+    openFolderAddModal;
 
-  $("#closeFolderAddBtn")
+  $("#addWordsBtn")
     .onclick =
-      closeFolderAdd;
+    addWordsToCurrentBundle;
 
-  $("#folderBundleSearch")
+  $("#wordSearch")
     .oninput =
-      renderFolderAddCandidates;
+    ()=>{
+      wordSearch =
+        $("#wordSearch")
+          .value;
 
-  $("#selectAllFolderCandidates")
+      wordVisibleLimit =
+        WORD_CHUNK;
+
+      renderWords();
+    };
+
+  $("#wordSort")
+    .onchange =
+    ()=>{
+      wordSort =
+        $("#wordSort")
+          .value;
+
+      wordVisibleLimit =
+        WORD_CHUNK;
+
+      renderWords();
+    };
+
+  $("#importantFilterBtn")
     .onclick =
-      ()=>{
-        selectAllFolderCandidates(
-          true
+    ()=>{
+      importantFilter =
+        !importantFilter;
+
+      wordVisibleLimit =
+        WORD_CHUNK;
+
+      $("#importantFilterBtn")
+        .textContent =
+        importantFilter
+          ? "⭐ 전체 보기"
+          : "⭐ 중요 단어만";
+
+      renderWords();
+    };
+
+  $("#selectAllWords")
+    .onchange =
+    event=>{
+
+      wordsForCurrentBundle()
+        .forEach(
+          word=>{
+
+            if(
+              event.target.checked
+            ){
+
+              selectedWordIds.add(
+                word.id
+              );
+
+            }else{
+
+              selectedWordIds.delete(
+                word.id
+              );
+
+            }
+
+          }
         );
-      };
 
-  $("#clearAllFolderCandidates")
-    .onclick =
-      ()=>{
-        selectAllFolderCandidates(
-          false
-        );
-      };
+      renderWords();
 
-  $("#addSelectedToFolderBtn")
+    };
+
+  $("#bulkImportantOnBtn")
     .onclick =
-      addSelectedToFolder;
+    ()=>{
+      bulkWordAction("on");
+    };
+
+  $("#bulkImportantOffBtn")
+    .onclick =
+    ()=>{
+      bulkWordAction("off");
+    };
+
+  $("#bulkDeleteBtn")
+    .onclick =
+    ()=>{
+      bulkWordAction("delete");
+    };
+
+  $("#startBundleTestBtn")
+    .onclick =
+    startBundleTest;
+
+  $("#renameBundleBtn")
+    .onclick =
+    ()=>{
+      if(
+        currentView.type ===
+        "bundle"
+      ){
+        renameCurrentBundle();
+      }
+    };
+
+  $("#importantBundleBtn")
+    .onclick =
+    toggleCurrentBundleImportant;
+
+  $("#deleteBundleBtn")
+    .onclick =
+    deleteCurrentView;
 
   $("#checkAnswerBtn")
     .onclick =
-      checkAnswer;
+    checkAnswer;
 
   $("#nextQuestionBtn")
     .onclick =
-      nextQuestion;
+    nextQuestion;
 
   $("#finishTestBtn")
     .onclick =
-      finishTest;
+    finishTest;
 
   $("#exitTestBtn")
     .onclick =
-      ()=>{
-        leaveTest(
-          ()=>{
-            testSession=null;
-            navigate(
-              "homePage"
-            );
-          }
-        );
-      };
+    ()=>{
+      leaveTestTo(
+        "homePage"
+      );
+    };
 
   $("#answerInput")
     .addEventListener(
       "keydown",
-      e=>{
+      event=>{
 
         if(
-          e.key !==
+          event.key !==
           "Enter"
         ){
           return;
         }
 
-        e.preventDefault();
+        event.preventDefault();
 
         if(
           !testSession
@@ -7129,7 +8186,7 @@ function setupEvents(){
 
         if(
           testSession.index <
-          testSession.questions.length-1
+          testSession.questions.length - 1
         ){
 
           nextQuestion();
@@ -7145,70 +8202,75 @@ function setupEvents(){
 
   $("#retryWrongBtn")
     .onclick =
-      retryWrong;
+    retryWrong;
 
   $("#saveBtn")
     .onclick =
-      exportBackup;
+    exportBackup;
 
   $("#restoreInput")
     .onchange =
-      e=>{
+    event=>{
 
-        const file =
-          e.target.files?.[0];
+      const file =
+        event.target.files?.[0];
 
-        if(file){
-          importBackup(file);
-        }
+      if(file){
+        importBackup(file);
+      }
 
-        e.target.value="";
+      event.target.value="";
 
-      };
+    };
 
   $("#autoNextToggle")
     .onchange =
-      updateSettingsDraft;
-
-  $("#darkModeToggle")
-    .onchange =
-      updateSettingsDraft;
+    ()=>{
+      draftSettings.autoNext =
+        $("#autoNextToggle")
+          .checked;
+    };
 
   $("#darkBtn")
     .onclick =
-      handleDarkMode;
+    requestDarkModeChange;
 
   $("#saveSettingsBtn")
     .onclick =
-      saveSettings;
+    saveSettings;
 
   $("#cancelSettingsBtn")
     .onclick =
-      cancelSettings;
+    ()=>{
+      draftSettings =
+        {...savedSettings};
+
+      renderSettings();
+    };
 
   $("#resetSettingsBtn")
     .onclick =
-      resetSettings;
+    resetSettings;
 
   $("#resetLearningBtn")
     .onclick =
-      resetLearning;
+    resetLearning;
 
   $("#deleteAllBtn")
     .onclick =
-      deleteAllData;
+    deleteAllData;
 
   $("#guideInstallBtn")
     .onclick =
-      installApp;
+    installPWA;
 
   $$(".nav-btn")
     .forEach(
-      btn=>{
-        btn.onclick =
+      button=>{
+        button.onclick =
           ()=>{
             navigate(
-              btn.dataset.page
+              button.dataset.page
             );
           };
       }
@@ -7216,35 +8278,41 @@ function setupEvents(){
 
   $$(".period-btn")
     .forEach(
-      btn=>{
-        btn.onclick =
+      button=>{
+        button.onclick =
           ()=>{
             renderStats.period =
-              btn.dataset.period;
+              button.dataset.period;
 
             renderStats();
+
           };
       }
     );
 
 }
 
-function setupInfiniteWordList(){
+function setupInfiniteScroll(){
 
   const observer =
     new IntersectionObserver(
       entries=>{
 
         if(
-          !entries[0].isIntersecting ||
+          !entries[0].isIntersecting
+        ){
+          return;
+        }
+
+        if(
           currentPage !==
-            "bundlePage"
+          "bundlePage"
         ){
           return;
         }
 
         const total =
-          wordsForCurrentView()
+          wordsForCurrentBundle()
             .length;
 
         if(
@@ -7268,12 +8336,37 @@ function setupInfiniteWordList(){
 
 }
 
+function installPWA(){
+
+  if(
+    !pendingInstallPrompt
+  ){
+    return;
+  }
+
+  pendingInstallPrompt
+    .prompt();
+
+  pendingInstallPrompt
+    .userChoice
+    .finally(
+      ()=>{
+        pendingInstallPrompt =
+          null;
+
+        renderGuide();
+      }
+    );
+
+}
+
 window.addEventListener(
   "beforeinstallprompt",
-  e=>{
-    e.preventDefault();
+  event=>{
+    event.preventDefault();
 
-    pendingInstallPrompt=e;
+    pendingInstallPrompt =
+      event;
 
     renderGuide();
   }
@@ -7282,7 +8375,9 @@ window.addEventListener(
 window.addEventListener(
   "appinstalled",
   ()=>{
-    pendingInstallPrompt=null;
+    pendingInstallPrompt =
+      null;
+
     renderGuide();
 
     toast(
@@ -7300,9 +8395,33 @@ window.addEventListener(
   }
 );
 
+document.addEventListener(
+  "keydown",
+  event=>{
+
+    if(
+      event.key !== "Escape"
+    ){
+      return;
+    }
+
+    if(
+      !$("#modal")
+        .classList.contains(
+          "hidden"
+        )
+    ){
+
+      closeModal();
+
+    }
+
+  }
+);
+
 if(
   "serviceWorker" in navigator &&
-  location.protocol==="https:"
+  location.protocol === "https:"
 ){
 
   navigator.serviceWorker
@@ -7310,21 +8429,24 @@ if(
       "./sw.js"
     )
     .catch(
-      error=>
+      error=>{
         console.error(
-          "Service Worker 오류:",
+          "Service Worker error:",
           error
-        )
+        );
+      }
     );
 
 }
 
 setupEvents();
 
-setupInfiniteWordList();
+setupInfiniteScroll();
 
 applyTheme();
 
 renderHome();
+
+renderSettings();
 
 renderDataStatus();
