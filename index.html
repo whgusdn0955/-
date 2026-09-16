@@ -35,6 +35,10 @@
 
 <div id="app">
 
+    <!-- =========================
+         헤더
+    ========================== -->
+
     <header class="app-header">
 
         <div class="header-inner">
@@ -75,7 +79,13 @@
     </header>
 
 
+    <!-- =========================
+         전체 레이아웃
+    ========================== -->
+
     <div class="app-layout">
+
+        <!-- 사이드바 -->
 
         <aside
             id="sidebar"
@@ -116,12 +126,18 @@
         </aside>
 
 
+        <!-- =========================
+             메인 콘텐츠
+        ========================== -->
+
         <main
             id="mainContent"
             class="main-content"
         >
 
-            <!-- 홈 -->
+            <!-- =====================
+                 홈
+            ====================== -->
 
             <section
                 id="homePage"
@@ -179,7 +195,9 @@
             </section>
 
 
-            <!-- 파일 -->
+            <!-- =====================
+                 파일 상세
+            ====================== -->
 
             <section
                 id="filePage"
@@ -193,7 +211,7 @@
                         class="breadcrumb-button"
                         type="button"
                     >
-                        🏠 홈
+                        ← 홈
                     </button>
 
                     <span>›</span>
@@ -275,7 +293,9 @@
             </section>
 
 
-            <!-- 단어장 -->
+            <!-- =====================
+                 단어장 상세
+            ====================== -->
 
             <section
                 id="workbookPage"
@@ -289,7 +309,7 @@
                         class="breadcrumb-button"
                         type="button"
                     >
-                        📁 파일
+                        ← 파일
                     </button>
 
                     <span>›</span>
@@ -315,16 +335,19 @@
 
                     </div>
 
+
                     <button
                         id="addWordButton"
                         class="primary-button"
                         type="button"
                     >
-                        ＋ 단어 추가
+                        📝 단어 테스트
                     </button>
 
                 </div>
 
+
+                <!-- 단어 입력 -->
 
                 <div class="input-card">
 
@@ -384,13 +407,16 @@
                         </span>
 
                         <span>
-                            Enter 등록
+                            Enter
+                            등록
                         </span>
 
                     </div>
 
                 </div>
 
+
+                <!-- 단어 목록 -->
 
                 <div class="section-header">
 
@@ -431,7 +457,9 @@
             </section>
 
 
-            <!-- 기록 -->
+            <!-- =====================
+                 기록
+            ====================== -->
 
             <section
                 id="statisticsPage"
@@ -484,7 +512,9 @@
             </section>
 
 
-            <!-- 설정 -->
+            <!-- =====================
+                 설정
+            ====================== -->
 
             <section
                 id="settingsPage"
@@ -566,10 +596,10 @@
 
                         <div>
 
-                            <h2>테스트</h2>
+                            <h2>테스트 설정</h2>
 
                             <p>
-                                한 문제당 제한시간을 설정합니다.
+                                문제 하나당 제한시간을 설정합니다.
                             </p>
 
                         </div>
@@ -583,8 +613,8 @@
 
                             <strong>문제 제한시간</strong>
 
-                            <p id="testTimeDescription">
-                                한 문제당 10초
+                            <p>
+                                한 문제를 풀 수 있는 시간을 설정합니다.
                             </p>
 
                         </div>
@@ -594,12 +624,14 @@
                             id="testTimeSelect"
                             class="settings-select"
                         >
+
                             <option value="5">5초</option>
                             <option value="10">10초</option>
                             <option value="15">15초</option>
                             <option value="20">20초</option>
                             <option value="30">30초</option>
-                            <option value="0">제한 없음</option>
+                            <option value="60">60초</option>
+
                         </select>
 
                     </div>
@@ -710,7 +742,7 @@
                             <h2>앱 정보</h2>
 
                             <p>
-                                현재 사용 중인 단어 암기장 버전입니다.
+                                현재 사용 중인 단어 암기장의 버전입니다.
                             </p>
 
                         </div>
@@ -733,53 +765,48 @@
             </section>
 
 
-            <!-- 테스트 -->
+            <!-- =====================
+                 테스트
+            ====================== -->
 
             <section
                 id="testPage"
                 class="page"
             >
 
-                <div class="test-top-bar">
+                <div class="test-header">
 
                     <button
                         id="testBackButton"
-                        class="secondary-button test-back-button"
+                        class="breadcrumb-button test-back-button"
                         type="button"
                     >
-                        ← 뒤로가기
+                        ← 돌아가기
                     </button>
 
 
-                    <div class="test-header">
+                    <div class="test-progress">
 
-                        <div class="test-progress">
+                        <span id="testQuestionNumber">
+                            1
+                        </span>
 
-                            <span id="testQuestionNumber">
-                                1
-                            </span>
+                        <span>/</span>
 
-                            <span>/</span>
+                        <span id="testTotalQuestions">
+                            1
+                        </span>
 
-                            <span id="testTotalQuestions">
-                                1
-                            </span>
-
-                        </div>
+                    </div>
 
 
-                        <div
-                            id="timerContainer"
-                            class="timer-container"
-                        >
+                    <div class="timer-container">
 
-                            <span>⏱️</span>
+                        <span>⏱️</span>
 
-                            <strong id="testTimer">
-                                10
-                            </strong>
-
-                        </div>
+                        <strong id="testTimer">
+                            10
+                        </strong>
 
                     </div>
 
@@ -838,7 +865,9 @@
             </section>
 
 
-            <!-- 결과 -->
+            <!-- =====================
+                 결과
+            ====================== -->
 
             <section
                 id="resultPage"
@@ -922,7 +951,7 @@
                             class="secondary-button"
                             type="button"
                         >
-                            📚 현재 위치로
+                            ← 현재 위치로
                         </button>
 
                         <button
@@ -944,7 +973,9 @@
     </div>
 
 
-    <!-- 모달 -->
+    <!-- =========================
+         모달
+    ========================== -->
 
     <div
         id="modalOverlay"
