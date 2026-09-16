@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,viewport-fit=cover"
+  >
+  <meta name="theme-color" content="#4f46e5">
+  <meta
+    name="description"
+    content="암기 학습용 오프라인 웹앱"
+  >
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+
+  <title>암기장</title>
+</head>
+
+<body>
+  <header class="topbar">
+    <button
+      id="logoBtn"
+      class="logo"
+      type="button"
+    >
+      📚 암기장
+    </button>
+
+    <nav class="topnav">
+      <button
+        class="nav-btn active"
+        data-page="home"
+        type="button"
+      >
+        🏠 홈
+      </button>
+
+      <button
+        class="nav-btn"
+        data-page="stats"
+        type="button"
+      >
+        📊 통계
+      </button>
+
+      <button
+        class="nav-btn"
+        data-page="settings"
+        type="button"
+      >
+        ⚙️ 설정
+      </button>
+    </nav>
+  </header>
+
+  <main class="container">
+
+    <!-- 홈 -->
+    <section id="homeView" class="view">
+      <div class="page-title">
+        <div>
+          <h1>홈</h1>
+          <p>암기할 종류를 선택하세요.</p>
+        </div>
+
+        <button
+          id="addPageBtn"
+          class="primary-btn"
+          type="button"
+        >
+          ＋ 페이지 추가
+        </button>
+      </div>
+
+      <div
+        id="pageList"
+        class="page-list"
+      ></div>
+    </section>
+
+    <!-- 과목/페이지 -->
+    <section
+      id="subjectView"
+      class="view hidden"
+    >
+      <div class="breadcrumb">
+        <button
+          id="backHomeBtn"
+          type="button"
+        >
+          🏠 홈
+        </button>
+        <span>›</span>
+        <strong id="subjectName"></strong>
+      </div>
+
+      <div class="page-title">
+        <div>
+          <h1 id="subjectTitle"></h1>
+          <p id="subjectDescription"></p>
+        </div>
+
+        <div class="title-actions">
+          <button
+            id="renamePageBtn"
+            class="secondary-btn"
+            type="button"
+          >
+            ✏️ 이름 변경
+          </button>
+
+          <button
+            id="deletePageBtn"
+            class="danger-btn"
+            type="button"
+          >
+            🗑️ 페이지 삭제
+          </button>
+        </div>
+      </div>
+
+      <div class="test-info">
+        <strong>테스트 방식</strong>
+        <span id="subjectTestInfo"></span>
+      </div>
+
+      <button
+        id="addBundleBtn"
+        class="primary-btn add-bundle-btn"
+        type="button"
+      >
+        ＋ 묶음칸 생성
+      </button>
+
+      <div
+        id="bundleList"
+        class="bundle-list"
+      ></div>
+    </section>
+
+    <!-- 묶음 -->
+    <section
+      id="bundleView"
+      class="view hidden"
+    >
+      <div class="breadcrumb">
+        <button
+          id="bundleBackHomeBtn"
+          type="button"
+        >
+          🏠 홈
+        </button>
+        <span>›</span>
+
+        <button
+          id="bundleBackSubjectBtn"
+          type="button"
+        ></button>
+
+        <span>›</span>
+
+        <strong id="bundleBreadcrumbName"></strong>
+      </div>
+
+      <div class="page-title">
+        <div>
+          <h1 id="bundleTitle"></h1>
+          <p id="bundleWordCount"></p>
+        </div>
+
+        <div class="title-actions">
+          <button
+            id="renameBundleBtn"
+            class="secondary-btn"
+            type="button"
+          >
+            ✏️ 이름 변경
+          </button>
+
+          <button
+            id="deleteBundleBtn"
+            class="danger-btn"
+            type="button"
+          >
+            🗑️ 묶음 삭제
+          </button>
+        </div>
+      </div>
+
+      <div class="test-buttons">
+        <button
+          id="allTestBtn"
+          class="primary-btn"
+          type="button"
+        >
+          📝 전체 테스트
+        </button>
+
+        <button
+          id="directTestBtn"
+          class="secondary-btn"
+          type="button"
+        ></button>
+
+        <button
+          id="reverseTestBtn"
+          class="secondary-btn"
+          type="button"
+        ></button>
+
+        <button
+          id="quickTestBtn"
+          class="secondary-btn"
+          type="button"
+        >
+          ⚡ 빠른 테스트
+        </button>
+      </div>
+
+      <div class="word-add-box">
+        <input
+          id="wordInput"
+          type="text"
+          placeholder="단어"
+          autocomplete="off"
+          spellcheck="false"
+        >
+
+        <input
+          id="meaningInput"
+          type="text"
+          placeholder="뜻"
+          autocomplete="off"
+        >
+
+        <button
+          id="addWordBtn"
+          class="primary-btn"
+          type="button"
+        >
+          ＋ 추가
+        </button>
+      </div>
+
+      <div
+        id="wordList"
+        class="word-list"
+      ></div>
+    </section>
+
+    <!-- 테스트 -->
+    <section
+      id="testView"
+      class="view hidden"
+    >
+      <div class="test-header">
+        <button
+          id="exitTestBtn"
+          class="secondary-btn"
+          type="button"
+        >
+          ← 나가기
+        </button>
+
+        <div id="testProgress">
+          1 / 1
+        </div>
+
+        <div
+          id="timer"
+          class="timer"
+        >
+          10
+        </div>
+      </div>
+
+      <div class="question-card">
+        <div
+          id="questionDirection"
+          class="question-direction"
+        ></div>
+
+        <div
+          id="questionText"
+          class="question-text"
+        ></div>
+
+        <input
+          id="answerInput"
+          class="answer-input"
+          type="text"
+          autocomplete="off"
+          autocapitalize="none"
+          spellcheck="false"
+          placeholder="정답 입력"
+        >
+
+        <button
+          id="submitAnswerBtn"
+          class="primary-btn answer-btn"
+          type="button"
+        >
+          정답 확인
+        </button>
+
+        <div
+          id="answerResult"
+          class="answer-result"
+        ></div>
+      </div>
+    </section>
+
+    <!-- 테스트 결과 -->
+    <section
+      id="resultView"
+      class="view hidden"
+    >
+      <div class="result-card">
+        <h1>테스트 결과</h1>
+
+        <div
+          id="resultScore"
+          class="result-score"
+        ></div>
+
+        <div
+          id="wrongList"
+          class="wrong-list"
+        ></div>
+
+        <div class="result-actions">
+          <button
+            id="retryWrongBtn"
+            class="primary-btn"
+            type="button"
+          >
+            ❌ 틀린 단어 다시 테스트
+          </button>
+
+          <button
+            id="resultHomeBtn"
+            class="secondary-btn"
+            type="button"
+          >
+            🏠 홈으로
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 통계 -->
+    <section
+      id="statsView"
+      class="view hidden"
+    >
+      <div class="page-title">
+        <div>
+          <h1>📊 통계</h1>
+          <p>현재 학습 기록입니다.</p>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <strong id="statPages">0</strong>
+          <span>페이지</span>
+        </div>
+
+        <div class="stat-card">
+          <strong id="statBundles">0</strong>
+          <span>묶음</span>
+        </div>
+
+        <div class="stat-card">
+          <strong id="statWords">0</strong>
+          <span>단어</span>
+        </div>
+
+        <div class="stat-card">
+          <strong id="statTests">0</strong>
+          <span>테스트</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 설정 -->
+    <section
+      id="settingsView"
+      class="view hidden"
+    >
+      <div class="page-title">
+        <div>
+          <h1>⚙️ 설정</h1>
+          <p>앱 설정 및 데이터를 관리합니다.</p>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="setting-row">
+          <div>
+            <strong>자동 저장</strong>
+            <p>
+              데이터는 자동으로 기기에 저장됩니다.
+            </p>
+          </div>
+
+          <span class="setting-status">
+            켜짐
+          </span>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <strong>오프라인 사용</strong>
+            <p>
+              인터넷이 없어도 기본 기능을 사용할 수 있습니다.
+            </p>
+          </div>
+
+          <span
+            id="offlineStatus"
+            class="setting-status"
+          >
+            확인 중
+          </span>
+        </div>
+
+        <div class="setting-row">
+          <button
+            id="exportBtn"
+            class="secondary-btn"
+            type="button"
+          >
+            데이터 백업
+          </button>
+
+          <button
+            id="importBtn"
+            class="secondary-btn"
+            type="button"
+          >
+            데이터 복원
+          </button>
+
+          <input
+            id="importFile"
+            type="file"
+            accept=".json,application/json"
+            hidden
+          >
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <strong>데이터 초기화</strong>
+            <p>
+              저장된 모든 데이터를 삭제합니다.
+            </p>
+          </div>
+
+          <button
+            id="resetBtn"
+            class="danger-btn"
+            type="button"
+          >
+            전체 초기화
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
