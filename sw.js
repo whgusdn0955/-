@@ -1,25 +1,21 @@
-const CACHE_NAME = "memory-app-v1";
+const CACHE_NAME = "memorize-app-v2";
 
 const APP_FILES = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
-  "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png"
+  "./manifest.json"
 ];
 
 self.addEventListener(
   "install",
-  (event) => {
+  event => {
     event.waitUntil(
       caches
         .open(CACHE_NAME)
-        .then((cache) =>
-          cache.addAll(
-            APP_FILES
-          )
+        .then(cache =>
+          cache.addAll(APP_FILES)
         )
     );
 
@@ -29,22 +25,19 @@ self.addEventListener(
 
 self.addEventListener(
   "activate",
-  (event) => {
+  event => {
     event.waitUntil(
       caches
         .keys()
-        .then((keys) =>
+        .then(keys =>
           Promise.all(
             keys
               .filter(
-                (key) =>
-                  key !==
-                  CACHE_NAME
+                key =>
+                  key !== CACHE_NAME
               )
-              .map((key) =>
-                caches.delete(
-                  key
-                )
+              .map(key =>
+                caches.delete(key)
               )
           )
         )
@@ -56,7 +49,8 @@ self.addEventListener(
 
 self.addEventListener(
   "fetch",
-  (event) => {
+  event => {
+
     if (
       event.request.method !==
       "GET"
@@ -66,18 +60,19 @@ self.addEventListener(
 
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
+        .then(response => {
+
           const copy =
             response.clone();
 
           caches
             .open(CACHE_NAME)
-            .then((cache) => {
+            .then(cache =>
               cache.put(
                 event.request,
                 copy
-              );
-            });
+              )
+            );
 
           return response;
         })
