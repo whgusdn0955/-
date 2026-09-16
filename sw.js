@@ -1,8 +1,12 @@
 "use strict";
 
 
+const APP_VERSION =
+    "1.1.0";
+
+
 const CACHE_NAME =
-    "word-memorize-app-v1";
+    `word-memorize-app-v${APP_VERSION}`;
 
 
 const APP_FILES = [
@@ -109,7 +113,9 @@ self.addEventListener(
             event.request.method !==
             "GET"
         ) {
+
             return;
+
         }
 
 
@@ -123,7 +129,9 @@ self.addEventListener(
                     cached => {
 
                         if (cached) {
+
                             return cached;
+
                         }
 
 
