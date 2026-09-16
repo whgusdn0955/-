@@ -1,8 +1,3 @@
-/* =========================================================
-   단어 암기장
-   전체 스타일
-   ========================================================= */
-
 :root {
     --primary: #7c3aed;
     --primary-dark: #6d28d9;
@@ -59,7 +54,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
     font: inherit;
 }
 
@@ -80,9 +76,7 @@ button:disabled {
 }
 
 
-/* =========================================================
-   헤더
-   ========================================================= */
+/* 헤더 */
 
 .app-header {
     position: sticky;
@@ -104,8 +98,7 @@ button:disabled {
 
     margin: 0 auto;
 
-    padding:
-        0 24px;
+    padding: 0 24px;
 
     display: flex;
 
@@ -178,9 +171,7 @@ button:disabled {
 }
 
 
-/* =========================================================
-   레이아웃
-   ========================================================= */
+/* 레이아웃 */
 
 .app-layout {
     display: flex;
@@ -197,8 +188,7 @@ button:disabled {
 
     background: var(--surface);
 
-    border-right:
-        1px solid var(--border);
+    border-right: 1px solid var(--border);
 
     padding: 24px 16px;
 }
@@ -238,13 +228,7 @@ button:disabled {
 }
 
 
-.nav-item:hover {
-    background: var(--primary-light);
-
-    color: var(--primary);
-}
-
-
+.nav-item:hover,
 .nav-item.active {
     background: var(--primary-light);
 
@@ -269,9 +253,7 @@ button:disabled {
 }
 
 
-/* =========================================================
-   페이지
-   ========================================================= */
+/* 페이지 */
 
 .page {
     display: none;
@@ -311,9 +293,7 @@ button:disabled {
 }
 
 
-/* =========================================================
-   버튼
-   ========================================================= */
+/* 버튼 */
 
 .primary-button,
 .secondary-button {
@@ -367,9 +347,7 @@ button:disabled {
 }
 
 
-/* =========================================================
-   카드
-   ========================================================= */
+/* 카드 */
 
 .file-list,
 .workbook-list,
@@ -519,9 +497,7 @@ button:disabled {
 }
 
 
-/* =========================================================
-   드래그
-   ========================================================= */
+/* 드래그 */
 
 .file-card[draggable="true"],
 .workbook-card[draggable="true"],
@@ -535,9 +511,7 @@ button:disabled {
 }
 
 
-/* =========================================================
-   브레드크럼
-   ========================================================= */
+/* 브레드크럼 */
 
 .breadcrumb {
     display: flex;
@@ -567,9 +541,7 @@ button:disabled {
 }
 
 
-/* =========================================================
-   빈 상태
-   ========================================================= */
+/* 빈 상태 */
 
 .empty-state {
     padding:
@@ -609,9 +581,7 @@ button:disabled {
 }
 
 
-/* =========================================================
-   입력 카드
-   ========================================================= */
+/* 입력 */
 
 .input-card,
 .settings-card {
@@ -726,9 +696,7 @@ code {
 }
 
 
-/* =========================================================
-   단어 목록
-   ========================================================= */
+/* 단어 */
 
 .section-header {
     margin:
@@ -842,9 +810,7 @@ code {
 }
 
 
-/* =========================================================
-   통계
-   ========================================================= */
+/* 통계 */
 
 .statistics-summary {
     display: grid;
@@ -893,33 +859,12 @@ code {
 }
 
 
-.statistics-group,
-.statistics-year-group {
-    margin-bottom: 28px;
-}
+.statistics-list {
+    display: flex;
 
+    flex-direction: column;
 
-.statistics-group > h2,
-.statistics-year-group > h2 {
-    margin:
-        0 0 12px;
-
-    font-size: 19px;
-}
-
-
-.statistics-month-group {
-    margin-bottom: 18px;
-}
-
-
-.statistics-month-group h3 {
-    margin:
-        0 0 9px;
-
-    color: var(--text-light);
-
-    font-size: 14px;
+    gap: 9px;
 }
 
 
@@ -932,7 +877,7 @@ code {
     border-radius: 14px;
 
     padding:
-        15px 17px;
+        17px;
 
     display: flex;
 
@@ -940,9 +885,7 @@ code {
 
     justify-content: space-between;
 
-    gap: 15px;
-
-    margin-bottom: 8px;
+    gap: 20px;
 }
 
 
@@ -953,28 +896,34 @@ code {
 
     flex-direction: column;
 
-    gap: 3px;
+    gap: 5px;
 }
 
 
-.statistic-record-info strong {
-    overflow: hidden;
+.statistic-record-date {
+    font-size: 15px;
 
-    text-overflow: ellipsis;
+    font-weight: 800;
 }
 
 
-.statistic-record-info span {
+.statistic-record-time {
     color: var(--text-light);
 
     font-size: 13px;
 }
 
 
-.statistic-record-info small {
-    color: var(--text-light);
+.statistic-record-type {
+    margin-top: 5px;
 
-    font-size: 12px;
+    color: var(--primary);
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+    word-break: break-word;
 }
 
 
@@ -992,7 +941,7 @@ code {
 
 
 .statistic-record-score strong {
-    font-size: 17px;
+    font-size: 18px;
 }
 
 
@@ -1003,9 +952,7 @@ code {
 }
 
 
-/* =========================================================
-   설정
-   ========================================================= */
+/* 설정 */
 
 .settings-card-title {
     display: flex;
@@ -1096,9 +1043,57 @@ code {
 }
 
 
-/* =========================================================
-   스위치
-   ========================================================= */
+.settings-select {
+    min-width: 130px;
+
+    padding:
+        10px 12px;
+
+    border:
+        1px solid var(--border);
+
+    border-radius: 11px;
+
+    background: var(--surface-2);
+
+    color: var(--text);
+
+    outline: none;
+}
+
+
+.settings-select:focus {
+    border-color: var(--primary);
+}
+
+
+.version-info {
+    margin-top: 20px;
+
+    padding-top: 18px;
+
+    border-top:
+        1px solid var(--border);
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+}
+
+
+.version-info span {
+    color: var(--text-light);
+}
+
+
+.version-info strong {
+    color: var(--primary);
+}
+
+
+/* 스위치 */
 
 .switch {
     position: relative;
@@ -1163,9 +1158,7 @@ code {
 }
 
 
-/* =========================================================
-   사용 방법
-   ========================================================= */
+/* 사용 방법 */
 
 .collapsible-header {
     width: 100%;
@@ -1200,7 +1193,7 @@ code {
 
 .guide-item {
     padding:
-        12px 0;
+        13px 0;
 
     border-bottom:
         1px solid var(--border);
@@ -1230,18 +1223,39 @@ code {
 }
 
 
-/* =========================================================
-   테스트
-   ========================================================= */
+/* 테스트 */
 
-.test-header {
+.test-top-bar {
+    max-width: 760px;
+
+    margin:
+        0 auto 20px;
+
     display: flex;
 
     align-items: center;
 
     justify-content: space-between;
 
-    margin-bottom: 25px;
+    gap: 15px;
+}
+
+
+.test-back-button {
+    flex-shrink: 0;
+}
+
+
+.test-header {
+    flex: 1;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: flex-end;
+
+    gap: 20px;
 }
 
 
@@ -1271,6 +1285,11 @@ code {
     justify-content: center;
 
     gap: 6px;
+}
+
+
+.timer-container.no-limit {
+    min-width: auto;
 }
 
 
@@ -1425,9 +1444,7 @@ code {
 }
 
 
-/* =========================================================
-   결과
-   ========================================================= */
+/* 결과 */
 
 .result-container {
     max-width: 650px;
@@ -1528,9 +1545,7 @@ code {
 }
 
 
-/* =========================================================
-   모달
-   ========================================================= */
+/* 모달 */
 
 .modal-overlay {
     position: fixed;
@@ -1653,15 +1668,6 @@ code {
 }
 
 
-.modal-actions {
-    display: flex;
-
-    justify-content: flex-end;
-
-    gap: 8px;
-}
-
-
 /* 테스트 메뉴 */
 
 .test-menu {
@@ -1717,9 +1723,7 @@ code {
 }
 
 
-/* =========================================================
-   토스트
-   ========================================================= */
+/* 토스트 */
 
 .toast-container {
     position: fixed;
@@ -1793,18 +1797,14 @@ code {
 }
 
 
-/* =========================================================
-   모바일 네비게이션
-   ========================================================= */
+/* 모바일 네비게이션 */
 
 .mobile-navigation {
     display: none;
 }
 
 
-/* =========================================================
-   다크 모드
-   ========================================================= */
+/* 다크 모드 */
 
 body.dark-mode {
     --background: #17131f;
@@ -1838,9 +1838,7 @@ body.dark-mode .feedback-wrong {
 }
 
 
-/* =========================================================
-   반응형
-   ========================================================= */
+/* 반응형 */
 
 @media (max-width: 900px) {
 
@@ -2029,6 +2027,23 @@ body.dark-mode .feedback-wrong {
     }
 
 
+    .test-top-bar {
+        align-items: stretch;
+
+        flex-direction: column;
+    }
+
+
+    .test-header {
+        justify-content: space-between;
+    }
+
+
+    .test-back-button {
+        width: 100%;
+    }
+
+
     .test-card {
         padding:
             35px 18px;
@@ -2062,6 +2077,18 @@ body.dark-mode .feedback-wrong {
 
 
     .result-actions button {
+        width: 100%;
+    }
+
+
+    .settings-row {
+        align-items: flex-start;
+
+        flex-direction: column;
+    }
+
+
+    .settings-select {
         width: 100%;
     }
 
