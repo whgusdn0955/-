@@ -1,3 +1,8 @@
+/* =========================================================
+   단어 암기장
+   전체 스타일
+   ========================================================= */
+
 :root {
     --primary: #7c3aed;
     --primary-dark: #6d28d9;
@@ -67,6 +72,7 @@ button {
 
 button:disabled {
     cursor: not-allowed;
+
     opacity: 0.5;
 }
 
@@ -76,18 +82,23 @@ button:disabled {
 }
 
 
-/* 헤더 */
+/* =========================================================
+   헤더
+   ========================================================= */
 
 .app-header {
     position: sticky;
+
     top: 0;
+
     z-index: 100;
 
     height: 68px;
 
     background: var(--surface);
 
-    border-bottom: 1px solid var(--border);
+    border-bottom:
+        1px solid var(--border);
 }
 
 
@@ -98,7 +109,8 @@ button:disabled {
 
     margin: 0 auto;
 
-    padding: 0 24px;
+    padding:
+        0 24px;
 
     display: flex;
 
@@ -143,6 +155,7 @@ button:disabled {
 
 .icon-button {
     width: 42px;
+
     height: 42px;
 
     border: 0;
@@ -162,7 +175,8 @@ button:disabled {
 
 
 .icon-button:hover {
-    background: var(--primary-light);
+    background:
+        var(--primary-light);
 }
 
 
@@ -171,7 +185,9 @@ button:disabled {
 }
 
 
-/* 레이아웃 */
+/* =========================================================
+   레이아웃
+   ========================================================= */
 
 .app-layout {
     display: flex;
@@ -188,9 +204,11 @@ button:disabled {
 
     background: var(--surface);
 
-    border-right: 1px solid var(--border);
+    border-right:
+        1px solid var(--border);
 
-    padding: 24px 16px;
+    padding:
+        24px 16px;
 }
 
 
@@ -212,7 +230,8 @@ button:disabled {
 
     color: var(--text-light);
 
-    padding: 13px 15px;
+    padding:
+        13px 15px;
 
     border-radius: 13px;
 
@@ -228,11 +247,21 @@ button:disabled {
 }
 
 
-.nav-item:hover,
-.nav-item.active {
-    background: var(--primary-light);
+.nav-item:hover {
+    background:
+        var(--primary-light);
 
-    color: var(--primary);
+    color:
+        var(--primary);
+}
+
+
+.nav-item.active {
+    background:
+        var(--primary-light);
+
+    color:
+        var(--primary);
 }
 
 
@@ -253,7 +282,9 @@ button:disabled {
 }
 
 
-/* 페이지 */
+/* =========================================================
+   페이지
+   ========================================================= */
 
 .page {
     display: none;
@@ -289,11 +320,14 @@ button:disabled {
 .page-header p {
     margin: 0;
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 }
 
 
-/* 버튼 */
+/* =========================================================
+   버튼
+   ========================================================= */
 
 .primary-button,
 .secondary-button {
@@ -313,28 +347,34 @@ button:disabled {
 
 
 .primary-button {
-    background: var(--primary);
+    background:
+        var(--primary);
 
     color: #ffffff;
 }
 
 
 .primary-button:hover {
-    background: var(--primary-dark);
+    background:
+        var(--primary-dark);
 
-    transform: translateY(-1px);
+    transform:
+        translateY(-1px);
 }
 
 
 .secondary-button {
-    background: var(--primary-light);
+    background:
+        var(--primary-light);
 
-    color: var(--primary);
+    color:
+        var(--primary);
 }
 
 
 .secondary-button:hover {
-    background: #ddd6fe;
+    background:
+        #ddd6fe;
 }
 
 
@@ -347,7 +387,9 @@ button:disabled {
 }
 
 
-/* 카드 */
+/* =========================================================
+   카드
+   ========================================================= */
 
 .file-list,
 .workbook-list,
@@ -363,14 +405,17 @@ button:disabled {
 .file-card,
 .workbook-card,
 .word-card {
-    background: var(--surface);
+    background:
+        var(--surface);
 
     border:
         1px solid var(--border);
 
-    border-radius: var(--radius);
+    border-radius:
+        var(--radius);
 
-    box-shadow: var(--shadow);
+    box-shadow:
+        var(--shadow);
 
     transition:
         transform 0.15s ease,
@@ -381,9 +426,11 @@ button:disabled {
 .file-card:hover,
 .workbook-card:hover,
 .word-card:hover {
-    border-color: #d8cdf0;
+    border-color:
+        #d8cdf0;
 
-    transform: translateY(-1px);
+    transform:
+        translateY(-1px);
 }
 
 
@@ -420,13 +467,15 @@ button:disabled {
 .file-icon,
 .workbook-icon {
     width: 48px;
+
     height: 48px;
 
     flex-shrink: 0;
 
     border-radius: 14px;
 
-    background: var(--primary-light);
+    background:
+        var(--primary-light);
 
     display: grid;
 
@@ -461,7 +510,8 @@ button:disabled {
 .workbook-info p {
     margin: 0;
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     font-size: 13px;
 }
@@ -480,6 +530,7 @@ button:disabled {
 .workbook-actions button,
 .word-actions button {
     width: 38px;
+
     height: 38px;
 
     border: 0;
@@ -493,11 +544,14 @@ button:disabled {
 .file-actions button:hover,
 .workbook-actions button:hover,
 .word-actions button:hover {
-    background: var(--surface-2);
+    background:
+        var(--surface-2);
 }
 
 
-/* 드래그 */
+/* =========================================================
+   드래그
+   ========================================================= */
 
 .file-card[draggable="true"],
 .workbook-card[draggable="true"],
@@ -511,7 +565,9 @@ button:disabled {
 }
 
 
-/* 브레드크럼 */
+/* =========================================================
+   브레드크럼
+   ========================================================= */
 
 .breadcrumb {
     display: flex;
@@ -522,7 +578,8 @@ button:disabled {
 
     margin-bottom: 20px;
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     font-size: 14px;
 }
@@ -533,15 +590,25 @@ button:disabled {
 
     background: transparent;
 
-    color: var(--primary);
+    color:
+        var(--primary);
 
     font-weight: 700;
 
-    padding: 5px 0;
+    padding:
+        5px 0;
 }
 
 
-/* 빈 상태 */
+.breadcrumb-button:hover {
+    text-decoration:
+        underline;
+}
+
+
+/* =========================================================
+   빈 상태
+   ========================================================= */
 
 .empty-state {
     padding:
@@ -549,12 +616,14 @@ button:disabled {
 
     text-align: center;
 
-    background: var(--surface);
+    background:
+        var(--surface);
 
     border:
         1px dashed var(--border);
 
-    border-radius: var(--radius);
+    border-radius:
+        var(--radius);
 }
 
 
@@ -577,22 +646,28 @@ button:disabled {
     margin:
         0 0 20px;
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 }
 
 
-/* 입력 */
+/* =========================================================
+   입력 카드
+   ========================================================= */
 
 .input-card,
 .settings-card {
-    background: var(--surface);
+    background:
+        var(--surface);
 
     border:
         1px solid var(--border);
 
-    border-radius: var(--radius);
+    border-radius:
+        var(--radius);
 
-    box-shadow: var(--shadow);
+    box-shadow:
+        var(--shadow);
 
     padding: 22px;
 
@@ -611,7 +686,8 @@ button:disabled {
 .input-card-header p {
     margin: 0;
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     font-size: 14px;
 }
@@ -640,9 +716,11 @@ button:disabled {
 
     border-radius: 13px;
 
-    background: var(--surface-2);
+    background:
+        var(--surface-2);
 
-    color: var(--text);
+    color:
+        var(--text);
 
     padding: 14px;
 
@@ -651,11 +729,17 @@ button:disabled {
 
 
 #bulkWordInput:focus {
-    border-color: var(--primary);
+    border-color:
+        var(--primary);
 
     box-shadow:
         0 0 0 3px
-        rgba(124, 58, 237, 0.1);
+        rgba(
+            124,
+            58,
+            237,
+            0.1
+        );
 }
 
 
@@ -676,18 +760,22 @@ button:disabled {
 
     border-radius: 8px;
 
-    background: var(--surface-2);
+    background:
+        var(--surface-2);
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     font-size: 12px;
 }
 
 
 code {
-    background: var(--primary-light);
+    background:
+        var(--primary-light);
 
-    color: var(--primary);
+    color:
+        var(--primary);
 
     padding:
         2px 5px;
@@ -696,7 +784,9 @@ code {
 }
 
 
-/* 단어 */
+/* =========================================================
+   단어 목록
+   ========================================================= */
 
 .section-header {
     margin:
@@ -721,7 +811,8 @@ code {
 
 
 .section-header span {
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     font-size: 13px;
 }
@@ -734,13 +825,19 @@ code {
 
     gap: 12px;
 
-    padding: 15px 16px;
+    padding:
+        15px 16px;
 }
 
 
 .word-card.important-word {
     border-color:
-        rgba(124, 58, 237, 0.35);
+        rgba(
+            124,
+            58,
+            237,
+            0.35
+        );
 
     background:
         linear-gradient(
@@ -756,7 +853,8 @@ code {
 
     flex-shrink: 0;
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     text-align: center;
 
@@ -788,7 +886,8 @@ code {
 
 
 .word-meaning {
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     line-height: 1.5;
 
@@ -799,7 +898,8 @@ code {
 .word-stat {
     margin-top: 5px;
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     font-size: 12px;
 }
@@ -810,7 +910,9 @@ code {
 }
 
 
-/* 통계 */
+/* =========================================================
+   기록
+   ========================================================= */
 
 .statistics-summary {
     display: grid;
@@ -825,14 +927,17 @@ code {
 
 
 .statistics-card {
-    background: var(--surface);
+    background:
+        var(--surface);
 
     border:
         1px solid var(--border);
 
-    border-radius: var(--radius);
+    border-radius:
+        var(--radius);
 
-    box-shadow: var(--shadow);
+    box-shadow:
+        var(--shadow);
 
     padding: 20px;
 
@@ -855,21 +960,14 @@ code {
 
 
 .statistics-card small {
-    color: var(--text-light);
-}
-
-
-.statistics-list {
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 9px;
+    color:
+        var(--text-light);
 }
 
 
 .statistic-record {
-    background: var(--surface);
+    background:
+        var(--surface);
 
     border:
         1px solid var(--border);
@@ -877,7 +975,7 @@ code {
     border-radius: 14px;
 
     padding:
-        17px;
+        15px 17px;
 
     display: flex;
 
@@ -885,7 +983,9 @@ code {
 
     justify-content: space-between;
 
-    gap: 20px;
+    gap: 15px;
+
+    margin-bottom: 8px;
 }
 
 
@@ -896,34 +996,28 @@ code {
 
     flex-direction: column;
 
-    gap: 5px;
+    gap: 3px;
 }
 
 
-.statistic-record-date {
-    font-size: 15px;
-
-    font-weight: 800;
+.statistic-record-info strong {
+    font-size: 16px;
 }
 
 
-.statistic-record-time {
-    color: var(--text-light);
+.statistic-record-info span {
+    color:
+        var(--text-light);
 
     font-size: 13px;
 }
 
 
-.statistic-record-type {
-    margin-top: 5px;
+.statistic-record-info small {
+    color:
+        var(--text-light);
 
-    color: var(--primary);
-
-    font-size: 13px;
-
-    font-weight: 700;
-
-    word-break: break-word;
+    font-size: 12px;
 }
 
 
@@ -941,18 +1035,21 @@ code {
 
 
 .statistic-record-score strong {
-    font-size: 18px;
+    font-size: 17px;
 }
 
 
 .statistic-record-score span {
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     font-size: 12px;
 }
 
 
-/* 설정 */
+/* =========================================================
+   설정
+   ========================================================= */
 
 .settings-card-title {
     display: flex;
@@ -965,13 +1062,15 @@ code {
 
 .settings-icon {
     width: 44px;
+
     height: 44px;
 
     flex-shrink: 0;
 
     border-radius: 13px;
 
-    background: var(--primary-light);
+    background:
+        var(--primary-light);
 
     display: grid;
 
@@ -992,7 +1091,8 @@ code {
 .settings-card-title p {
     margin: 0;
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     font-size: 13px;
 }
@@ -1026,7 +1126,8 @@ code {
 .settings-row p {
     margin: 0;
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     font-size: 13px;
 }
@@ -1043,29 +1144,40 @@ code {
 }
 
 
+/* =========================================================
+   설정 선택
+   ========================================================= */
+
 .settings-select {
-    min-width: 130px;
+    min-width: 110px;
 
     padding:
-        10px 12px;
+        9px 12px;
 
     border:
         1px solid var(--border);
 
-    border-radius: 11px;
+    border-radius: 10px;
 
-    background: var(--surface-2);
+    background:
+        var(--surface-2);
 
-    color: var(--text);
+    color:
+        var(--text);
 
     outline: none;
 }
 
 
 .settings-select:focus {
-    border-color: var(--primary);
+    border-color:
+        var(--primary);
 }
 
+
+/* =========================================================
+   버전
+   ========================================================= */
 
 .version-info {
     margin-top: 20px;
@@ -1084,21 +1196,50 @@ code {
 
 
 .version-info span {
-    color: var(--text-light);
+    color:
+        var(--text-light);
+
+    font-size: 13px;
 }
 
 
 .version-info strong {
-    color: var(--primary);
+    color:
+        var(--primary);
+
+    font-size: 15px;
 }
 
 
-/* 스위치 */
+.guide-version {
+    margin-bottom: 12px;
+
+    padding:
+        9px 11px;
+
+    border-radius: 10px;
+
+    background:
+        var(--primary-light);
+
+    color:
+        var(--primary);
+
+    font-size: 12px;
+
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   스위치
+   ========================================================= */
 
 .switch {
     position: relative;
 
     width: 52px;
+
     height: 30px;
 
     flex-shrink: 0;
@@ -1109,6 +1250,7 @@ code {
     opacity: 0;
 
     width: 0;
+
     height: 0;
 }
 
@@ -1118,7 +1260,8 @@ code {
 
     inset: 0;
 
-    background: #d8d3df;
+    background:
+        #d8d3df;
 
     border-radius: 999px;
 
@@ -1134,12 +1277,15 @@ code {
     position: absolute;
 
     width: 22px;
+
     height: 22px;
 
     left: 4px;
+
     top: 4px;
 
-    background: white;
+    background:
+        white;
 
     border-radius: 50%;
 
@@ -1148,7 +1294,8 @@ code {
 
 
 .switch input:checked + .slider {
-    background: var(--primary);
+    background:
+        var(--primary);
 }
 
 
@@ -1158,7 +1305,9 @@ code {
 }
 
 
-/* 사용 방법 */
+/* =========================================================
+   사용 방법
+   ========================================================= */
 
 .collapsible-header {
     width: 100%;
@@ -1167,7 +1316,8 @@ code {
 
     background: transparent;
 
-    color: var(--text);
+    color:
+        var(--text);
 
     padding: 0;
 
@@ -1193,7 +1343,7 @@ code {
 
 .guide-item {
     padding:
-        13px 0;
+        12px 0;
 
     border-bottom:
         1px solid var(--border);
@@ -1215,7 +1365,8 @@ code {
 .guide-item p {
     margin: 0;
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     line-height: 1.6;
 
@@ -1223,39 +1374,26 @@ code {
 }
 
 
-/* 테스트 */
+/* =========================================================
+   테스트
+   ========================================================= */
 
-.test-top-bar {
-    max-width: 760px;
+.test-header {
+    display: grid;
 
-    margin:
-        0 auto 20px;
-
-    display: flex;
+    grid-template-columns:
+        1fr auto 1fr;
 
     align-items: center;
 
-    justify-content: space-between;
-
     gap: 15px;
+
+    margin-bottom: 25px;
 }
 
 
 .test-back-button {
-    flex-shrink: 0;
-}
-
-
-.test-header {
-    flex: 1;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: flex-end;
-
-    gap: 20px;
+    justify-self: start;
 }
 
 
@@ -1263,10 +1401,14 @@ code {
     font-size: 17px;
 
     font-weight: 800;
+
+    text-align: center;
 }
 
 
 .timer-container {
+    justify-self: end;
+
     min-width: 70px;
 
     padding:
@@ -1274,9 +1416,11 @@ code {
 
     border-radius: 12px;
 
-    background: var(--primary-light);
+    background:
+        var(--primary-light);
 
-    color: var(--primary);
+    color:
+        var(--primary);
 
     display: flex;
 
@@ -1285,11 +1429,6 @@ code {
     justify-content: center;
 
     gap: 6px;
-}
-
-
-.timer-container.no-limit {
-    min-width: auto;
 }
 
 
@@ -1306,14 +1445,16 @@ code {
     padding:
         50px 35px;
 
-    background: var(--surface);
+    background:
+        var(--surface);
 
     border:
         1px solid var(--border);
 
     border-radius: 24px;
 
-    box-shadow: var(--shadow);
+    box-shadow:
+        var(--shadow);
 
     text-align: center;
 }
@@ -1329,9 +1470,11 @@ code {
 
     border-radius: 8px;
 
-    background: var(--primary-light);
+    background:
+        var(--primary-light);
 
-    color: var(--primary);
+    color:
+        var(--primary);
 
     font-size: 13px;
 
@@ -1369,9 +1512,11 @@ code {
 
     border-radius: 13px;
 
-    background: var(--surface-2);
+    background:
+        var(--surface-2);
 
-    color: var(--text);
+    color:
+        var(--text);
 
     outline: none;
 
@@ -1382,11 +1527,17 @@ code {
 
 
 .test-answer-input:focus {
-    border-color: var(--primary);
+    border-color:
+        var(--primary);
 
     box-shadow:
         0 0 0 3px
-        rgba(124, 58, 237, 0.1);
+        rgba(
+            124,
+            58,
+            237,
+            0.1
+        );
 }
 
 
@@ -1411,16 +1562,20 @@ code {
 
 
 .feedback-correct {
-    background: #dcfce7;
+    background:
+        #dcfce7;
 
-    color: #166534;
+    color:
+        #166534;
 }
 
 
 .feedback-wrong {
-    background: #fee2e2;
+    background:
+        #fee2e2;
 
-    color: #991b1b;
+    color:
+        #991b1b;
 }
 
 
@@ -1438,13 +1593,77 @@ code {
 
     margin-top: 16px;
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 
     font-size: 13px;
 }
 
 
-/* 결과 */
+/* =========================================================
+   테스트 메뉴
+   ========================================================= */
+
+.test-menu {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10px;
+}
+
+
+.test-menu-button {
+    width: 100%;
+
+    border:
+        1px solid var(--border);
+
+    background:
+        var(--surface-2);
+
+    color:
+        var(--text);
+
+    border-radius: 13px;
+
+    padding: 15px;
+
+    text-align: left;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 4px;
+}
+
+
+.test-menu-button:hover:not(:disabled) {
+    border-color:
+        var(--primary);
+
+    background:
+        var(--primary-light);
+}
+
+
+.test-menu-button strong {
+    font-size: 15px;
+}
+
+
+.test-menu-button span {
+    color:
+        var(--text-light);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   결과
+   ========================================================= */
 
 .result-container {
     max-width: 650px;
@@ -1474,7 +1693,8 @@ code {
 .result-container > p {
     margin: 0;
 
-    color: var(--text-light);
+    color:
+        var(--text-light);
 }
 
 
@@ -1482,14 +1702,16 @@ code {
     margin:
         35px 0;
 
-    background: var(--surface);
+    background:
+        var(--surface);
 
     border:
         1px solid var(--border);
 
     border-radius: 20px;
 
-    box-shadow: var(--shadow);
+    box-shadow:
+        var(--shadow);
 
     padding:
         28px 20px;
@@ -1521,7 +1743,8 @@ code {
 
 
 .result-score small {
-    color: var(--text-light);
+    color:
+        var(--text-light);
 }
 
 
@@ -1530,7 +1753,8 @@ code {
 
     height: 50px;
 
-    background: var(--border);
+    background:
+        var(--border);
 }
 
 
@@ -1545,7 +1769,9 @@ code {
 }
 
 
-/* 모달 */
+/* =========================================================
+   모달
+   ========================================================= */
 
 .modal-overlay {
     position: fixed;
@@ -1557,7 +1783,12 @@ code {
     padding: 20px;
 
     background:
-        rgba(20, 12, 30, 0.55);
+        rgba(
+            20,
+            12,
+            30,
+            0.55
+        );
 
     display: flex;
 
@@ -1577,15 +1808,22 @@ code {
 
     overflow-y: auto;
 
-    background: var(--surface);
+    background:
+        var(--surface);
 
-    color: var(--text);
+    color:
+        var(--text);
 
     border-radius: 20px;
 
     box-shadow:
         0 20px 70px
-        rgba(0, 0, 0, 0.25);
+        rgba(
+            0,
+            0,
+            0,
+            0.25
+        );
 }
 
 
@@ -1613,15 +1851,18 @@ code {
 
 .modal-close-button {
     width: 35px;
+
     height: 35px;
 
     border: 0;
 
     border-radius: 9px;
 
-    background: var(--surface-2);
+    background:
+        var(--surface-2);
 
-    color: var(--text);
+    color:
+        var(--text);
 
     font-size: 23px;
 }
@@ -1655,75 +1896,25 @@ code {
 
     border-radius: 11px;
 
-    background: var(--surface-2);
+    background:
+        var(--surface-2);
 
-    color: var(--text);
+    color:
+        var(--text);
 
     outline: none;
 }
 
 
 .modal-input:focus {
-    border-color: var(--primary);
+    border-color:
+        var(--primary);
 }
 
 
-/* 테스트 메뉴 */
-
-.test-menu {
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 10px;
-}
-
-
-.test-menu-button {
-    width: 100%;
-
-    border:
-        1px solid var(--border);
-
-    background: var(--surface-2);
-
-    color: var(--text);
-
-    border-radius: 13px;
-
-    padding:
-        15px;
-
-    text-align: left;
-
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 4px;
-}
-
-
-.test-menu-button:hover:not(:disabled) {
-    border-color: var(--primary);
-
-    background: var(--primary-light);
-}
-
-
-.test-menu-button strong {
-    font-size: 15px;
-}
-
-
-.test-menu-button span {
-    color: var(--text-light);
-
-    font-size: 12px;
-}
-
-
-/* 토스트 */
+/* =========================================================
+   토스트
+   ========================================================= */
 
 .toast-container {
     position: fixed;
@@ -1750,13 +1941,19 @@ code {
 
     border-radius: 11px;
 
-    background: #27232f;
+    background:
+        #27232f;
 
     color: white;
 
     box-shadow:
         0 8px 25px
-        rgba(0, 0, 0, 0.2);
+        rgba(
+            0,
+            0,
+            0,
+            0.2
+        );
 
     font-size: 13px;
 
@@ -1766,7 +1963,8 @@ code {
 
 
 .toast-error {
-    background: #991b1b;
+    background:
+        #991b1b;
 }
 
 
@@ -1781,6 +1979,7 @@ code {
 
 
 @keyframes toastIn {
+
     from {
         opacity: 0;
 
@@ -1794,59 +1993,94 @@ code {
         transform:
             translateY(0);
     }
+
 }
 
 
-/* 모바일 네비게이션 */
+/* =========================================================
+   모바일 네비게이션
+   ========================================================= */
 
 .mobile-navigation {
     display: none;
 }
 
 
-/* 다크 모드 */
+/* =========================================================
+   다크 모드
+   ========================================================= */
 
 body.dark-mode {
-    --background: #17131f;
-    --surface: #211b2b;
-    --surface-2: #2b2436;
 
-    --text: #f2edf8;
-    --text-light: #aaa0b6;
+    --background:
+        #17131f;
 
-    --border: #3a3147;
+    --surface:
+        #211b2b;
 
-    --primary-light: #36265a;
+    --surface-2:
+        #2b2436;
+
+    --text:
+        #f2edf8;
+
+    --text-light:
+        #aaa0b6;
+
+    --border:
+        #3a3147;
+
+    --primary-light:
+        #36265a;
 
     --shadow:
         0 8px 25px
-        rgba(0, 0, 0, 0.2);
+        rgba(
+            0,
+            0,
+            0,
+            0.2
+        );
+
 }
 
 
 body.dark-mode .feedback-correct {
-    background: #173b25;
 
-    color: #a7f3c1;
+    background:
+        #173b25;
+
+    color:
+        #a7f3c1;
+
 }
 
 
 body.dark-mode .feedback-wrong {
-    background: #451d20;
 
-    color: #fecaca;
+    background:
+        #451d20;
+
+    color:
+        #fecaca;
+
 }
 
 
-/* 반응형 */
+/* =========================================================
+   반응형
+   ========================================================= */
 
 @media (max-width: 900px) {
 
     .sidebar {
+
         position: fixed;
 
         top: 68px;
+
         bottom: 0;
+
         left: 0;
 
         z-index: 200;
@@ -1859,58 +2093,83 @@ body.dark-mode .feedback-wrong {
 
         box-shadow:
             8px 0 25px
-            rgba(0, 0, 0, 0.1);
+            rgba(
+                0,
+                0,
+                0,
+                0.1
+            );
+
     }
 
 
     .sidebar.open {
+
         transform:
             translateX(0);
+
     }
 
 
     .mobile-only {
+
         display: grid;
+
     }
 
 
     .header-inner {
+
         padding:
             0 15px;
+
     }
 
 
     .app-title-button {
+
         margin-right: auto;
 
         margin-left: 10px;
+
     }
 
 
     .main-content {
+
         padding:
             25px 18px 100px;
+
     }
 
 
     .statistics-summary {
+
         grid-template-columns:
-            repeat(2, 1fr);
+            repeat(
+                2,
+                1fr
+            );
+
     }
 
 
     .mobile-navigation {
+
         position: fixed;
 
         left: 0;
+
         right: 0;
+
         bottom: 0;
 
         z-index: 300;
 
         height: 66px;
 
-        background: var(--surface);
+        background:
+            var(--surface);
 
         border-top:
             1px solid var(--border);
@@ -1918,16 +2177,22 @@ body.dark-mode .feedback-wrong {
         display: grid;
 
         grid-template-columns:
-            repeat(3, 1fr);
+            repeat(
+                3,
+                1fr
+            );
+
     }
 
 
     .mobile-nav-item {
+
         border: 0;
 
         background: transparent;
 
-        color: var(--text-light);
+        color:
+            var(--text-light);
 
         display: flex;
 
@@ -1938,21 +2203,29 @@ body.dark-mode .feedback-wrong {
         justify-content: center;
 
         gap: 2px;
+
     }
 
 
     .mobile-nav-item.active {
-        color: var(--primary);
+
+        color:
+            var(--primary);
+
     }
 
 
     .mobile-nav-item span {
+
         font-size: 19px;
+
     }
 
 
     .mobile-nav-item small {
+
         font-size: 11px;
+
     }
 
 }
@@ -1961,149 +2234,224 @@ body.dark-mode .feedback-wrong {
 @media (max-width: 600px) {
 
     .page-header {
+
         align-items: flex-start;
 
         flex-direction: column;
+
     }
 
 
     .page-header h1 {
+
         font-size: 25px;
+
     }
 
 
     .page-header .primary-button,
     .page-header .button-group {
+
         width: 100%;
+
     }
 
 
     .page-header .button-group button {
+
         flex: 1;
+
     }
 
 
     .file-card,
     .workbook-card {
+
         padding: 14px;
+
     }
 
 
     .file-actions button,
     .workbook-actions button,
     .word-actions button {
+
         width: 34px;
+
         height: 34px;
+
     }
 
 
     .word-card {
-        padding: 13px 11px;
+
+        padding:
+            13px 11px;
+
     }
 
 
     .word-number {
+
         width: 22px;
+
     }
 
 
     .statistics-summary {
+
         grid-template-columns:
-            repeat(2, 1fr);
+            repeat(
+                2,
+                1fr
+            );
+
     }
 
 
     .statistic-record {
+
         align-items: flex-start;
 
         flex-direction: column;
+
     }
 
 
     .statistic-record-score {
+
         width: 100%;
 
         text-align: left;
-    }
 
-
-    .test-top-bar {
-        align-items: stretch;
-
-        flex-direction: column;
     }
 
 
     .test-header {
-        justify-content: space-between;
+
+        grid-template-columns:
+            1fr auto;
+
+    }
+
+
+    .test-progress {
+
+        grid-column:
+            1 / 2;
+
+        grid-row:
+            1;
+
+        text-align: left;
+
     }
 
 
     .test-back-button {
-        width: 100%;
+
+        grid-column:
+            1 / 3;
+
+        grid-row:
+            2;
+
+    }
+
+
+    .timer-container {
+
+        grid-column:
+            2 / 3;
+
+        grid-row:
+            1;
+
     }
 
 
     .test-card {
+
         padding:
             35px 18px;
+
     }
 
 
     .test-question {
+
         font-size: 28px;
+
     }
 
 
     .result-score-card {
+
         padding:
             22px 10px;
+
     }
 
 
     .result-score {
+
         min-width: 90px;
+
     }
 
 
     .result-score span {
+
         font-size: 27px;
+
     }
 
 
     .result-actions {
+
         flex-direction: column;
+
     }
 
 
     .result-actions button {
+
         width: 100%;
-    }
 
-
-    .settings-row {
-        align-items: flex-start;
-
-        flex-direction: column;
-    }
-
-
-    .settings-select {
-        width: 100%;
     }
 
 
     .toast-container {
+
         left: 15px;
 
         right: 15px;
 
         bottom: 80px;
+
     }
 
 
     .toast {
+
         max-width: none;
+
+    }
+
+
+    .settings-row {
+
+        align-items:
+            flex-start;
+
+    }
+
+
+    .settings-select {
+
+        min-width:
+            90px;
+
     }
 
 }
