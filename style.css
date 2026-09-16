@@ -1,915 +1,751 @@
-:root {
-  --bg: #f4f6fb;
-  --card: #ffffff;
-  --card2: #eef1f7;
-  --text: #20242c;
-  --muted: #6b7280;
-  --border: #d9dee8;
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --danger: #dc2626;
-  --success: #16a34a;
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
-}
-
-html.dark {
-  --bg: #111318;
-  --card: #1b1e26;
-  --card2: #252936;
-  --text: #f4f6fa;
-  --muted: #a8afbc;
-  --border: #383e4b;
-  --primary: #6366f1;
-  --primary-hover: #818cf8;
-  --danger: #ef4444;
-  --success: #22c55e;
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  min-height: 100%;
-}
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-}
-
-button,
-input {
-  font: inherit;
-}
-
-button {
-  cursor: pointer;
-}
-
-.hidden {
-  display: none !important;
-}
-
-/* =========================
-   상단
-   ========================= */
-
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-}
-
-.topbar-inner {
-  width: min(1100px, calc(100% - 24px));
-  min-height: 64px;
-  margin: auto;
-
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.logo-btn {
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font-size: 19px;
-  font-weight: 900;
-  padding: 10px 8px;
-}
-
-.topnav {
-  margin-left: auto;
-
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.top-btn,
-.nav-btn {
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--muted);
-  padding: 9px 12px;
-  font-weight: 700;
-}
-
-.top-btn:hover,
-.nav-btn:hover,
-.nav-btn.active {
-  background: var(--card2);
-  color: var(--primary);
-}
-
-.top-btn {
-  font-size: 18px;
-}
-
-/* =========================
-   기본
-   ========================= */
-
-.container {
-  width: min(1100px, calc(100% - 24px));
-  margin: auto;
-  padding: 24px 0 70px;
-}
-
-.section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.section-head h1 {
-  margin: 0;
-  font-size: 28px;
-}
-
-.section-head p {
-  margin: 6px 0 0;
-  color: var(--muted);
-}
-
-.head-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-/* =========================
-   버튼
-   ========================= */
-
-.primary-btn,
-.secondary-btn,
-.danger-btn {
-  border: 0;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-weight: 800;
-}
-
-.primary-btn {
-  background: var(--primary);
-  color: #fff;
-}
-
-.primary-btn:hover {
-  background: var(--primary-hover);
-}
-
-.secondary-btn {
-  background: var(--card2);
-  color: var(--text);
-}
-
-.danger-btn {
-  background: var(--danger);
-  color: #fff;
-}
-
-/* =========================
-   breadcrumb
-   ========================= */
-
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-bottom: 18px;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.breadcrumb button {
-  border: 0;
-  background: transparent;
-  color: var(--primary);
-  padding: 0;
-}
-
-/* =========================
-   파일
-   ========================= */
-
-.file-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.file-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  min-height: 76px;
-
-  padding: 10px;
-
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 13px;
-
-  box-shadow: var(--shadow);
-}
-
-.file-card.dragging,
-.test-card.dragging,
-.word-row.dragging {
-  opacity: 0.45;
-}
-
-.file-card.drag-over,
-.test-card.drag-over,
-.word-row.drag-over {
-  border-color: var(--primary);
-}
-
-.drag-handle {
-  flex: 0 0 auto;
-  color: var(--muted);
-  font-size: 21px;
-  cursor: grab;
-  padding: 8px;
-}
-
-.file-main {
-  flex: 1;
-  min-width: 0;
-
-  border: 0;
-  background: transparent;
-  color: var(--text);
-
-  padding: 8px;
-
-  text-align: left;
-}
-
-.file-name {
-  font-size: 17px;
-  font-weight: 900;
-}
-
-.file-sub {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.file-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.file-actions button {
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  padding: 8px;
-}
-
-/* =========================
-   테스트 목록
-   ========================= */
-
-.test-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.test-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-
-  padding: 15px;
-
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 13px;
-
-  box-shadow: var(--shadow);
-}
-
-.test-card-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.test-card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.test-name {
-  font-size: 17px;
-  font-weight: 900;
-}
-
-.test-sub {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.test-card-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.test-card-actions button {
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  padding: 7px;
-}
-
-/* =========================
-   단어 입력
-   ========================= */
-
-.word-input-area {
-  margin-bottom: 10px;
-}
-
-.word-input-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.word-input-handle {
-  flex: 0 0 auto;
-
-  width: 40px;
-  height: 48px;
-
-  display: grid;
-  place-items: center;
-
-  color: var(--muted);
-  font-size: 21px;
-  cursor: grab;
-
-  background: var(--card2);
-  border-radius: 10px;
-}
-
-.word-input-row input {
-  flex: 1;
-
-  min-height: 48px;
-
-  border: 1px solid var(--border);
-  border-radius: 10px;
-
-  background: var(--card);
-  color: var(--text);
-
-  padding: 0 14px;
-
-  outline: none;
-
-  font-size: 17px;
-}
-
-.word-input-row input:focus {
-  border-color: var(--primary);
-}
-
-.input-help {
-  margin: 7px 0 16px 48px;
-
-  color: var(--muted);
-  font-size: 13px;
-}
-
-/* =========================
-   테스트 버튼
-   ========================= */
-
-.test-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-
-  margin-bottom: 20px;
-}
-
-.test-buttons button {
-  flex: 1;
-  min-width: 150px;
-}
-
-/* =========================
-   단어
-   ========================= */
-
-.word-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.word-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  padding: 11px;
-
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 11px;
-
-  box-shadow: var(--shadow);
-}
-
-.word-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.word-term {
-  font-size: 17px;
-  font-weight: 900;
-
-  overflow-wrap: anywhere;
-}
-
-.word-meaning {
-  margin-top: 4px;
-  color: var(--muted);
-
-  overflow-wrap: anywhere;
-}
-
-.word-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.word-actions button {
-  border: 0;
-  border-radius: 8px;
-
-  background: var(--card2);
-  color: var(--text);
-
-  padding: 8px;
-}
-
-/* =========================
-   퀴즈
-   ========================= */
-
-.quiz-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  margin-bottom: 24px;
-}
-
-.quiz-progress {
-  font-weight: 800;
-}
-
-.quiz-timer {
-  min-width: 55px;
-
-  text-align: center;
-
-  color: var(--danger);
-
-  font-size: 25px;
-  font-weight: 900;
-}
-
-.quiz-card {
-  width: min(760px, 100%);
-
-  margin: 25px auto;
-
-  padding: 32px;
-
-  text-align: center;
-
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 17px;
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  >
+
+  <meta
+    name="theme-color"
+    content="#4f46e5"
+  >
+
+  <meta
+    name="description"
+    content="암기를 위한 오프라인 학습 앱"
+  >
+
+  <link
+    rel="manifest"
+    href="manifest.json"
+  >
+
+  <link
+    rel="stylesheet"
+    href="style.css"
+  >
+
+  <title>암기장</title>
+</head>
+
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+
+    <button
+      id="backBtn"
+      class="top-btn"
+      type="button"
+      title="뒤로가기"
+    >
+      ←
+    </button>
+
+    <button
+      id="logoBtn"
+      class="logo-btn"
+      type="button"
+    >
+      📚 암기장
+    </button>
+
+    <nav class="topnav">
+
+      <button
+        id="themeBtn"
+        class="top-btn"
+        type="button"
+        title="다크모드"
+      >
+        🌙
+      </button>
+
+      <button
+        class="nav-btn active"
+        data-nav="home"
+        type="button"
+      >
+        🏠 홈
+      </button>
+
+      <button
+        class="nav-btn"
+        data-nav="stats"
+        type="button"
+      >
+        📊 통계
+      </button>
+
+      <button
+        class="nav-btn"
+        data-nav="settings"
+        type="button"
+      >
+        ⚙️ 설정
+      </button>
+
+    </nav>
+
+  </div>
+</header>
+
+
+<main class="container">
+
+  <!-- =========================
+       홈
+       ========================= -->
 
-  box-shadow: var(--shadow);
-}
+  <section
+    id="homeView"
+    class="view"
+  >
 
-.quiz-direction {
-  color: var(--muted);
-
-  margin-bottom: 22px;
-
-  font-size: 17px;
-}
-
-.quiz-question {
-  min-height: 150px;
-
-  display: grid;
-  place-items: center;
+    <div class="section-head">
 
-  margin-bottom: 26px;
-
-  font-size: clamp(45px, 8vw, 72px);
-  line-height: 1.12;
-  font-weight: 900;
-
-  overflow-wrap: anywhere;
-}
-
-.quiz-answer {
-  width: 100%;
-  min-height: 60px;
-
-  border: 1px solid var(--border);
-  border-radius: 11px;
+      <div>
+        <h1>홈</h1>
+        <p>암기할 파일을 선택하세요.</p>
+      </div>
 
-  background: var(--card);
-  color: var(--text);
-
-  padding: 0 17px;
-
-  outline: none;
-
-  text-align: center;
-
-  font-size: 24px;
-}
-
-.quiz-answer:focus {
-  border-color: var(--primary);
-}
+      <button
+        id="addFileBtn"
+        class="primary-btn"
+        type="button"
+      >
+        ＋ 파일 추가
+      </button>
 
-.quiz-submit {
-  width: 100%;
-  min-height: 55px;
-
-  margin-top: 10px;
-
-  font-size: 18px;
-}
-
-.quiz-feedback {
-  min-height: 30px;
-
-  margin-top: 15px;
-
-  font-size: 18px;
-  font-weight: 900;
-}
-
-.feedback-correct {
-  color: var(--success);
-}
-
-.feedback-wrong {
-  color: var(--danger);
-}
-
-/* =========================
-   결과
-   ========================= */
+    </div>
 
-.result-card {
-  width: min(760px, 100%);
+    <div
+      id="fileList"
+      class="file-list"
+    ></div>
 
-  margin: 30px auto;
+  </section>
 
-  padding: 30px;
 
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 17px;
+  <!-- =========================
+       파일
+       ========================= -->
 
-  box-shadow: var(--shadow);
-}
+  <section
+    id="fileView"
+    class="view hidden"
+  >
 
-.result-score {
-  margin: 25px 0;
+    <div class="breadcrumb">
 
-  text-align: center;
+      <button
+        id="fileHomeBtn"
+        type="button"
+      >
+        🏠 홈
+      </button>
 
-  font-size: 50px;
-  font-weight: 900;
-}
+      <span>›</span>
 
-.result-wrong {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+      <strong id="fileBreadcrumb"></strong>
+
+    </div>
 
-.wrong-item {
-  padding: 12px;
 
-  background: var(--card2);
-  border-radius: 9px;
-}
+    <div class="section-head">
 
-.result-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+      <div>
+        <h1 id="fileTitle"></h1>
+        <p>이 파일의 테스트를 관리하세요.</p>
+      </div>
 
-  margin-top: 25px;
-}
+      <div class="head-buttons">
 
-.result-buttons button {
-  flex: 1;
-  min-width: 190px;
-}
+        <button
+          id="renameFileBtn"
+          class="secondary-btn"
+          type="button"
+        >
+          ✏️ 이름 변경
+        </button>
 
-/* =========================
-   통계
-   ========================= */
+        <button
+          id="deleteFileBtn"
+          class="danger-btn"
+          type="button"
+        >
+          🗑️ 삭제
+        </button>
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
+        <button
+          id="addTestBtn"
+          class="primary-btn"
+          type="button"
+        >
+          ＋ 테스트 생성
+        </button>
 
-.stat-card {
-  padding: 20px;
+      </div>
 
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 13px;
+    </div>
 
-  box-shadow: var(--shadow);
-}
 
-.stat-card strong {
-  display: block;
-  font-size: 30px;
-}
+    <div
+      id="testList"
+      class="test-list"
+    ></div>
 
-.stat-card span {
-  color: var(--muted);
-}
 
-/* =========================
-   설정
-   ========================= */
+    <!-- 총합 테스트 -->
 
-.settings-card {
-  overflow: hidden;
+    <article
+      id="totalTestCard"
+      class="total-test-card"
+    >
 
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+      <div class="total-test-head">
 
-  box-shadow: var(--shadow);
-}
+        <div>
+          <div class="total-test-title">
+            📚 총합 테스트
+          </div>
 
-.setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+          <div
+            id="totalTestCount"
+            class="test-sub"
+          >
+            0개 단어
+          </div>
+        </div>
 
-  gap: 15px;
+      </div>
 
-  padding: 18px;
+      <div class="total-test-buttons">
 
-  border-bottom: 1px solid var(--border);
-}
+        <button
+          id="totalAllTestBtn"
+          class="primary-btn"
+          type="button"
+        >
+          📝 전체 테스트
+        </button>
 
-.setting-row:last-child {
-  border-bottom: 0;
-}
+        <button
+          id="totalDirectTestBtn"
+          class="secondary-btn"
+          type="button"
+        ></button>
 
-.setting-row p {
-  margin: 5px 0 0;
+        <button
+          id="totalReverseTestBtn"
+          class="secondary-btn"
+          type="button"
+        ></button>
 
-  color: var(--muted);
+        <button
+          id="totalQuickTestBtn"
+          class="secondary-btn"
+          type="button"
+        >
+          ⚡ 빠른 테스트
+        </button>
 
-  font-size: 14px;
-}
+      </div>
 
-.status-ok {
-  color: var(--success);
-  font-weight: 900;
-}
+    </article>
 
-.buttons-row {
-  flex-wrap: wrap;
-}
+  </section>
 
-/* =========================
-   모달
-   ========================= */
 
-.modal {
-  position: fixed;
-  inset: 0;
-  z-index: 500;
-}
+  <!-- =========================
+       테스트 / 단어장
+       ========================= -->
 
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
+  <section
+    id="wordbookView"
+    class="view hidden"
+  >
 
-  background: rgba(0, 0, 0, 0.55);
-}
+    <div class="breadcrumb">
 
-.modal-card {
-  position: relative;
-  z-index: 1;
+      <button
+        id="wordbookHomeBtn"
+        type="button"
+      >
+        🏠 홈
+      </button>
 
-  width: min(470px, calc(100% - 24px));
+      <span>›</span>
 
-  margin: 50px auto;
+      <button
+        id="wordbookFileBtn"
+        type="button"
+      ></button>
 
-  background: var(--card);
+      <span>›</span>
 
-  border: 1px solid var(--border);
-  border-radius: 15px;
+      <strong id="wordbookBreadcrumb"></strong>
 
-  box-shadow:
-    0 25px 70px rgba(0, 0, 0, 0.3);
+    </div>
 
-  overflow: hidden;
-}
 
-.modal-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+    <div class="section-head">
 
-  padding: 16px 18px;
+      <div>
+        <h1 id="wordbookTitle"></h1>
 
-  border-bottom: 1px solid var(--border);
-}
+        <p id="wordbookCount"></p>
+      </div>
 
-.modal-head h2 {
-  margin: 0;
-}
+      <div class="head-buttons">
 
-.modal-close {
-  border: 0;
-  background: transparent;
-  color: var(--text);
+        <button
+          id="renameTestBtn"
+          class="secondary-btn"
+          type="button"
+        >
+          ✏️ 이름 변경
+        </button>
 
-  font-size: 26px;
-  padding: 4px 8px;
-}
+        <button
+          id="deleteTestBtn"
+          class="danger-btn"
+          type="button"
+        >
+          🗑️ 삭제
+        </button>
 
-.quick-options {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
+      </div>
 
-  padding: 18px;
-}
+    </div>
 
-.quick-option {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
 
-  gap: 5px;
+    <!-- 단어 입력 -->
 
-  padding: 15px;
+    <div class="word-input-area">
 
-  text-align: left;
+      <input
+        id="bulkWordInput"
+        type="text"
+        placeholder="예: run:달리다,뛰다/apple:사과"
+        autocomplete="off"
+        spellcheck="false"
+      >
 
-  background: var(--card2);
-  color: var(--text);
+      <div class="input-help">
+        : 단어와 뜻 구분 · , 같은 단어의 여러 뜻 · /
+        다른 단어 구분 · Enter로 추가
+      </div>
 
-  border: 0;
-  border-radius: 10px;
-}
+    </div>
 
-.quick-option strong {
-  font-size: 16px;
-}
 
-.quick-option span {
-  color: var(--muted);
-  font-size: 13px;
-}
+    <!-- 테스트 기능 -->
 
-/* =========================
-   empty
-   ========================= */
+    <div class="test-buttons">
 
-.empty {
-  padding: 45px 20px;
+      <button
+        id="allTestBtn"
+        class="primary-btn"
+        type="button"
+      >
+        📝 전체 테스트
+      </button>
 
-  text-align: center;
+      <button
+        id="directTestBtn"
+        class="secondary-btn"
+        type="button"
+      ></button>
 
-  color: var(--muted);
+      <button
+        id="reverseTestBtn"
+        class="secondary-btn"
+        type="button"
+      ></button>
 
-  background: var(--card);
+      <button
+        id="quickTestBtn"
+        class="secondary-btn"
+        type="button"
+      >
+        ⚡ 빠른 테스트
+      </button>
 
-  border: 1px dashed var(--border);
-  border-radius: 13px;
-}
+    </div>
 
-/* =========================
-   모바일
-   ========================= */
 
-@media (max-width: 720px) {
+    <div
+      id="wordList"
+      class="word-list"
+    ></div>
 
-  .topbar-inner {
-    min-height: 60px;
-  }
+  </section>
 
-  .logo-btn {
-    font-size: 17px;
-  }
 
-  .nav-btn {
-    padding: 8px 8px;
-  }
+  <!-- =========================
+       테스트 진행
+       ========================= -->
 
-  .section-head {
-    flex-direction: column;
-  }
+  <section
+    id="quizView"
+    class="view hidden"
+  >
 
-  .head-buttons {
-    width: 100%;
-  }
+    <div class="quiz-top">
 
-  .head-buttons button {
-    flex: 1;
-  }
+      <button
+        id="quitQuizBtn"
+        class="secondary-btn"
+        type="button"
+      >
+        ← 나가기
+      </button>
 
-  .stats-grid {
-    grid-template-columns: 1fr 1fr;
-  }
+      <div
+        id="quizProgress"
+        class="quiz-progress"
+      >
+        1 / 1
+      </div>
 
-  .quiz-card {
-    padding: 22px 14px;
-  }
+      <div
+        id="quizTimer"
+        class="quiz-timer"
+      >
+        10
+      </div>
 
-  .quiz-question {
-    font-size: 42px;
-  }
+    </div>
 
-  .quiz-answer {
-    font-size: 22px;
-  }
 
-  .result-buttons {
-    flex-direction: column;
-  }
+    <div class="quiz-card">
 
-  .result-buttons button {
-    width: 100%;
-  }
+      <div
+        id="quizDirection"
+        class="quiz-direction"
+      ></div>
 
-}
+      <div
+        id="quizQuestion"
+        class="quiz-question"
+      ></div>
 
-@media (max-width: 470px) {
+      <input
+        id="quizAnswer"
+        class="quiz-answer"
+        type="text"
+        placeholder="정답을 입력하세요"
+        autocomplete="off"
+        autocapitalize="none"
+        spellcheck="false"
+      >
 
-  .topnav {
-    gap: 2px;
-  }
+      <button
+        id="quizSubmitBtn"
+        class="primary-btn quiz-submit"
+        type="button"
+      >
+        정답 확인
+      </button>
 
-  .nav-btn {
-    font-size: 13px;
-    padding: 8px 7px;
-  }
+      <div
+        id="quizFeedback"
+        class="quiz-feedback"
+      ></div>
 
-  .quiz-question {
-    font-size: 38px;
-  }
+    </div>
 
-}
+  </section>
+
+
+  <!-- =========================
+       결과
+       ========================= -->
+
+  <section
+    id="resultView"
+    class="view hidden"
+  >
+
+    <div class="result-card">
+
+      <h1>테스트 결과</h1>
+
+      <div
+        id="resultScore"
+        class="result-score"
+      ></div>
+
+      <div
+        id="resultWrongWords"
+        class="result-wrong"
+      ></div>
+
+      <div class="result-buttons">
+
+        <button
+          id="goHomeResultBtn"
+          class="secondary-btn"
+          type="button"
+        >
+          🏠 홈으로
+        </button>
+
+        <button
+          id="goCurrentBookBtn"
+          class="primary-btn"
+          type="button"
+        >
+          📚 현재 단어장으로 돌아가기
+        </button>
+
+        <button
+          id="retryWrongBtn"
+          class="danger-btn"
+          type="button"
+        >
+          ❌ 틀린 문제 다시 풀기
+        </button>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- =========================
+       통계
+       ========================= -->
+
+  <section
+    id="statsView"
+    class="view hidden"
+  >
+
+    <div class="section-head">
+
+      <div>
+        <h1>📊 통계</h1>
+        <p>테스트 기록과 학습 현황입니다.</p>
+      </div>
+
+    </div>
+
+
+    <div class="stats-grid">
+
+      <div class="stat-card">
+        <strong id="statFileCount">0</strong>
+        <span>파일</span>
+      </div>
+
+      <div class="stat-card">
+        <strong id="statTestCount">0</strong>
+        <span>테스트</span>
+      </div>
+
+      <div class="stat-card">
+        <strong id="statWordCount">0</strong>
+        <span>단어</span>
+      </div>
+
+      <div class="stat-card">
+        <strong id="statQuizCount">0</strong>
+        <span>테스트 횟수</span>
+      </div>
+
+    </div>
+
+
+    <div class="history-section">
+
+      <h2>테스트 기록</h2>
+
+      <div
+        id="historyList"
+        class="history-list"
+      ></div>
+
+    </div>
+
+  </section>
+
+
+  <!-- =========================
+       설정
+       ========================= -->
+
+  <section
+    id="settingsView"
+    class="view hidden"
+  >
+
+    <div class="section-head">
+
+      <div>
+        <h1>⚙️ 설정</h1>
+        <p>데이터를 관리합니다.</p>
+      </div>
+
+    </div>
+
+
+    <div class="settings-card">
+
+      <div class="setting-row">
+
+        <div>
+          <strong>자동 저장</strong>
+          <p>변경사항은 자동으로 저장됩니다.</p>
+        </div>
+
+        <span class="status-ok">
+          켜짐
+        </span>
+
+      </div>
+
+
+      <div class="setting-row">
+
+        <div>
+          <strong>오프라인 사용</strong>
+          <p>인터넷 없이도 기본 기능을 사용할 수 있습니다.</p>
+        </div>
+
+        <span id="onlineStatus">
+          확인 중
+        </span>
+
+      </div>
+
+
+      <div class="setting-row buttons-row">
+
+        <button
+          id="exportBtn"
+          class="secondary-btn"
+          type="button"
+        >
+          데이터 백업
+        </button>
+
+        <button
+          id="importBtn"
+          class="secondary-btn"
+          type="button"
+        >
+          데이터 복원
+        </button>
+
+        <input
+          id="importFile"
+          type="file"
+          accept=".json,application/json"
+          hidden
+        >
+
+      </div>
+
+
+      <div class="setting-row">
+
+        <div>
+          <strong>전체 데이터 초기화</strong>
+          <p>모든 파일, 테스트, 단어와 기록을 삭제합니다.</p>
+        </div>
+
+        <button
+          id="resetBtn"
+          class="danger-btn"
+          type="button"
+        >
+          초기화
+        </button>
+
+      </div>
+
+    </div>
+
+  </section>
+
+</main>
+
+
+<!-- =========================
+     빠른 테스트 창
+     ========================= -->
+
+<div
+  id="quickModal"
+  class="modal hidden"
+>
+
+  <div
+    id="quickModalBackdrop"
+    class="modal-backdrop"
+  ></div>
+
+  <div class="modal-card">
+
+    <div class="modal-head">
+
+      <h2>⚡ 빠른 테스트</h2>
+
+      <button
+        id="closeQuickModalBtn"
+        class="modal-close"
+        type="button"
+      >
+        ×
+      </button>
+
+    </div>
+
+    <div class="quick-options">
+
+      <button
+        type="button"
+        data-quick-mode="important"
+        class="quick-option"
+      >
+        <strong>
+          ⭐ 중요 단어 테스트
+        </strong>
+
+        <span>
+          중요 표시된 단어만 출제
+        </span>
+      </button>
+
+
+      <button
+        type="button"
+        data-quick-mode="wrong"
+        class="quick-option"
+      >
+        <strong>
+          ❌ 틀린 단어 테스트
+        </strong>
+
+        <span>
+          이전에 틀린 단어만 출제
+        </span>
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<script src="app.js"></script>
+
+</body>
+</html>
