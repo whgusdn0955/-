@@ -1,9 +1,1 @@
-{
-  "name": "단어 암기장",
-  "short_name": "단어암기장",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#f4f6fb",
-  "theme_color": "#4f46e5",
-  "lang": "ko"
-}
+
