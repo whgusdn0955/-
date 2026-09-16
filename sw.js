@@ -1,12 +1,8 @@
 "use strict";
 
 
-const APP_VERSION =
-    "1.1.0";
-
-
 const CACHE_NAME =
-    `word-memorize-app-v${APP_VERSION}`;
+    "word-memorize-app-v2";
 
 
 const APP_FILES = [
