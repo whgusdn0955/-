@@ -2,7 +2,7 @@
 
 
 const CACHE_NAME =
-    "word-memorize-app-v2";
+    "word-memorize-app-v1-1-0";
 
 
 const APP_FILES = [
