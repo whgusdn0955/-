@@ -1,77 +1,124 @@
 "use strict";
 
 /* =========================================================
-   단어 암기장
-   앱 버전
+   기본 설정
    ========================================================= */
 
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "1.1.0";
 
 const STORAGE_KEY =
     "word_memorize_app_final_v1";
 
 const DEFAULT_DATA = {
-
     files: [],
-
     testRecords: [],
-
     theme: "light",
-
     testTime: 10
-
 };
 
 
-let appData = loadData();
+/* =========================================================
+   사용 방법
+   버전에 따라 표시할 내용을 관리
+   ========================================================= */
 
+const USAGE_GUIDE = [
 
-let currentFileId = null;
+    {
+        since: "1.0.0",
+        title: "📁 파일",
+        text: "파일은 언어 또는 큰 분류를 기준으로 만들어 사용할 수 있습니다. 예를 들어 영어, 일본어처럼 자유롭게 이름을 정할 수 있습니다."
+    },
 
-let currentWorkbookId = null;
+    {
+        since: "1.0.0",
+        title: "📖 단어장",
+        text: "파일 안에 단어장을 만들 수 있습니다. 1단원, 2단원처럼 원하는 기준으로 단어를 나누어 관리할 수 있습니다."
+    },
 
+    {
+        since: "1.0.0",
+        title: "✏️ 단어 추가",
+        text: "단어 빠르게 추가에서 영어:뜻 형식으로 입력합니다. 여러 뜻은 쉼표(,)로 구분하고 여러 단어는 슬래시(/)로 구분합니다."
+    },
 
-let draggedFileId = null;
+    {
+        since: "1.0.0",
+        title: "⭐ 중요 단어",
+        text: "테스트에서 자주 틀리는 단어는 자동으로 중요 단어로 표시될 수 있습니다."
+    },
 
-let draggedWorkbookId = null;
+    {
+        since: "1.1.0",
+        title: "📝 일반 테스트",
+        text: "파일에 들어 있는 모든 단어를 대상으로 테스트할 수 있습니다. 문제 순서는 매번 완전히 랜덤으로 섞입니다."
+    },
 
-let draggedWordId = null;
+    {
+        since: "1.1.0",
+        title: "🔀 전체 테스트",
+        text: "전체 테스트에서는 문제마다 영어 → 뜻 또는 뜻 → 언어 방향이 랜덤으로 결정됩니다."
+    },
+
+    {
+        since: "1.1.0",
+        title: "📚 단어장 테스트",
+        text: "단어장 안의 단어 테스트에서는 영어 → 뜻, 뜻 → 언어, 전체 테스트 중 하나를 선택할 수 있습니다. 현재 단어장에 들어 있는 단어만 출제됩니다."
+    },
+
+    {
+        since: "1.1.0",
+        title: "⏱️ 테스트 시간",
+        text: "설정에서 한 문제당 제한시간을 5초부터 60초까지 선택할 수 있습니다."
+    },
+
+    {
+        since: "1.1.0",
+        title: "↩️ 뒤로가기",
+        text: "단어장에서는 ← 파일, 파일에서는 ← 홈을 눌러 이전 위치로 이동할 수 있습니다. 테스트 중에도 ← 돌아가기를 눌러 테스트를 취소하고 이전 위치로 돌아갈 수 있습니다."
+    },
+
+    {
+        since: "1.1.0",
+        title: "📊 기록",
+        text: "완료한 테스트는 날짜, 시간과 점수, 테스트 종류를 포함하여 기록됩니다."
+    }
+
+];
 
 
 /* =========================================================
-   테스트 상태
+   상태
    ========================================================= */
 
+let appData = loadData();
+
+let currentFileId = null;
+let currentWorkbookId = null;
+
+let draggedFileId = null;
+let draggedWorkbookId = null;
+let draggedWordId = null;
+
 let testState = {
-
     questions: [],
-
     currentIndex: 0,
-
     correct: 0,
-
     wrong: 0,
-
     wrongQuestions: [],
 
     testName: "",
-
     testType: "",
 
     sourceFileId: null,
-
     sourceWorkbookId: null,
-
-    returnPage: "home",
 
     answered: false,
 
     timer: null,
-
     timeLeft: 10,
 
     autoNextTimer: null
-
 };
 
 
@@ -84,58 +131,205 @@ const $ = id =>
 
 
 /* =========================================================
-   ID
+   데이터
    ========================================================= */
 
 function makeId() {
 
     if (
         window.crypto &&
-        typeof window.crypto.randomUUID ===
-        "function"
+        typeof window.crypto.randomUUID === "function"
     ) {
 
         return window.crypto.randomUUID();
 
     }
 
-
     return (
         Date.now().toString(36) +
-        Math.random()
-            .toString(36)
-            .substring(2, 10)
+        Math.random().toString(36).slice(2)
     );
+
 }
 
 
-/* =========================================================
-   데이터
-   ========================================================= */
+function normalizeData(data) {
+
+    if (!data || typeof data !== "object") {
+
+        return {
+            ...DEFAULT_DATA
+        };
+
+    }
+
+
+    const normalized = {
+        files: Array.isArray(data.files)
+            ? data.files
+            : [],
+
+        testRecords: Array.isArray(data.testRecords)
+            ? data.testRecords
+            : [],
+
+        theme:
+            data.theme === "dark"
+                ? "dark"
+                : "light",
+
+        testTime:
+            Number.isFinite(Number(data.testTime))
+                ? Number(data.testTime)
+                : 10
+    };
+
+
+    normalized.testTime =
+        normalizeTestTime(
+            normalized.testTime
+        );
+
+
+    normalized.files =
+        normalized.files.map(file => {
+
+            const normalizedFile = {
+                id: file.id || makeId(),
+                name: String(file.name || "파일"),
+                description:
+                    String(
+                        file.description || ""
+                    ),
+                wordbooks:
+                    Array.isArray(file.wordbooks)
+                        ? file.wordbooks
+                        : []
+            };
+
+
+            normalizedFile.wordbooks =
+                normalizedFile.wordbooks.map(
+                    workbook => {
+
+                        const normalizedWorkbook = {
+                            id:
+                                workbook.id ||
+                                makeId(),
+
+                            name:
+                                String(
+                                    workbook.name ||
+                                    "단어장"
+                                ),
+
+                            words:
+                                Array.isArray(
+                                    workbook.words
+                                )
+                                    ? workbook.words
+                                    : []
+                        };
+
+
+                        normalizedWorkbook.words =
+                            normalizedWorkbook.words.map(
+                                word => {
+
+                                    const meanings =
+                                        Array.isArray(
+                                            word.meanings
+                                        )
+                                            ? word.meanings
+                                            : (
+                                                word.meaning
+                                                    ? [
+                                                        word.meaning
+                                                    ]
+                                                    : []
+                                            );
+
+
+                                    return {
+                                        id:
+                                            word.id ||
+                                            makeId(),
+
+                                        word:
+                                            String(
+                                                word.word ||
+                                                ""
+                                            ),
+
+                                        meanings:
+                                            meanings
+                                                .map(
+                                                    meaning =>
+                                                        String(
+                                                            meaning
+                                                        )
+                                                )
+                                                .filter(
+                                                    Boolean
+                                                ),
+
+                                        correct:
+                                            Number(
+                                                word.correct
+                                            ) || 0,
+
+                                        wrong:
+                                            Number(
+                                                word.wrong
+                                            ) || 0,
+
+                                        important:
+                                            Boolean(
+                                                word.important
+                                            )
+                                    };
+
+                                }
+                            );
+
+
+                        return normalizedWorkbook;
+
+                    }
+                );
+
+
+            return normalizedFile;
+
+        });
+
+
+    return normalized;
+
+}
+
 
 function loadData() {
 
     try {
 
-        const saved =
+        const raw =
             localStorage.getItem(
                 STORAGE_KEY
             );
 
 
-        if (!saved) {
+        if (!raw) {
 
-            return normalizeData(
-                structuredClone(
-                    DEFAULT_DATA
-                )
-            );
+            return {
+                ...DEFAULT_DATA
+            };
 
         }
 
 
         return normalizeData(
-            JSON.parse(saved)
+            JSON.parse(raw)
         );
 
     } catch (error) {
@@ -145,222 +339,104 @@ function loadData() {
             error
         );
 
-
-        return normalizeData(
-            structuredClone(
-                DEFAULT_DATA
-            )
-        );
+        return {
+            ...DEFAULT_DATA
+        };
 
     }
 
 }
 
 
-function normalizeData(data) {
+function saveData() {
 
-    const testTime =
-        Number(
-            data?.testTime
-        );
+    localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(appData)
+    );
 
-
-    const result = {
-
-        files: [],
-
-        testRecords:
-            Array.isArray(
-                data?.testRecords
-            )
-                ? data.testRecords
-                : [],
-
-        theme:
-            data?.theme === "dark"
-                ? "dark"
-                : "light",
-
-        testTime:
-            [
-                5,
-                10,
-                15,
-                20,
-                30,
-                60
-            ].includes(testTime)
-                ? testTime
-                : 10
-
-    };
+}
 
 
-    if (
-        !Array.isArray(
-            data?.files
-        )
-    ) {
+function normalizeTestTime(value) {
 
-        return result;
+    const number =
+        Number(value);
+
+    if (!Number.isFinite(number)) {
+
+        return 10;
 
     }
 
+    return Math.min(
+        60,
+        Math.max(
+            5,
+            Math.round(number)
+        )
+    );
 
-    result.files =
-        data.files.map(
-            file => {
-
-                const normalizedFile = {
-
-                    id:
-                        file.id ||
-                        makeId(),
-
-                    name:
-                        String(
-                            file.name ||
-                            "새 파일"
-                        ),
-
-                    createdAt:
-                        file.createdAt ||
-                        new Date()
-                            .toISOString(),
-
-                    wordbooks: []
-
-                };
+}
 
 
-                if (
-                    Array.isArray(
-                        file.wordbooks
-                    )
-                ) {
+function getTestTime() {
 
-                    normalizedFile.wordbooks =
-                        file.wordbooks.map(
-                            book => {
+    return normalizeTestTime(
+        appData.testTime
+    );
 
-                                const normalizedBook = {
-
-                                    id:
-                                        book.id ||
-                                        makeId(),
-
-                                    name:
-                                        String(
-                                            book.name ||
-                                            "새 단어장"
-                                        ),
-
-                                    createdAt:
-                                        book.createdAt ||
-                                        new Date()
-                                            .toISOString(),
-
-                                    words: []
-
-                                };
+}
 
 
-                                if (
-                                    Array.isArray(
-                                        book.words
-                                    )
-                                ) {
+/* =========================================================
+   HTML 안전 처리
+   ========================================================= */
 
-                                    normalizedBook.words =
-                                        book.words
-                                            .map(
-                                                word => {
+function escapeHTML(value) {
 
-                                                    const meanings =
-                                                        Array.isArray(
-                                                            word.meanings
-                                                        )
-                                                            ? word.meanings
-                                                            : (
-                                                                word.meaning
-                                                                    ? [
-                                                                        word.meaning
-                                                                    ]
-                                                                    : []
-                                                            );
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+}
 
 
-                                                    return {
+/* =========================================================
+   배열 랜덤 섞기
+   ========================================================= */
 
-                                                        id:
-                                                            word.id ||
-                                                            makeId(),
+function shuffle(array) {
 
-                                                        word:
-                                                            String(
-                                                                word.word ||
-                                                                ""
-                                                            ).trim(),
-
-                                                        meanings:
-                                                            meanings
-                                                                .map(
-                                                                    meaning =>
-                                                                        String(
-                                                                            meaning
-                                                                        ).trim()
-                                                                )
-                                                                .filter(
-                                                                    Boolean
-                                                                ),
-
-                                                        correct:
-                                                            Math.max(
-                                                                0,
-                                                                Number(
-                                                                    word.correct
-                                                                ) || 0
-                                                            ),
-
-                                                        wrong:
-                                                            Math.max(
-                                                                0,
-                                                                Number(
-                                                                    word.wrong
-                                                                ) || 0
-                                                            ),
-
-                                                        important:
-                                                            Boolean(
-                                                                word.important
-                                                            )
-
-                                                    };
-
-                                                }
-                                            )
-                                            .filter(
-                                                word =>
-                                                    word.word &&
-                                                    word.meanings
-                                                        .length
-                                            );
-
-                                }
+    const result =
+        [...array];
 
 
-                                return normalizedBook;
+    for (
+        let i = result.length - 1;
+        i > 0;
+        i--
+    ) {
 
-                            }
-                        );
+        const j =
+            Math.floor(
+                Math.random() * (i + 1)
+            );
 
-                }
 
+        [
+            result[i],
+            result[j]
+        ] =
+        [
+            result[j],
+            result[i]
+        ];
 
-                return normalizedFile;
-
-            }
-        );
+    }
 
 
     return result;
@@ -368,73 +444,11 @@ function normalizeData(data) {
 }
 
 
-function saveData() {
-
-    try {
-
-        localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify(
-                appData
-            )
-        );
-
-    } catch (error) {
-
-        console.error(
-            "데이터 저장 실패:",
-            error
-        );
-
-
-        showToast(
-            "데이터 저장에 실패했습니다.",
-            "error"
-        );
-
-    }
-
-}
-
-
 /* =========================================================
-   보안
+   파일 / 단어장 찾기
    ========================================================= */
 
-function escapeHTML(value) {
-
-    return String(
-        value ?? ""
-    )
-        .replaceAll(
-            "&",
-            "&amp;"
-        )
-        .replaceAll(
-            "<",
-            "&lt;"
-        )
-        .replaceAll(
-            ">",
-            "&gt;"
-        )
-        .replaceAll(
-            '"',
-            "&quot;"
-        )
-        .replaceAll(
-            "'",
-            "&#039;"
-        );
-
-}
-
-
-/* =========================================================
-   데이터 찾기
-   ========================================================= */
-
-function getFile(fileId) {
+function getFileById(fileId) {
 
     return appData.files.find(
         file =>
@@ -444,227 +458,26 @@ function getFile(fileId) {
 }
 
 
-function getWorkbook(
+function getWorkbookById(
     fileId,
     workbookId
 ) {
 
     const file =
-        getFile(fileId);
+        getFileById(fileId);
 
 
     if (!file) {
+
         return null;
+
     }
 
 
     return file.wordbooks.find(
         workbook =>
             workbook.id === workbookId
-    );
-
-}
-
-
-function getCurrentFile() {
-
-    return getFile(
-        currentFileId
-    );
-
-}
-
-
-function getCurrentWorkbook() {
-
-    return getWorkbook(
-        currentFileId,
-        currentWorkbookId
-    );
-
-}
-
-
-/* =========================================================
-   단어 관련
-   ========================================================= */
-
-function getTotalWordCount(file) {
-
-    if (!file) {
-        return 0;
-    }
-
-
-    return file.wordbooks.reduce(
-        (
-            total,
-            workbook
-        ) =>
-            total +
-            workbook.words.length,
-        0
-    );
-
-}
-
-
-function getAttemptCount(word) {
-
-    return (
-        Number(word.correct) +
-        Number(word.wrong)
-    );
-
-}
-
-
-function updateImportantStatus(word) {
-
-    const attempts =
-        getAttemptCount(
-            word
-        );
-
-
-    if (
-        attempts === 0
-    ) {
-
-        word.important =
-            false;
-
-        return;
-
-    }
-
-
-    const wrongRate =
-        word.wrong /
-        attempts;
-
-
-    word.important =
-        wrongRate > 0.7;
-
-}
-
-
-/* =========================================================
-   뜻 정리
-   ========================================================= */
-
-function normalizeMeanings(
-    meanings
-) {
-
-    const result = [];
-
-
-    meanings.forEach(
-        meaning => {
-
-            const clean =
-                String(
-                    meaning
-                ).trim();
-
-
-            if (!clean) {
-                return;
-            }
-
-
-            if (
-                !result.includes(
-                    clean
-                )
-            ) {
-
-                result.push(
-                    clean
-                );
-
-            }
-
-        }
-    );
-
-
-    return result;
-
-}
-
-
-function getMeaningsText(word) {
-
-    return word.meanings
-        .map(
-            meaning =>
-                escapeHTML(
-                    meaning
-                )
-        )
-        .join(", ");
-
-}
-
-
-/* =========================================================
-   토스트
-   ========================================================= */
-
-function showToast(
-    message,
-    type = "normal"
-) {
-
-    const container =
-        $("toastContainer");
-
-
-    if (!container) {
-        return;
-    }
-
-
-    const toast =
-        document.createElement(
-            "div"
-        );
-
-
-    toast.className =
-        `toast toast-${type}`;
-
-
-    toast.textContent =
-        message;
-
-
-    container.appendChild(
-        toast
-    );
-
-
-    setTimeout(
-        () => {
-
-            toast.classList.add(
-                "hide"
-            );
-
-
-            setTimeout(
-                () => {
-                    toast.remove();
-                },
-                300
-            );
-
-        },
-        2500
-    );
+    ) || null;
 
 }
 
@@ -673,612 +486,397 @@ function showToast(
    페이지
    ========================================================= */
 
-const pageMap = {
-
-    home: "homePage",
-
-    file: "filePage",
-
-    workbook: "workbookPage",
-
-    statistics: "statisticsPage",
-
-    settings: "settingsPage",
-
-    test: "testPage",
-
-    result: "resultPage"
-
-};
+const pageIds = [
+    "homePage",
+    "filePage",
+    "workbookPage",
+    "statisticsPage",
+    "settingsPage",
+    "testPage",
+    "resultPage"
+];
 
 
-function hideAllPages() {
+function showPage(pageId) {
+
+    pageIds.forEach(id => {
+
+        const page =
+            $(id);
+
+        if (!page) {
+
+            return;
+
+        }
+
+        page.classList.toggle(
+            "active",
+            id === pageId
+        );
+
+    });
+
+}
+
+
+function updateNavigation(activePage) {
 
     document
         .querySelectorAll(
-            ".page"
+            ".nav-item, .mobile-nav-item"
         )
-        .forEach(
-            page =>
-                page.classList.remove(
-                    "active"
-                )
-        );
-
-}
-
-
-function updateMainNavigation(
-    pageName
-) {
-
-    const mainPage =
-        [
-            "home",
-            "statistics",
-            "settings"
-        ].includes(
-            pageName
-        )
-            ? pageName
-            : null;
-
-
-    document
-        .querySelectorAll(
-            ".nav-item"
-        )
-        .forEach(
-            button => {
-
-                button.classList.toggle(
-                    "active",
-                    button.dataset.page ===
-                    mainPage
-                );
-
-            }
-        );
-
-
-    document
-        .querySelectorAll(
-            ".mobile-nav-item"
-        )
-        .forEach(
-            button => {
-
-                button.classList.toggle(
-                    "active",
-                    button.dataset.page ===
-                    mainPage
-                );
-
-            }
-        );
-
-}
-
-
-function showPage(
-    pageName
-) {
-
-    hideAllPages();
-
-
-    const pageId =
-        pageMap[pageName];
-
-
-    if (!pageId) {
-        return;
-    }
-
-
-    const page =
-        $(pageId);
-
-
-    if (page) {
-
-        page.classList.add(
-            "active"
-        );
-
-    }
-
-
-    updateMainNavigation(
-        pageName
-    );
-
-
-    closeSidebar();
-
-}
-
-
-/* =========================================================
-   홈
-   ========================================================= */
-
-function showHomePage() {
-
-    stopTimer();
-
-
-    currentFileId =
-        null;
-
-
-    currentWorkbookId =
-        null;
-
-
-    showPage(
-        "home"
-    );
-
-
-    renderFileList();
-
-}
-
-
-/* =========================================================
-   파일
-   ========================================================= */
-
-function showFilePage(
-    fileId
-) {
-
-    const file =
-        getFile(
-            fileId
-        );
-
-
-    if (!file) {
-
-        showHomePage();
-
-        return;
-
-    }
-
-
-    stopTimer();
-
-
-    currentFileId =
-        fileId;
-
-
-    currentWorkbookId =
-        null;
-
-
-    showPage(
-        "file"
-    );
-
-
-    $("currentFileTitle")
-        .textContent =
-        file.name;
-
-
-    $("currentFileBreadcrumb")
-        .textContent =
-        file.name;
-
-
-    $("currentFileDescription")
-        .textContent =
-        `단어장 ${file.wordbooks.length}개 · 총 ${getTotalWordCount(file)}개의 단어`;
-
-
-    renderWorkbookList();
-
-}
-
-
-/* =========================================================
-   단어장
-   ========================================================= */
-
-function showWorkbookPage(
-    fileId,
-    workbookId
-) {
-
-    const file =
-        getFile(
-            fileId
-        );
-
-
-    const workbook =
-        getWorkbook(
-            fileId,
-            workbookId
-        );
-
-
-    if (
-        !file ||
-        !workbook
-    ) {
-
-        showHomePage();
-
-        return;
-
-    }
-
-
-    stopTimer();
-
-
-    currentFileId =
-        fileId;
-
-
-    currentWorkbookId =
-        workbookId;
-
-
-    showPage(
-        "workbook"
-    );
-
-
-    $("currentWorkbookTitle")
-        .textContent =
-        workbook.name;
-
-
-    $("currentWorkbookBreadcrumb")
-        .textContent =
-        workbook.name;
-
-
-    renderWordList();
-
-}
-
-
-/* =========================================================
-   사이드바
-   ========================================================= */
-
-function openSidebar() {
-
-    const sidebar =
-        $("sidebar");
-
-
-    if (sidebar) {
-
-        sidebar.classList.add(
-            "open"
-        );
-
-    }
+        .forEach(button => {
+
+            button.classList.toggle(
+                "active",
+                button.dataset.page ===
+                activePage
+            );
+
+        });
 
 }
 
 
 function closeSidebar() {
 
-    const sidebar =
-        $("sidebar");
+    $("sidebar")?.classList.remove(
+        "open"
+    );
+
+}
 
 
-    if (sidebar) {
+function showHomePage() {
 
-        sidebar.classList.remove(
-            "open"
-        );
+    stopTimer();
+
+    clearTimeout(
+        testState.autoNextTimer
+    );
+
+    testState.autoNextTimer =
+        null;
+
+    currentFileId = null;
+    currentWorkbookId = null;
+
+    showPage(
+        "homePage"
+    );
+
+    updateNavigation(
+        "home"
+    );
+
+    closeSidebar();
+
+    renderHome();
+
+}
+
+
+function showFilePage(fileId) {
+
+    stopTimer();
+
+    const file =
+        getFileById(fileId);
+
+
+    if (!file) {
+
+        showHomePage();
+
+        return;
 
     }
+
+
+    currentFileId =
+        file.id;
+
+    currentWorkbookId =
+        null;
+
+
+    $("currentFileBreadcrumb")
+        .textContent =
+        file.name;
+
+    $("currentFileTitle")
+        .textContent =
+        file.name;
+
+    $("currentFileDescription")
+        .textContent =
+        file.description ||
+        `${file.wordbooks.length}개의 단어장`;
+
+
+    $("backToHomeButton")
+        .textContent =
+        "← 홈";
+
+
+    showPage(
+        "filePage"
+    );
+
+    updateNavigation(
+        "home"
+    );
+
+    closeSidebar();
+
+    renderWorkbooks();
+
+}
+
+
+function showWorkbookPage(
+    fileId,
+    workbookId
+) {
+
+    stopTimer();
+
+    const file =
+        getFileById(fileId);
+
+    const workbook =
+        getWorkbookById(
+            fileId,
+            workbookId
+        );
+
+
+    if (!file || !workbook) {
+
+        if (file) {
+
+            showFilePage(
+                file.id
+            );
+
+        } else {
+
+            showHomePage();
+
+        }
+
+        return;
+
+    }
+
+
+    currentFileId =
+        file.id;
+
+    currentWorkbookId =
+        workbook.id;
+
+
+    $("backToFileButton")
+        .textContent =
+        `← ${file.name}`;
+
+
+    $("currentWorkbookBreadcrumb")
+        .textContent =
+        workbook.name;
+
+    $("currentWorkbookTitle")
+        .textContent =
+        workbook.name;
+
+
+    showPage(
+        "workbookPage"
+    );
+
+    updateNavigation(
+        "home"
+    );
+
+    closeSidebar();
+
+    renderWords();
 
 }
 
 
 /* =========================================================
-   파일 목록
+   홈 렌더링
    ========================================================= */
 
-function renderFileList() {
+function renderHome() {
 
     const list =
         $("fileList");
-
 
     const empty =
         $("emptyFileState");
 
 
-    if (!list) {
-        return;
-    }
+    list.innerHTML =
+        "";
 
 
-    if (
-        appData.files.length ===
-        0
-    ) {
+    if (!appData.files.length) {
 
-        list.innerHTML =
-            "";
-
-
-        empty?.classList.remove(
+        empty.classList.remove(
             "hidden"
         );
 
-
         return;
 
     }
 
 
-    empty?.classList.add(
+    empty.classList.add(
         "hidden"
     );
 
 
-    list.innerHTML =
-        appData.files
-            .map(
-                file => {
-
-                    const count =
-                        getTotalWordCount(
-                            file
-                        );
-
-
-                    return `
-
-                        <div
-                            class="file-card"
-                            draggable="true"
-                            data-file-id="${escapeHTML(file.id)}"
-                        >
-
-                            <div
-                                class="file-card-main"
-                                onclick="openFile('${file.id}')"
-                            >
-
-                                <div class="file-icon">
-                                    📁
-                                </div>
-
-                                <div class="file-info">
-
-                                    <h3>
-                                        ${escapeHTML(file.name)}
-                                    </h3>
-
-                                    <p>
-                                        단어장 ${file.wordbooks.length}개
-                                        · 단어 ${count}개
-                                    </p>
-
-                                </div>
-
-                            </div>
-
-
-                            <div class="file-actions">
-
-                                <button
-                                    type="button"
-                                    title="이름 변경"
-                                    onclick="event.stopPropagation(); renameFile('${file.id}')"
-                                >
-                                    ✏️
-                                </button>
-
-                                <button
-                                    type="button"
-                                    title="삭제"
-                                    onclick="event.stopPropagation(); deleteFile('${file.id}')"
-                                >
-                                    🗑️
-                                </button>
-
-                            </div>
-
-                        </div>
-
-                    `;
-
-                }
-            )
-            .join("");
-
-
-    setupFileDragAndDrop();
-
-}
-
-
-/* =========================================================
-   파일 추가
-   ========================================================= */
-
-function addFile() {
-
-    openInputModal(
-        "파일 추가",
-        "파일 이름을 입력하세요.",
-        "",
-        name => {
-
-            appData.files.push({
-
-                id:
-                    makeId(),
-
-                name:
-                    name.trim(),
-
-                createdAt:
-                    new Date()
-                        .toISOString(),
-
-                wordbooks: []
-
-            });
-
-
-            saveData();
-
-            renderFileList();
-
-
-            showToast(
-                "파일이 추가되었습니다."
-            );
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   파일 이름 변경
-   ========================================================= */
-
-function renameFile(
-    fileId
-) {
-
-    const file =
-        getFile(
-            fileId
-        );
-
-
-    if (!file) {
-        return;
-    }
-
-
-    openInputModal(
-        "파일 이름 변경",
-        "새 파일 이름을 입력하세요.",
-        file.name,
-        name => {
-
-            file.name =
-                name.trim();
-
-
-            saveData();
-
-            renderFileList();
-
-
-            if (
-                currentFileId ===
-                fileId
-            ) {
-
-                $("currentFileTitle")
-                    .textContent =
-                    file.name;
-
-
-                $("currentFileBreadcrumb")
-                    .textContent =
-                    file.name;
-
-            }
-
-
-            showToast(
-                "파일 이름이 변경되었습니다."
-            );
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   파일 삭제
-   ========================================================= */
-
-function deleteFile(
-    fileId
-) {
-
-    const file =
-        getFile(
-            fileId
-        );
-
-
-    if (!file) {
-        return;
-    }
-
-
-    openConfirmModal(
-        "파일 삭제",
-        `"${file.name}" 파일을 삭제할까요?\n파일 안의 모든 단어장과 단어도 함께 삭제됩니다.`,
-        () => {
-
-            appData.files =
-                appData.files.filter(
-                    item =>
-                        item.id !==
-                        fileId
+    appData.files.forEach(
+        (file, index) => {
+
+            const totalWords =
+                file.wordbooks.reduce(
+                    (sum, workbook) =>
+                        sum +
+                        workbook.words.length,
+                    0
                 );
 
 
-            saveData();
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+            card.className =
+                "file-card";
+
+            card.draggable =
+                true;
+
+            card.dataset.fileId =
+                file.id;
 
 
-            if (
-                currentFileId ===
-                fileId
-            ) {
+            card.innerHTML = `
 
-                showHomePage();
+                <div
+                    class="file-card-main"
+                    data-action="open"
+                >
 
-            } else {
+                    <div class="file-icon">
+                        📁
+                    </div>
 
-                renderFileList();
+                    <div class="file-info">
 
-            }
+                        <h3>
+                            ${escapeHTML(file.name)}
+                        </h3>
+
+                        <p>
+                            ${file.wordbooks.length}개 단어장 ·
+                            ${totalWords}개 단어
+                        </p>
+
+                    </div>
+
+                </div>
 
 
-            showToast(
-                "파일이 삭제되었습니다."
+                <div class="file-actions">
+
+                    <button
+                        type="button"
+                        data-action="rename"
+                        aria-label="이름 변경"
+                    >
+                        ✏️
+                    </button>
+
+                    <button
+                        type="button"
+                        data-action="delete"
+                        aria-label="삭제"
+                    >
+                        🗑️
+                    </button>
+
+                </div>
+
+            `;
+
+
+            card
+                .querySelector(
+                    '[data-action="open"]'
+                )
+                .addEventListener(
+                    "click",
+                    () =>
+                        showFilePage(
+                            file.id
+                        )
+                );
+
+
+            card
+                .querySelector(
+                    '[data-action="rename"]'
+                )
+                .addEventListener(
+                    "click",
+                    event => {
+
+                        event.stopPropagation();
+
+                        renameFile(
+                            file.id
+                        );
+
+                    }
+                );
+
+
+            card
+                .querySelector(
+                    '[data-action="delete"]'
+                )
+                .addEventListener(
+                    "click",
+                    event => {
+
+                        event.stopPropagation();
+
+                        deleteFile(
+                            file.id
+                        );
+
+                    }
+                );
+
+
+            addFileDragEvents(
+                card,
+                file.id
+            );
+
+
+            list.appendChild(
+                card
             );
 
         }
-    );
-
-}
-
-
-function openFile(
-    fileId
-) {
-
-    showFilePage(
-        fileId
     );
 
 }
@@ -1288,85 +886,398 @@ function openFile(
    파일 드래그
    ========================================================= */
 
-function setupFileDragAndDrop() {
+function addFileDragEvents(
+    element,
+    fileId
+) {
 
-    document
-        .querySelectorAll(
-            ".file-card"
-        )
-        .forEach(
-            card => {
+    element.addEventListener(
+        "dragstart",
+        () => {
 
-                card.addEventListener(
-                    "dragstart",
-                    () => {
+            draggedFileId =
+                fileId;
 
-                        draggedFileId =
-                            card.dataset.fileId;
+            element.classList.add(
+                "dragging"
+            );
+
+        }
+    );
 
 
-                        card.classList.add(
-                            "dragging"
-                        );
+    element.addEventListener(
+        "dragend",
+        () => {
 
-                    }
+            draggedFileId =
+                null;
+
+            element.classList.remove(
+                "dragging"
+            );
+
+        }
+    );
+
+
+    element.addEventListener(
+        "dragover",
+        event => {
+
+            event.preventDefault();
+
+        }
+    );
+
+
+    element.addEventListener(
+        "drop",
+        event => {
+
+            event.preventDefault();
+
+            if (
+                !draggedFileId ||
+                draggedFileId === fileId
+            ) {
+
+                return;
+
+            }
+
+
+            const from =
+                appData.files.findIndex(
+                    file =>
+                        file.id ===
+                        draggedFileId
+                );
+
+            const to =
+                appData.files.findIndex(
+                    file =>
+                        file.id ===
+                        fileId
                 );
 
 
-                card.addEventListener(
-                    "dragend",
-                    () => {
+            if (
+                from === -1 ||
+                to === -1
+            ) {
 
-                        draggedFileId =
-                            null;
+                return;
+
+            }
 
 
-                        card.classList.remove(
-                            "dragging"
-                        );
-
-                    }
+            const [moved] =
+                appData.files.splice(
+                    from,
+                    1
                 );
 
 
-                card.addEventListener(
-                    "dragover",
-                    event => {
-
-                        event.preventDefault();
-
-                    }
-                );
+            appData.files.splice(
+                to,
+                0,
+                moved
+            );
 
 
-                card.addEventListener(
-                    "drop",
-                    event => {
+            saveData();
 
-                        event.preventDefault();
+            renderHome();
 
+        }
+    );
 
-                        const targetId =
-                            card.dataset.fileId;
-
-
-                        if (
-                            !draggedFileId ||
-                            draggedFileId ===
-                            targetId
-                        ) {
-
-                            return;
-
-                        }
+}
 
 
-                        reorderFiles(
-                            draggedFileId,
-                            targetId
-                        );
+/* =========================================================
+   파일 생성 / 수정 / 삭제
+   ========================================================= */
 
-                    }
+function openFileModal() {
+
+    openModal(
+        "새 파일 만들기",
+        `
+            <input
+                id="modalFileName"
+                class="modal-input"
+                type="text"
+                placeholder="예: 영어"
+                autocomplete="off"
+            >
+
+            <input
+                id="modalFileDescription"
+                class="modal-input modal-input-spaced"
+                type="text"
+                placeholder="설명 (선택)"
+                autocomplete="off"
+            >
+        `,
+        `
+            <button
+                id="modalCancelButton"
+                class="secondary-button"
+                type="button"
+            >
+                취소
+            </button>
+
+            <button
+                id="modalConfirmButton"
+                class="primary-button"
+                type="button"
+            >
+                만들기
+            </button>
+        `
+    );
+
+
+    $("modalConfirmButton")
+        .addEventListener(
+            "click",
+            createFile
+        );
+
+
+    setTimeout(
+        () =>
+            $("modalFileName")?.focus(),
+        50
+    );
+
+}
+
+
+function createFile() {
+
+    const name =
+        $("modalFileName")
+            ?.value
+            .trim();
+
+    const description =
+        $("modalFileDescription")
+            ?.value
+            .trim() || "";
+
+
+    if (!name) {
+
+        showToast(
+            "파일 이름을 입력해주세요.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    appData.files.push({
+        id: makeId(),
+        name,
+        description,
+        wordbooks: []
+    });
+
+
+    saveData();
+
+    closeModal();
+
+    renderHome();
+
+    showToast(
+        "파일을 만들었습니다."
+    );
+
+}
+
+
+function renameFile(fileId) {
+
+    const file =
+        getFileById(fileId);
+
+
+    if (!file) {
+
+        return;
+
+    }
+
+
+    openModal(
+        "파일 이름 변경",
+        `
+            <input
+                id="modalFileName"
+                class="modal-input"
+                type="text"
+                value="${escapeHTML(file.name)}"
+                autocomplete="off"
+            >
+        `,
+        `
+            <button
+                id="modalCancelButton"
+                class="secondary-button"
+                type="button"
+            >
+                취소
+            </button>
+
+            <button
+                id="modalConfirmButton"
+                class="primary-button"
+                type="button"
+            >
+                저장
+            </button>
+        `
+    );
+
+
+    $("modalConfirmButton")
+        .addEventListener(
+            "click",
+            () => {
+
+                const name =
+                    $("modalFileName")
+                        .value
+                        .trim();
+
+
+                if (!name) {
+
+                    showToast(
+                        "파일 이름을 입력해주세요.",
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                file.name =
+                    name;
+
+                saveData();
+
+                closeModal();
+
+                renderHome();
+
+                if (
+                    currentFileId ===
+                    fileId
+                ) {
+
+                    showFilePage(
+                        fileId
+                    );
+
+                }
+
+            }
+        );
+
+
+    setTimeout(
+        () =>
+            $("modalFileName")?.focus(),
+        50
+    );
+
+}
+
+
+function deleteFile(fileId) {
+
+    const file =
+        getFileById(fileId);
+
+
+    if (!file) {
+
+        return;
+
+    }
+
+
+    openModal(
+        "파일 삭제",
+        `
+            <p class="modal-message">
+                <strong>${escapeHTML(file.name)}</strong>
+                파일을 삭제할까요?<br>
+                안에 있는 단어장과 단어도 함께 삭제됩니다.
+            </p>
+        `,
+        `
+            <button
+                id="modalCancelButton"
+                class="secondary-button"
+                type="button"
+            >
+                취소
+            </button>
+
+            <button
+                id="modalConfirmButton"
+                class="danger-button"
+                type="button"
+            >
+                삭제
+            </button>
+        `
+    );
+
+
+    $("modalConfirmButton")
+        .addEventListener(
+            "click",
+            () => {
+
+                appData.files =
+                    appData.files.filter(
+                        item =>
+                            item.id !==
+                            fileId
+                    );
+
+
+                saveData();
+
+                closeModal();
+
+                if (
+                    currentFileId ===
+                    fileId
+                ) {
+
+                    showHomePage();
+
+                } else {
+
+                    renderHome();
+
+                }
+
+
+                showToast(
+                    "파일을 삭제했습니다."
                 );
 
             }
@@ -1376,245 +1287,278 @@ function setupFileDragAndDrop() {
 
 
 /* =========================================================
-   파일 순서
+   단어장
    ========================================================= */
 
-function reorderFiles(
-    sourceId,
-    targetId
-) {
+function openWorkbookModal() {
 
-    const sourceIndex =
-        appData.files.findIndex(
-            file =>
-                file.id ===
-                sourceId
+    openModal(
+        "새 단어장 만들기",
+        `
+            <input
+                id="modalWorkbookName"
+                class="modal-input"
+                type="text"
+                placeholder="예: 1단원"
+                autocomplete="off"
+            >
+        `,
+        `
+            <button
+                id="modalCancelButton"
+                class="secondary-button"
+                type="button"
+            >
+                취소
+            </button>
+
+            <button
+                id="modalConfirmButton"
+                class="primary-button"
+                type="button"
+            >
+                만들기
+            </button>
+        `
+    );
+
+
+    $("modalConfirmButton")
+        .addEventListener(
+            "click",
+            createWorkbook
         );
 
 
-    const targetIndex =
-        appData.files.findIndex(
-            file =>
-                file.id ===
-                targetId
+    setTimeout(
+        () =>
+            $("modalWorkbookName")?.focus(),
+        50
+    );
+
+}
+
+
+function createWorkbook() {
+
+    const file =
+        getFileById(
+            currentFileId
         );
 
 
-    if (
-        sourceIndex < 0 ||
-        targetIndex < 0
-    ) {
+    if (!file) {
 
         return;
 
     }
 
 
-    const [
-        moved
-    ] =
-        appData.files.splice(
-            sourceIndex,
-            1
+    const name =
+        $("modalWorkbookName")
+            ?.value
+            .trim();
+
+
+    if (!name) {
+
+        showToast(
+            "단어장 이름을 입력해주세요.",
+            "error"
         );
 
+        return;
 
-    appData.files.splice(
-        targetIndex,
-        0,
-        moved
-    );
+    }
+
+
+    file.wordbooks.push({
+        id: makeId(),
+        name,
+        words: []
+    });
 
 
     saveData();
 
-    renderFileList();
+    closeModal();
+
+    renderWorkbooks();
+
+    showToast(
+        "단어장을 만들었습니다."
+    );
 
 }
 
 
-/* =========================================================
-   단어장 목록
-   ========================================================= */
-
-function renderWorkbookList() {
+function renderWorkbooks() {
 
     const file =
-        getCurrentFile();
+        getFileById(
+            currentFileId
+        );
+
+
+    if (!file) {
+
+        return;
+
+    }
 
 
     const list =
         $("workbookList");
 
-
     const empty =
         $("emptyWorkbookState");
 
 
-    if (
-        !file ||
-        !list
-    ) {
-
-        return;
-
-    }
+    list.innerHTML =
+        "";
 
 
-    if (
-        file.wordbooks.length ===
-        0
-    ) {
+    if (!file.wordbooks.length) {
 
-        list.innerHTML =
-            "";
-
-
-        empty?.classList.remove(
+        empty.classList.remove(
             "hidden"
         );
 
-
         return;
 
     }
 
 
-    empty?.classList.add(
+    empty.classList.add(
         "hidden"
     );
 
 
-    list.innerHTML =
-        file.wordbooks
-            .map(
-                workbook => {
+    file.wordbooks.forEach(
+        workbook => {
 
-                    const importantCount =
-                        workbook.words.filter(
-                            word =>
-                                word.important
-                        ).length;
+            const card =
+                document.createElement(
+                    "div"
+                );
 
+            card.className =
+                "workbook-card";
 
-                    return `
+            card.draggable =
+                true;
 
-                        <div
-                            class="workbook-card"
-                            draggable="true"
-                            data-workbook-id="${escapeHTML(workbook.id)}"
-                        >
-
-                            <div
-                                class="workbook-card-main"
-                                onclick="openWorkbook('${file.id}', '${workbook.id}')"
-                            >
-
-                                <div class="workbook-icon">
-                                    📖
-                                </div>
-
-                                <div class="workbook-info">
-
-                                    <h3>
-                                        ${escapeHTML(workbook.name)}
-                                    </h3>
-
-                                    <p>
-                                        ${workbook.words.length}개 단어
-
-                                        ${
-                                            importantCount > 0
-                                                ? ` · ⭐ 중요 ${importantCount}개`
-                                                : ""
-                                        }
-
-                                    </p>
-
-                                </div>
-
-                            </div>
+            card.dataset.workbookId =
+                workbook.id;
 
 
-                            <div class="workbook-actions">
+            card.innerHTML = `
 
-                                <button
-                                    type="button"
-                                    title="이름 변경"
-                                    onclick="event.stopPropagation(); renameWorkbook('${workbook.id}')"
-                                >
-                                    ✏️
-                                </button>
+                <div
+                    class="workbook-card-main"
+                    data-action="open"
+                >
 
-                                <button
-                                    type="button"
-                                    title="삭제"
-                                    onclick="event.stopPropagation(); deleteWorkbook('${workbook.id}')"
-                                >
-                                    🗑️
-                                </button>
+                    <div class="workbook-icon">
+                        📖
+                    </div>
 
-                            </div>
+                    <div class="workbook-info">
 
-                        </div>
+                        <h3>
+                            ${escapeHTML(workbook.name)}
+                        </h3>
 
-                    `;
+                        <p>
+                            ${workbook.words.length}개 단어
+                        </p>
 
-                }
-            )
-            .join("");
+                    </div>
+
+                </div>
 
 
-    setupWorkbookDragAndDrop();
+                <div class="workbook-actions">
 
-}
+                    <button
+                        type="button"
+                        data-action="rename"
+                        aria-label="이름 변경"
+                    >
+                        ✏️
+                    </button>
 
+                    <button
+                        type="button"
+                        data-action="delete"
+                        aria-label="삭제"
+                    >
+                        🗑️
+                    </button>
 
-/* =========================================================
-   단어장 추가
-   ========================================================= */
+                </div>
 
-function addWorkbook() {
-
-    const file =
-        getCurrentFile();
-
-
-    if (!file) {
-        return;
-    }
-
-
-    openInputModal(
-        "단어장 추가",
-        "단어장 이름을 입력하세요.",
-        "",
-        name => {
-
-            file.wordbooks.push({
-
-                id:
-                    makeId(),
-
-                name:
-                    name.trim(),
-
-                createdAt:
-                    new Date()
-                        .toISOString(),
-
-                words: []
-
-            });
+            `;
 
 
-            saveData();
+            card
+                .querySelector(
+                    '[data-action="open"]'
+                )
+                .addEventListener(
+                    "click",
+                    () =>
+                        showWorkbookPage(
+                            file.id,
+                            workbook.id
+                        )
+                );
 
-            renderWorkbookList();
+
+            card
+                .querySelector(
+                    '[data-action="rename"]'
+                )
+                .addEventListener(
+                    "click",
+                    event => {
+
+                        event.stopPropagation();
+
+                        renameWorkbook(
+                            workbook.id
+                        );
+
+                    }
+                );
 
 
-            showToast(
-                "단어장이 추가되었습니다."
+            card
+                .querySelector(
+                    '[data-action="delete"]'
+                )
+                .addEventListener(
+                    "click",
+                    event => {
+
+                        event.stopPropagation();
+
+                        deleteWorkbook(
+                            workbook.id
+                        );
+
+                    }
+                );
+
+
+            addWorkbookDragEvents(
+                card,
+                workbook.id
+            );
+
+
+            list.appendChild(
+                card
             );
 
         }
@@ -1623,92 +1567,237 @@ function addWorkbook() {
 }
 
 
-/* =========================================================
-   단어장 이름 변경
-   ========================================================= */
+function addWorkbookDragEvents(
+    element,
+    workbookId
+) {
+
+    element.addEventListener(
+        "dragstart",
+        () => {
+
+            draggedWorkbookId =
+                workbookId;
+
+            element.classList.add(
+                "dragging"
+            );
+
+        }
+    );
+
+
+    element.addEventListener(
+        "dragend",
+        () => {
+
+            draggedWorkbookId =
+                null;
+
+            element.classList.remove(
+                "dragging"
+            );
+
+        }
+    );
+
+
+    element.addEventListener(
+        "dragover",
+        event => {
+
+            event.preventDefault();
+
+        }
+    );
+
+
+    element.addEventListener(
+        "drop",
+        event => {
+
+            event.preventDefault();
+
+            const file =
+                getFileById(
+                    currentFileId
+                );
+
+
+            if (
+                !file ||
+                !draggedWorkbookId ||
+                draggedWorkbookId ===
+                workbookId
+            ) {
+
+                return;
+
+            }
+
+
+            const from =
+                file.wordbooks.findIndex(
+                    item =>
+                        item.id ===
+                        draggedWorkbookId
+                );
+
+            const to =
+                file.wordbooks.findIndex(
+                    item =>
+                        item.id ===
+                        workbookId
+                );
+
+
+            if (
+                from === -1 ||
+                to === -1
+            ) {
+
+                return;
+
+            }
+
+
+            const [moved] =
+                file.wordbooks.splice(
+                    from,
+                    1
+                );
+
+
+            file.wordbooks.splice(
+                to,
+                0,
+                moved
+            );
+
+
+            saveData();
+
+            renderWorkbooks();
+
+        }
+    );
+
+}
+
 
 function renameWorkbook(
     workbookId
 ) {
 
-    const file =
-        getCurrentFile();
-
-
-    if (!file) {
-        return;
-    }
-
-
     const workbook =
-        file.wordbooks.find(
-            item =>
-                item.id ===
-                workbookId
+        getWorkbookById(
+            currentFileId,
+            workbookId
         );
 
 
     if (!workbook) {
+
         return;
+
     }
 
 
-    openInputModal(
+    openModal(
         "단어장 이름 변경",
-        "새 단어장 이름을 입력하세요.",
-        workbook.name,
-        name => {
+        `
+            <input
+                id="modalWorkbookName"
+                class="modal-input"
+                type="text"
+                value="${escapeHTML(workbook.name)}"
+                autocomplete="off"
+            >
+        `,
+        `
+            <button
+                id="modalCancelButton"
+                class="secondary-button"
+                type="button"
+            >
+                취소
+            </button>
 
-            workbook.name =
-                name.trim();
+            <button
+                id="modalConfirmButton"
+                class="primary-button"
+                type="button"
+            >
+                저장
+            </button>
+        `
+    );
 
 
-            saveData();
+    $("modalConfirmButton")
+        .addEventListener(
+            "click",
+            () => {
 
-            renderWorkbookList();
-
-
-            if (
-                currentWorkbookId ===
-                workbookId
-            ) {
-
-                $("currentWorkbookTitle")
-                    .textContent =
-                    workbook.name;
+                const name =
+                    $("modalWorkbookName")
+                        .value
+                        .trim();
 
 
-                $("currentWorkbookBreadcrumb")
-                    .textContent =
-                    workbook.name;
+                if (!name) {
+
+                    showToast(
+                        "단어장 이름을 입력해주세요.",
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                workbook.name =
+                    name;
+
+                saveData();
+
+                closeModal();
+
+                renderWorkbooks();
+
+                if (
+                    currentWorkbookId ===
+                    workbookId
+                ) {
+
+                    showWorkbookPage(
+                        currentFileId,
+                        workbookId
+                    );
+
+                }
 
             }
-
-
-            showToast(
-                "단어장 이름이 변경되었습니다."
-            );
-
-        }
-    );
+        );
 
 }
 
-
-/* =========================================================
-   단어장 삭제
-   ========================================================= */
 
 function deleteWorkbook(
     workbookId
 ) {
 
     const file =
-        getCurrentFile();
+        getFileById(
+            currentFileId
+        );
 
 
     if (!file) {
+
         return;
+
     }
 
 
@@ -1721,152 +1810,76 @@ function deleteWorkbook(
 
 
     if (!workbook) {
+
         return;
+
     }
 
 
-    openConfirmModal(
+    openModal(
         "단어장 삭제",
-        `"${workbook.name}" 단어장을 삭제할까요?\n단어장 안의 모든 단어도 함께 삭제됩니다.`,
-        () => {
+        `
+            <p class="modal-message">
+                <strong>${escapeHTML(workbook.name)}</strong>
+                단어장을 삭제할까요?<br>
+                안에 있는 단어도 함께 삭제됩니다.
+            </p>
+        `,
+        `
+            <button
+                id="modalCancelButton"
+                class="secondary-button"
+                type="button"
+            >
+                취소
+            </button>
 
-            file.wordbooks =
-                file.wordbooks.filter(
-                    item =>
-                        item.id !==
-                        workbookId
-                );
-
-
-            saveData();
-
-
-            if (
-                currentWorkbookId ===
-                workbookId
-            ) {
-
-                currentWorkbookId =
-                    null;
-
-
-                showFilePage(
-                    file.id
-                );
-
-            } else {
-
-                renderWorkbookList();
-
-            }
-
-
-            showToast(
-                "단어장이 삭제되었습니다."
-            );
-
-        }
+            <button
+                id="modalConfirmButton"
+                class="danger-button"
+                type="button"
+            >
+                삭제
+            </button>
+        `
     );
 
-}
+
+    $("modalConfirmButton")
+        .addEventListener(
+            "click",
+            () => {
+
+                file.wordbooks =
+                    file.wordbooks.filter(
+                        item =>
+                            item.id !==
+                            workbookId
+                    );
 
 
-function openWorkbook(
-    fileId,
-    workbookId
-) {
+                saveData();
 
-    showWorkbookPage(
-        fileId,
-        workbookId
-    );
+                closeModal();
 
-}
+                if (
+                    currentWorkbookId ===
+                    workbookId
+                ) {
 
+                    showFilePage(
+                        currentFileId
+                    );
 
-/* =========================================================
-   단어장 드래그
-   ========================================================= */
+                } else {
 
-function setupWorkbookDragAndDrop() {
+                    renderWorkbooks();
 
-    document
-        .querySelectorAll(
-            ".workbook-card"
-        )
-        .forEach(
-            card => {
-
-                card.addEventListener(
-                    "dragstart",
-                    () => {
-
-                        draggedWorkbookId =
-                            card.dataset.workbookId;
+                }
 
 
-                        card.classList.add(
-                            "dragging"
-                        );
-
-                    }
-                );
-
-
-                card.addEventListener(
-                    "dragend",
-                    () => {
-
-                        draggedWorkbookId =
-                            null;
-
-
-                        card.classList.remove(
-                            "dragging"
-                        );
-
-                    }
-                );
-
-
-                card.addEventListener(
-                    "dragover",
-                    event => {
-
-                        event.preventDefault();
-
-                    }
-                );
-
-
-                card.addEventListener(
-                    "drop",
-                    event => {
-
-                        event.preventDefault();
-
-
-                        const targetId =
-                            card.dataset.workbookId;
-
-
-                        if (
-                            !draggedWorkbookId ||
-                            draggedWorkbookId ===
-                            targetId
-                        ) {
-
-                            return;
-
-                        }
-
-
-                        reorderWorkbooks(
-                            draggedWorkbookId,
-                            targetId
-                        );
-
-                    }
+                showToast(
+                    "단어장을 삭제했습니다."
                 );
 
             }
@@ -1875,201 +1888,109 @@ function setupWorkbookDragAndDrop() {
 }
 
 
-function reorderWorkbooks(
-    sourceId,
-    targetId
-) {
-
-    const file =
-        getCurrentFile();
-
-
-    if (!file) {
-        return;
-    }
-
-
-    const sourceIndex =
-        file.wordbooks.findIndex(
-            book =>
-                book.id ===
-                sourceId
-        );
-
-
-    const targetIndex =
-        file.wordbooks.findIndex(
-            book =>
-                book.id ===
-                targetId
-        );
-
-
-    if (
-        sourceIndex < 0 ||
-        targetIndex < 0
-    ) {
-
-        return;
-
-    }
-
-
-    const [
-        moved
-    ] =
-        file.wordbooks.splice(
-            sourceIndex,
-            1
-        );
-
-
-    file.wordbooks.splice(
-        targetIndex,
-        0,
-        moved
-    );
-
-
-    saveData();
-
-    renderWorkbookList();
-
-}
-
-
 /* =========================================================
-   단어 입력
+   단어 추가
    ========================================================= */
 
 function parseBulkInput(
     input
 ) {
 
-    const results = [];
+    return input
+        .split("/")
+        .map(
+            item =>
+                item.trim()
+        )
+        .filter(Boolean)
+        .map(
+            item => {
+
+                const separator =
+                    item.indexOf(":");
 
 
-    const chunks =
-        input
-            .split("/")
-            .map(
-                chunk =>
-                    chunk.trim()
-            )
-            .filter(Boolean);
+                if (
+                    separator === -1
+                ) {
+
+                    return null;
+
+                }
 
 
-    chunks.forEach(
-        chunk => {
-
-            const colonIndex =
-                chunk.indexOf(":");
-
-
-            if (
-                colonIndex === -1
-            ) {
-
-                return;
-
-            }
+                const word =
+                    item
+                        .slice(
+                            0,
+                            separator
+                        )
+                        .trim();
 
 
-            const word =
-                chunk
-                    .slice(
-                        0,
-                        colonIndex
-                    )
-                    .trim();
+                const meanings =
+                    item
+                        .slice(
+                            separator + 1
+                        )
+                        .split(",")
+                        .map(
+                            meaning =>
+                                meaning.trim()
+                        )
+                        .filter(Boolean);
 
 
-            const meaningText =
-                chunk
-                    .slice(
-                        colonIndex + 1
-                    )
-                    .trim();
+                if (
+                    !word ||
+                    !meanings.length
+                ) {
+
+                    return null;
+
+                }
 
 
-            if (
-                !word ||
-                !meaningText
-            ) {
-
-                return;
-
-            }
-
-
-            const meanings =
-                normalizeMeanings(
-                    meaningText.split(",")
-                );
-
-
-            if (
-                meanings.length ===
-                0
-            ) {
-
-                return;
+                return {
+                    word,
+                    meanings
+                };
 
             }
-
-
-            results.push({
-
-                word,
-
-                meanings
-
-            });
-
-        }
-    );
-
-
-    return results;
+        )
+        .filter(Boolean);
 
 }
 
 
-/* =========================================================
-   단어 일괄 추가
-   ========================================================= */
-
 function addBulkWords() {
 
     const workbook =
-        getCurrentWorkbook();
+        getWorkbookById(
+            currentFileId,
+            currentWorkbookId
+        );
 
 
-    const input =
-        $("bulkWordInput");
-
-
-    if (
-        !workbook ||
-        !input
-    ) {
+    if (!workbook) {
 
         return;
 
     }
 
 
-    const text =
-        input.value.trim();
+    const input =
+        $("bulkWordInput")
+            .value
+            .trim();
 
 
-    if (!text) {
+    if (!input) {
 
         showToast(
-            "단어를 입력해주세요.",
+            "추가할 단어를 입력해주세요.",
             "error"
         );
-
 
         return;
 
@@ -2078,42 +1999,30 @@ function addBulkWords() {
 
     const parsed =
         parseBulkInput(
-            text
+            input
         );
 
 
-    if (
-        parsed.length ===
-        0
-    ) {
+    if (!parsed.length) {
 
         showToast(
             "입력 형식을 확인해주세요.",
             "error"
         );
 
-
         return;
 
     }
 
 
-    let addedWords =
-        0;
-
-
-    let addedMeanings =
-        0;
-
-
-    let duplicates =
-        0;
+    let added = 0;
+    let merged = 0;
 
 
     parsed.forEach(
         item => {
 
-            let existing =
+            const existing =
                 workbook.words.find(
                     word =>
                         word.word
@@ -2123,71 +2032,56 @@ function addBulkWords() {
                 );
 
 
-            if (!existing) {
+            if (existing) {
 
-                existing = {
+                item.meanings.forEach(
+                    meaning => {
 
-                    id:
-                        makeId(),
-
-                    word:
-                        item.word,
-
-                    meanings: [],
-
-                    correct:
-                        0,
-
-                    wrong:
-                        0,
-
-                    important:
-                        false
-
-                };
+                        const already =
+                            existing.meanings
+                                .some(
+                                    current =>
+                                        current
+                                            .toLowerCase() ===
+                                        meaning
+                                            .toLowerCase()
+                                );
 
 
-                workbook.words.push(
-                    existing
+                        if (!already) {
+
+                            existing.meanings.push(
+                                meaning
+                            );
+
+                            merged++;
+
+                        }
+
+                    }
                 );
 
 
-                addedWords++;
+                return;
 
             }
 
 
-            item.meanings.forEach(
-                meaning => {
-
-                    const duplicate =
-                        existing.meanings.some(
-                            current =>
-                                current ===
-                                meaning
-                        );
-
-
-                    if (
-                        duplicate
-                    ) {
-
-                        duplicates++;
-
-                        return;
-
-                    }
+            workbook.words.push({
+                id: makeId(),
+                word: item.word,
+                meanings: [
+                    ...new Set(
+                        item.meanings
+                    )
+                ],
+                correct: 0,
+                wrong: 0,
+                important: false
+            });
 
 
-                    existing.meanings.push(
-                        meaning
-                    );
-
-
-                    addedMeanings++;
-
-                }
-            );
+            added++;
 
         }
     );
@@ -2195,140 +2089,167 @@ function addBulkWords() {
 
     saveData();
 
-    input.value = "";
-
-    renderWordList();
-
-
-    if (
-        addedWords > 0
-    ) {
-
-        showToast(
-            `단어 ${addedWords}개가 추가되었습니다.`
-        );
-
-    } else if (
-        addedMeanings > 0
-    ) {
-
-        showToast(
-            `새로운 뜻 ${addedMeanings}개가 추가되었습니다.`
-        );
-
-    } else {
-
-        showToast(
-            "새롭게 추가된 내용이 없습니다.",
-            "error"
-        );
-
-    }
+    $("bulkWordInput")
+        .value =
+        "";
 
 
-    if (
-        duplicates > 0
-    ) {
-
-        setTimeout(
-            () => {
-
-                showToast(
-                    `중복된 뜻 ${duplicates}개는 제외되었습니다.`
-                );
-
-            },
-            350
-        );
-
-    }
-
-}
+    renderWords();
 
 
-/* =========================================================
-   단어장 전용 테스트
-   + 단어 추가 버튼
-   ========================================================= */
-
-function startWorkbookTest() {
-
-    const file =
-        getCurrentFile();
-
-
-    const workbook =
-        getCurrentWorkbook();
-
-
-    if (
-        !file ||
-        !workbook
-    ) {
-
-        return;
-
-    }
-
-
-    if (
-        workbook.words.length ===
-        0
-    ) {
-
-        showToast(
-            "테스트할 단어가 없습니다.",
-            "error"
-        );
-
-
-        return;
-
-    }
-
-
-    const questions =
-        workbook.words.map(
-            word => {
-
-                const direction =
-                    Math.random() < 0.5
-                        ? "file-to-meaning"
-                        : "meaning-to-file";
-
-
-                return makeQuestion(
-                    {
-                        word,
-                        workbook
-                    },
-                    direction,
-                    file
-                );
-
-            }
-        );
-
-
-    startTest(
-        questions,
-        `${workbook.name} 테스트`,
-        "workbook",
-        file.id,
-        workbook.id,
-        "workbook"
+    showToast(
+        `${added}개 추가, ${merged}개 뜻 병합`
     );
 
 }
 
 
-/* =========================================================
-   단어 하나 추가
-   ========================================================= */
-
 function addSingleWord() {
 
-    startWorkbookTest();
+    const workbook =
+        getWorkbookById(
+            currentFileId,
+            currentWorkbookId
+        );
+
+
+    if (!workbook) {
+
+        return;
+
+    }
+
+
+    openModal(
+        "단어 추가",
+        `
+            <input
+                id="modalWord"
+                class="modal-input"
+                type="text"
+                placeholder="단어"
+                autocomplete="off"
+            >
+
+            <input
+                id="modalMeaning"
+                class="modal-input modal-input-spaced"
+                type="text"
+                placeholder="뜻"
+                autocomplete="off"
+            >
+        `,
+        `
+            <button
+                id="modalCancelButton"
+                class="secondary-button"
+                type="button"
+            >
+                취소
+            </button>
+
+            <button
+                id="modalConfirmButton"
+                class="primary-button"
+                type="button"
+            >
+                추가
+            </button>
+        `
+    );
+
+
+    $("modalConfirmButton")
+        .addEventListener(
+            "click",
+            () => {
+
+                const word =
+                    $("modalWord")
+                        .value
+                        .trim();
+
+                const meaning =
+                    $("modalMeaning")
+                        .value
+                        .trim();
+
+
+                if (
+                    !word ||
+                    !meaning
+                ) {
+
+                    showToast(
+                        "단어와 뜻을 모두 입력해주세요.",
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                const existing =
+                    workbook.words.find(
+                        item =>
+                            item.word
+                                .toLowerCase() ===
+                            word
+                                .toLowerCase()
+                    );
+
+
+                if (existing) {
+
+                    const duplicate =
+                        existing.meanings
+                            .some(
+                                item =>
+                                    item
+                                        .toLowerCase() ===
+                                    meaning
+                                        .toLowerCase()
+                            );
+
+
+                    if (!duplicate) {
+
+                        existing.meanings.push(
+                            meaning
+                        );
+
+                    }
+
+
+                } else {
+
+                    workbook.words.push({
+                        id: makeId(),
+                        word,
+                        meanings: [
+                            meaning
+                        ],
+                        correct: 0,
+                        wrong: 0,
+                        important: false
+                    });
+
+                }
+
+
+                saveData();
+
+                closeModal();
+
+                renderWords();
+
+                showToast(
+                    "단어를 추가했습니다."
+                );
+
+            }
+        );
 
 }
 
@@ -2337,346 +2258,204 @@ function addSingleWord() {
    단어 목록
    ========================================================= */
 
-function renderWordList() {
+function renderWords() {
 
     const workbook =
-        getCurrentWorkbook();
+        getWorkbookById(
+            currentFileId,
+            currentWorkbookId
+        );
+
+
+    if (!workbook) {
+
+        return;
+
+    }
 
 
     const list =
         $("wordList");
 
-
     const empty =
         $("emptyWordState");
 
 
-    if (
-        !workbook ||
-        !list
-    ) {
-
-        return;
-
-    }
+    list.innerHTML =
+        "";
 
 
-    const words =
-        workbook.words
-            .map(
-                (
-                    word,
-                    index
-                ) => ({
-                    word,
-                    index
-                })
-            )
-            .sort(
-                (a, b) => {
+    $("wordCountDescription")
+        .textContent =
+        `${workbook.words.length}개의 단어`;
 
-                    if (
-                        a.word.important &&
-                        !b.word.important
-                    ) {
-
-                        return -1;
-
-                    }
+    $("wordListCount")
+        .textContent =
+        `${workbook.words.length}개`;
 
 
-                    if (
-                        !a.word.important &&
-                        b.word.important
-                    ) {
+    if (!workbook.words.length) {
 
-                        return 1;
-
-                    }
-
-
-                    return (
-                        a.index -
-                        b.index
-                    );
-
-                }
-            );
-
-
-    if (
-        words.length ===
-        0
-    ) {
-
-        list.innerHTML =
-            "";
-
-
-        empty?.classList.remove(
+        empty.classList.remove(
             "hidden"
         );
 
-
-        updateWordCountUI(
-            0
-        );
-
-
         return;
 
     }
 
 
-    empty?.classList.add(
+    empty.classList.add(
         "hidden"
     );
 
 
-    updateWordCountUI(
-        workbook.words.length
-    );
+    /*
+       중요 단어를 위에 표시하되,
+       일반 단어끼리의 저장 순서는 유지
+    */
 
-
-    list.innerHTML =
-        words
-            .map(
-                (
-                    item,
-                    displayIndex
-                ) => {
-
-                    const word =
-                        item.word;
-
-
-                    const attempts =
-                        getAttemptCount(
-                            word
-                        );
-
-
-                    return `
-
-                        <div
-                            class="
-                                word-card
-                                ${
-                                    word.important
-                                        ? "important-word"
-                                        : ""
-                                }
-                            "
-                            draggable="true"
-                            data-word-id="${escapeHTML(word.id)}"
-                        >
-
-                            <div class="word-number">
-                                ${displayIndex + 1}
-                            </div>
-
-
-                            <div class="word-main">
-
-                                <div class="word-title">
-
-                                    ${
-                                        word.important
-                                            ? `<span class="important-star">⭐</span>`
-                                            : ""
-                                    }
-
-                                    <strong>
-                                        ${escapeHTML(word.word)}
-                                    </strong>
-
-                                </div>
-
-
-                                <div class="word-meaning">
-                                    ${getMeaningsText(word)}
-                                </div>
-
-
-                                ${
-                                    attempts > 0
-                                        ? `
-                                            <div class="word-stat">
-                                                정답 ${word.correct}
-                                                · 오답 ${word.wrong}
-                                            </div>
-                                        `
-                                        : ""
-                                }
-
-                            </div>
-
-
-                            <div class="word-actions">
-
-                                <button
-                                    type="button"
-                                    title="수정"
-                                    onclick="editWord('${word.id}')"
-                                >
-                                    ✏️
-                                </button>
-
-                                <button
-                                    type="button"
-                                    title="삭제"
-                                    onclick="deleteWord('${word.id}')"
-                                >
-                                    🗑️
-                                </button>
-
-                            </div>
-
-                        </div>
-
-                    `;
-
-                }
-            )
-            .join("");
-
-
-    setupWordDragAndDrop();
-
-}
-
-
-function updateWordCountUI(
-    count
-) {
-
-    $("wordCountDescription")
-        .textContent =
-        `${count}개의 단어`;
-
-
-    $("wordListCount")
-        .textContent =
-        `${count}개`;
-
-}
-
-
-/* =========================================================
-   단어 수정
-   ========================================================= */
-
-function editWord(
-    wordId
-) {
-
-    const workbook =
-        getCurrentWorkbook();
-
-
-    if (!workbook) {
-        return;
-    }
-
-
-    const word =
-        workbook.words.find(
-            item =>
-                item.id ===
-                wordId
+    const words =
+        [
+            ...workbook.words
+        ].sort(
+            (a, b) =>
+                Number(b.important) -
+                Number(a.important)
         );
 
 
-    if (!word) {
-        return;
-    }
+    words.forEach(
+        (word, index) => {
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+            card.className =
+                "word-card";
+
+            if (word.important) {
+
+                card.classList.add(
+                    "important-word"
+                );
+
+            }
 
 
-    openInputModal(
-        "단어 수정",
-        "영어 단어를 입력하세요.",
-        word.word,
-        newWord => {
+            card.draggable =
+                true;
 
-            openInputModal(
-                "뜻 수정",
-                "뜻을 입력하세요. 여러 뜻은 쉼표로 입력할 수 있습니다.",
-                word.meanings.join(","),
-                newMeaningText => {
-
-                    const cleanWord =
-                        newWord.trim();
+            card.dataset.wordId =
+                word.id;
 
 
-                    const meanings =
-                        normalizeMeanings(
-                            newMeaningText
-                                .split(",")
-                        );
+            const attempts =
+                word.correct +
+                word.wrong;
 
 
-                    const duplicateWord =
-                        workbook.words.find(
-                            item =>
-                                item.id !==
-                                wordId &&
-                                item.word
-                                    .toLowerCase() ===
-                                cleanWord
-                                    .toLowerCase()
-                        );
+            card.innerHTML = `
 
+                <div class="word-number">
+                    ${index + 1}
+                </div>
 
-                    if (
-                        duplicateWord
-                    ) {
+                <div class="word-main">
 
-                        const duplicateMeaning =
-                            meanings.some(
-                                meaning =>
-                                    duplicateWord
-                                        .meanings
-                                        .includes(
-                                            meaning
-                                        )
-                            );
+                    <div class="word-title">
 
+                        <strong>
+                            ${escapeHTML(word.word)}
+                        </strong>
 
-                        if (
-                            duplicateMeaning
-                        ) {
-
-                            showToast(
-                                "같은 단어와 뜻이 이미 있습니다.",
-                                "error"
-                            );
-
-
-                            return;
-
+                        ${
+                            word.important
+                                ? `<span class="important-star">⭐</span>`
+                                : ""
                         }
 
+                    </div>
+
+                    <div class="word-meaning">
+                        ${escapeHTML(
+                            word.meanings.join(", ")
+                        )}
+                    </div>
+
+                    ${
+                        attempts > 0
+                            ? `
+                                <div class="word-stat">
+                                    정답 ${word.correct} ·
+                                    오답 ${word.wrong}
+                                </div>
+                            `
+                            : ""
                     }
 
-
-                    word.word =
-                        cleanWord;
+                </div>
 
 
-                    word.meanings =
-                        meanings;
+                <div class="word-actions">
+
+                    <button
+                        type="button"
+                        data-action="edit"
+                        aria-label="수정"
+                    >
+                        ✏️
+                    </button>
+
+                    <button
+                        type="button"
+                        data-action="delete"
+                        aria-label="삭제"
+                    >
+                        🗑️
+                    </button>
+
+                </div>
+
+            `;
 
 
-                    saveData();
+            card
+                .querySelector(
+                    '[data-action="edit"]'
+                )
+                .addEventListener(
+                    "click",
+                    () =>
+                        editWord(
+                            word.id
+                        )
+                );
 
-                    renderWordList();
+
+            card
+                .querySelector(
+                    '[data-action="delete"]'
+                )
+                .addEventListener(
+                    "click",
+                    () =>
+                        deleteWord(
+                            word.id
+                        )
+                );
 
 
-                    showToast(
-                        "단어가 수정되었습니다."
-                    );
+            addWordDragEvents(
+                card,
+                word.id
+            );
 
-                }
+
+            list.appendChild(
+                card
             );
 
         }
@@ -2685,57 +2464,118 @@ function editWord(
 }
 
 
-/* =========================================================
-   단어 삭제
-   ========================================================= */
-
-function deleteWord(
+function addWordDragEvents(
+    element,
     wordId
 ) {
 
-    const workbook =
-        getCurrentWorkbook();
-
-
-    if (!workbook) {
-        return;
-    }
-
-
-    const word =
-        workbook.words.find(
-            item =>
-                item.id ===
-                wordId
-        );
-
-
-    if (!word) {
-        return;
-    }
-
-
-    openConfirmModal(
-        "단어 삭제",
-        `"${word.word}" 단어를 삭제할까요?`,
+    element.addEventListener(
+        "dragstart",
         () => {
 
-            workbook.words =
-                workbook.words.filter(
+            draggedWordId =
+                wordId;
+
+            element.classList.add(
+                "dragging"
+            );
+
+        }
+    );
+
+
+    element.addEventListener(
+        "dragend",
+        () => {
+
+            draggedWordId =
+                null;
+
+            element.classList.remove(
+                "dragging"
+            );
+
+        }
+    );
+
+
+    element.addEventListener(
+        "dragover",
+        event => {
+
+            event.preventDefault();
+
+        }
+    );
+
+
+    element.addEventListener(
+        "drop",
+        event => {
+
+            event.preventDefault();
+
+            const workbook =
+                getWorkbookById(
+                    currentFileId,
+                    currentWorkbookId
+                );
+
+
+            if (
+                !workbook ||
+                !draggedWordId ||
+                draggedWordId ===
+                wordId
+            ) {
+
+                return;
+
+            }
+
+
+            const from =
+                workbook.words.findIndex(
                     item =>
-                        item.id !==
+                        item.id ===
+                        draggedWordId
+                );
+
+            const to =
+                workbook.words.findIndex(
+                    item =>
+                        item.id ===
                         wordId
                 );
 
 
+            if (
+                from === -1 ||
+                to === -1
+            ) {
+
+                return;
+
+            }
+
+
+            const [moved] =
+                workbook.words.splice(
+                    from,
+                    1
+                );
+
+
+            workbook.words.splice(
+                to,
+                0,
+                moved
+            );
+
+
             saveData();
 
-            renderWordList();
-
-
-            showToast(
-                "단어가 삭제되었습니다."
-            );
+            renderWords();
 
         }
     );
@@ -2743,89 +2583,133 @@ function deleteWord(
 }
 
 
-/* =========================================================
-   단어 드래그
-   ========================================================= */
+function editWord(wordId) {
 
-function setupWordDragAndDrop() {
-
-    document
-        .querySelectorAll(
-            ".word-card"
-        )
-        .forEach(
-            card => {
-
-                card.addEventListener(
-                    "dragstart",
-                    () => {
-
-                        draggedWordId =
-                            card.dataset.wordId;
+    const workbook =
+        getWorkbookById(
+            currentFileId,
+            currentWorkbookId
+        );
 
 
-                        card.classList.add(
-                            "dragging"
-                        );
+    if (!workbook) {
 
-                    }
-                );
+        return;
 
-
-                card.addEventListener(
-                    "dragend",
-                    () => {
-
-                        draggedWordId =
-                            null;
+    }
 
 
-                        card.classList.remove(
-                            "dragging"
-                        );
-
-                    }
-                );
-
-
-                card.addEventListener(
-                    "dragover",
-                    event => {
-
-                        event.preventDefault();
-
-                    }
-                );
+    const word =
+        workbook.words.find(
+            item =>
+                item.id ===
+                wordId
+        );
 
 
-                card.addEventListener(
-                    "drop",
-                    event => {
+    if (!word) {
 
-                        event.preventDefault();
+        return;
 
-
-                        const targetId =
-                            card.dataset.wordId;
+    }
 
 
-                        if (
-                            !draggedWordId ||
-                            draggedWordId ===
-                            targetId
-                        ) {
+    openModal(
+        "단어 수정",
+        `
+            <input
+                id="modalWord"
+                class="modal-input"
+                type="text"
+                value="${escapeHTML(word.word)}"
+                autocomplete="off"
+            >
 
-                            return;
+            <input
+                id="modalMeaning"
+                class="modal-input modal-input-spaced"
+                type="text"
+                value="${escapeHTML(
+                    word.meanings.join(",")
+                )}"
+                autocomplete="off"
+            >
+        `,
+        `
+            <button
+                id="modalCancelButton"
+                class="secondary-button"
+                type="button"
+            >
+                취소
+            </button>
 
-                        }
+            <button
+                id="modalConfirmButton"
+                class="primary-button"
+                type="button"
+            >
+                저장
+            </button>
+        `
+    );
 
 
-                        reorderWords(
-                            draggedWordId,
-                            targetId
-                        );
+    $("modalConfirmButton")
+        .addEventListener(
+            "click",
+            () => {
 
-                    }
+                const newWord =
+                    $("modalWord")
+                        .value
+                        .trim();
+
+                const meanings =
+                    $("modalMeaning")
+                        .value
+                        .split(",")
+                        .map(
+                            value =>
+                                value.trim()
+                        )
+                        .filter(Boolean);
+
+
+                if (
+                    !newWord ||
+                    !meanings.length
+                ) {
+
+                    showToast(
+                        "단어와 뜻을 입력해주세요.",
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                word.word =
+                    newWord;
+
+                word.meanings =
+                    [
+                        ...new Set(
+                            meanings
+                        )
+                    ];
+
+
+                saveData();
+
+                closeModal();
+
+                renderWords();
+
+                showToast(
+                    "단어를 수정했습니다."
                 );
 
             }
@@ -2834,102 +2718,223 @@ function setupWordDragAndDrop() {
 }
 
 
-function reorderWords(
-    sourceId,
-    targetId
-) {
+function deleteWord(wordId) {
 
     const workbook =
-        getCurrentWorkbook();
+        getWorkbookById(
+            currentFileId,
+            currentWorkbookId
+        );
 
 
     if (!workbook) {
-        return;
-    }
-
-
-    const sourceIndex =
-        workbook.words.findIndex(
-            word =>
-                word.id ===
-                sourceId
-        );
-
-
-    const targetIndex =
-        workbook.words.findIndex(
-            word =>
-                word.id ===
-                targetId
-        );
-
-
-    if (
-        sourceIndex < 0 ||
-        targetIndex < 0
-    ) {
 
         return;
 
     }
 
 
-    const [
-        moved
-    ] =
-        workbook.words.splice(
-            sourceIndex,
-            1
+    const word =
+        workbook.words.find(
+            item =>
+                item.id ===
+                wordId
         );
 
 
-    workbook.words.splice(
-        targetIndex,
-        0,
-        moved
+    if (!word) {
+
+        return;
+
+    }
+
+
+    openModal(
+        "단어 삭제",
+        `
+            <p class="modal-message">
+                <strong>${escapeHTML(word.word)}</strong>
+                단어를 삭제할까요?
+            </p>
+        `,
+        `
+            <button
+                id="modalCancelButton"
+                class="secondary-button"
+                type="button"
+            >
+                취소
+            </button>
+
+            <button
+                id="modalConfirmButton"
+                class="danger-button"
+                type="button"
+            >
+                삭제
+            </button>
+        `
     );
 
 
-    saveData();
+    $("modalConfirmButton")
+        .addEventListener(
+            "click",
+            () => {
 
-    renderWordList();
+                workbook.words =
+                    workbook.words.filter(
+                        item =>
+                            item.id !==
+                            wordId
+                    );
+
+
+                saveData();
+
+                closeModal();
+
+                renderWords();
+
+                showToast(
+                    "단어를 삭제했습니다."
+                );
+
+            }
+        );
 
 }
 
 
 /* =========================================================
-   파일 전체 단어
+   테스트용 문제 생성
    ========================================================= */
 
-function getAllWordsFromFile(
-    file
+function makeQuestion(
+    word,
+    direction,
+    file,
+    workbook = null
 ) {
 
-    const result = [];
+    return {
+
+        wordId:
+            word.id,
+
+        word,
+
+        direction,
+
+        sourceFileId:
+            file.id,
+
+        sourceWorkbookId:
+            workbook?.id || null,
+
+        fileName:
+            file.name,
+
+        workbookName:
+            workbook?.name || null
+
+    };
+
+}
 
 
-    file.wordbooks.forEach(
-        workbook => {
+/* =========================================================
+   테스트 방향
+   ========================================================= */
 
-            workbook.words.forEach(
-                word => {
+function getDirectionLabel(
+    question
+) {
 
-                    result.push({
+    const file =
+        getFileById(
+            question.sourceFileId
+        );
 
-                        word,
 
-                        workbook
+    const language =
+        (
+            file?.name ||
+            question.fileName ||
+            "단어"
+        ).trim();
 
-                    });
+
+    if (
+        question.direction ===
+        "english-to-meaning"
+    ) {
+
+        return `${language} → 뜻`;
+
+    }
+
+
+    return `뜻 → ${language}`;
+
+}
+
+
+/* =========================================================
+   테스트 문제 만들기
+   ========================================================= */
+
+function buildTestQuestions(
+    words,
+    file,
+    workbook,
+    type
+) {
+
+    const questions =
+        words.map(
+            word => {
+
+                let direction;
+
+
+                if (
+                    type ===
+                    "all"
+                ) {
+
+                    direction =
+                        Math.random() < 0.5
+                            ? "english-to-meaning"
+                            : "meaning-to-english";
+
+                } else {
+
+                    direction =
+                        type;
 
                 }
-            );
 
-        }
+
+                return makeQuestion(
+                    word,
+                    direction,
+                    file,
+                    workbook
+                );
+
+            }
+        );
+
+
+    /*
+       테스트 시작 시 문제 순서를
+       완전히 랜덤으로 섞음
+    */
+
+    return shuffle(
+        questions
     );
-
-
-    return result;
 
 }
 
@@ -2941,108 +2946,452 @@ function getAllWordsFromFile(
 function openTotalTestMenu() {
 
     const file =
-        getCurrentFile();
-
-
-    if (!file) {
-        return;
-    }
-
-
-    const all =
-        getAllWordsFromFile(
-            file
+        getFileById(
+            currentFileId
         );
 
 
-    if (
-        all.length ===
-        0
-    ) {
+    if (!file) {
+
+        return;
+
+    }
+
+
+    const totalWords =
+        file.wordbooks.reduce(
+            (sum, workbook) =>
+                sum +
+                workbook.words.length,
+            0
+        );
+
+
+    openModal(
+        "일반 테스트",
+        `
+            <div class="test-menu">
+
+                <button
+                    class="test-menu-button"
+                    id="testMenuAll"
+                    type="button"
+                    ${totalWords ? "" : "disabled"}
+                >
+                    <strong>📝 전체 테스트</strong>
+                    <span>
+                        ${file.name}의 모든 단어 · 문제 순서와 방향 랜덤
+                    </span>
+                </button>
+
+
+                <button
+                    class="test-menu-button"
+                    id="testMenuEnglish"
+                    type="button"
+                    ${totalWords ? "" : "disabled"}
+                >
+                    <strong>
+                        ${escapeHTML(file.name)} → 뜻
+                    </strong>
+                    <span>
+                        모든 단어를 ${escapeHTML(file.name)}에서 뜻으로
+                    </span>
+                </button>
+
+
+                <button
+                    class="test-menu-button"
+                    id="testMenuMeaning"
+                    type="button"
+                    ${totalWords ? "" : "disabled"}
+                >
+                    <strong>
+                        뜻 → ${escapeHTML(file.name)}
+                    </strong>
+                    <span>
+                        모든 단어를 뜻에서 ${escapeHTML(file.name)}으로
+                    </span>
+                </button>
+
+
+                <button
+                    class="test-menu-button"
+                    id="testMenuQuick"
+                    type="button"
+                    ${totalWords ? "" : "disabled"}
+                >
+                    <strong>⚡ 빠른 테스트</strong>
+                    <span>
+                        중요 단어와 자주 틀린 단어를 빠르게 테스트
+                    </span>
+                </button>
+
+            </div>
+        `,
+        ""
+    );
+
+
+    $("testMenuAll")
+        ?.addEventListener(
+            "click",
+            () => {
+
+                closeModal();
+
+                startFileTest(
+                    "all"
+                );
+
+            }
+        );
+
+
+    $("testMenuEnglish")
+        ?.addEventListener(
+            "click",
+            () => {
+
+                closeModal();
+
+                startFileTest(
+                    "english-to-meaning"
+                );
+
+            }
+        );
+
+
+    $("testMenuMeaning")
+        ?.addEventListener(
+            "click",
+            () => {
+
+                closeModal();
+
+                startFileTest(
+                    "meaning-to-english"
+                );
+
+            }
+        );
+
+
+    $("testMenuQuick")
+        ?.addEventListener(
+            "click",
+            () => {
+
+                closeModal();
+
+                openQuickTestMenu();
+
+            }
+        );
+
+}
+
+
+/* =========================================================
+   파일 전체 테스트
+   ========================================================= */
+
+function startFileTest(
+    type
+) {
+
+    const file =
+        getFileById(
+            currentFileId
+        );
+
+
+    if (!file) {
+
+        return;
+
+    }
+
+
+    const words =
+        file.wordbooks.flatMap(
+            workbook =>
+                workbook.words
+        );
+
+
+    if (!words.length) {
 
         showToast(
             "테스트할 단어가 없습니다.",
             "error"
         );
 
+        return;
+
+    }
+
+
+    const questions =
+        buildTestQuestions(
+            words,
+            file,
+            null,
+            type
+        );
+
+
+    let testName;
+
+
+    if (
+        type ===
+        "all"
+    ) {
+
+        testName =
+            "전체 테스트";
+
+    } else if (
+        type ===
+        "english-to-meaning"
+    ) {
+
+        testName =
+            `${file.name} → 뜻`;
+
+    } else {
+
+        testName =
+            `뜻 → ${file.name}`;
+
+    }
+
+
+    startTest(
+        questions,
+        testName,
+        type,
+        file.id,
+        null
+    );
+
+}
+
+
+/* =========================================================
+   단어장 테스트 메뉴
+   ========================================================= */
+
+function openWorkbookTestMenu() {
+
+    const file =
+        getFileById(
+            currentFileId
+        );
+
+    const workbook =
+        getWorkbookById(
+            currentFileId,
+            currentWorkbookId
+        );
+
+
+    if (!file || !workbook) {
 
         return;
 
     }
 
 
-    openModal(
-        "일반 테스트",
-        `
+    const total =
+        workbook.words.length;
 
+
+    openModal(
+        `${workbook.name} 테스트`,
+        `
             <div class="test-menu">
 
                 <button
                     class="test-menu-button"
-                    onclick="closeModal(); startFileTest('all')"
+                    id="workbookTestEnglish"
+                    type="button"
+                    ${total ? "" : "disabled"}
                 >
-
-                    <strong>
-                        📝 전체 테스트
-                    </strong>
-
-                    <span>
-                        영어/뜻 방향이 문제마다 랜덤으로 출제됩니다.
-                    </span>
-
-                </button>
-
-
-                <button
-                    class="test-menu-button"
-                    onclick="closeModal(); startFileTest('file-to-meaning')"
-                >
-
                     <strong>
                         ${escapeHTML(file.name)} → 뜻
                     </strong>
-
                     <span>
-                        파일의 단어를 보고 뜻을 입력합니다.
+                        이 단어장에 있는 ${total}개 단어
                     </span>
-
                 </button>
 
 
                 <button
                     class="test-menu-button"
-                    onclick="closeModal(); startFileTest('meaning-to-file')"
+                    id="workbookTestMeaning"
+                    type="button"
+                    ${total ? "" : "disabled"}
                 >
-
                     <strong>
                         뜻 → ${escapeHTML(file.name)}
                     </strong>
-
                     <span>
-                        뜻을 보고 단어를 입력합니다.
+                        이 단어장에 있는 ${total}개 단어
                     </span>
-
                 </button>
 
 
                 <button
                     class="test-menu-button"
-                    onclick="openQuickTestMenu()"
+                    id="workbookTestAll"
+                    type="button"
+                    ${total ? "" : "disabled"}
                 >
-
                     <strong>
-                        ⚡ 빠른 테스트
+                        🔀 전체 테스트
                     </strong>
-
                     <span>
-                        중요 단어 또는 틀린 단어를 테스트합니다.
+                        영어 → 뜻 / 뜻 → ${escapeHTML(file.name)} 랜덤
                     </span>
-
                 </button>
 
             </div>
+        `,
+        ""
+    );
 
-        `
+
+    $("workbookTestEnglish")
+        ?.addEventListener(
+            "click",
+            () => {
+
+                closeModal();
+
+                startWorkbookTest(
+                    "english-to-meaning"
+                );
+
+            }
+        );
+
+
+    $("workbookTestMeaning")
+        ?.addEventListener(
+            "click",
+            () => {
+
+                closeModal();
+
+                startWorkbookTest(
+                    "meaning-to-english"
+                );
+
+            }
+        );
+
+
+    $("workbookTestAll")
+        ?.addEventListener(
+            "click",
+            () => {
+
+                closeModal();
+
+                startWorkbookTest(
+                    "all"
+                );
+
+            }
+        );
+
+}
+
+
+/* =========================================================
+   단어장 테스트
+   ========================================================= */
+
+function startWorkbookTest(
+    type = "all"
+) {
+
+    const file =
+        getFileById(
+            currentFileId
+        );
+
+    const workbook =
+        getWorkbookById(
+            currentFileId,
+            currentWorkbookId
+        );
+
+
+    if (!file || !workbook) {
+
+        return;
+
+    }
+
+
+    if (!workbook.words.length) {
+
+        showToast(
+            "이 단어장에는 테스트할 단어가 없습니다.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    const questions =
+        buildTestQuestions(
+            workbook.words,
+            file,
+            workbook,
+            type
+        );
+
+
+    let testName;
+
+
+    if (
+        type ===
+        "all"
+    ) {
+
+        testName =
+            `${workbook.name} · 전체 테스트`;
+
+    } else if (
+        type ===
+        "english-to-meaning"
+    ) {
+
+        testName =
+            `${workbook.name} · ${file.name} → 뜻`;
+
+    } else {
+
+        testName =
+            `${workbook.name} · 뜻 → ${file.name}`;
+
+    }
+
+
+    startTest(
+        questions,
+        testName,
+        type,
+        file.id,
+        workbook.id
     );
 
 }
@@ -3055,366 +3404,162 @@ function openTotalTestMenu() {
 function openQuickTestMenu() {
 
     const file =
-        getCurrentFile();
+        getFileById(
+            currentFileId
+        );
 
 
     if (!file) {
+
         return;
+
     }
 
 
-    const all =
-        getAllWordsFromFile(
-            file
+    const words =
+        file.wordbooks.flatMap(
+            workbook =>
+                workbook.words
         );
 
 
-    const importantWords =
-        all.filter(
-            item =>
-                item.word.important
-        );
+    const important =
+        words.filter(
+            word =>
+                word.important
+        ).length;
 
 
-    const wrongWords =
-        all.filter(
-            item =>
-                item.word.wrong > 0
-        );
+    const wrong =
+        words.filter(
+            word =>
+                word.wrong > 0
+        ).length;
 
 
     openModal(
         "빠른 테스트",
         `
-
             <div class="test-menu">
 
                 <button
+                    id="quickImportantButton"
                     class="test-menu-button"
-                    ${
-                        importantWords.length ===
-                        0
-                            ? "disabled"
-                            : ""
-                    }
-                    onclick="closeModal(); startQuickTest('important')"
+                    type="button"
+                    ${important ? "" : "disabled"}
                 >
-
-                    <strong>
-                        ⭐ 중요 단어 테스트
-                    </strong>
-
+                    <strong>⭐ 중요 단어</strong>
                     <span>
-                        중요 단어 ${importantWords.length}개
+                        ${important}개의 중요 단어
                     </span>
-
                 </button>
 
 
                 <button
+                    id="quickWrongButton"
                     class="test-menu-button"
-                    ${
-                        wrongWords.length ===
-                        0
-                            ? "disabled"
-                            : ""
-                    }
-                    onclick="closeModal(); startQuickTest('wrong')"
+                    type="button"
+                    ${wrong ? "" : "disabled"}
                 >
-
-                    <strong>
-                        ❌ 틀린 단어 테스트
-                    </strong>
-
+                    <strong>❌ 틀린 단어</strong>
                     <span>
-                        틀린 기록이 있는 단어 ${wrongWords.length}개
+                        ${wrong}개의 틀린 단어
                     </span>
-
                 </button>
 
             </div>
-
-        `
+        `,
+        ""
     );
 
-}
 
+    $("quickImportantButton")
+        ?.addEventListener(
+            "click",
+            () => {
 
-/* =========================================================
-   문제 생성
-   ========================================================= */
+                closeModal();
 
-function makeQuestion(
-    item,
-    direction,
-    file
-) {
+                startQuickTest(
+                    "important"
+                );
 
-    const word =
-        item.word;
-
-
-    const workbook =
-        item.workbook;
-
-
-    const meanings =
-        word.meanings;
-
-
-    let question;
-
-    let answers;
-
-
-    if (
-        direction ===
-        "file-to-meaning"
-    ) {
-
-        question =
-            word.word;
-
-
-        answers =
-            meanings;
-
-    } else {
-
-        question =
-            meanings[0];
-
-
-        answers =
-            [word.word];
-
-    }
-
-
-    return {
-
-        wordId:
-            word.id,
-
-        workbookId:
-            workbook.id,
-
-        fileId:
-            file.id,
-
-        word,
-
-        workbook,
-
-        file,
-
-        direction,
-
-        question,
-
-        answers
-
-    };
-
-}
-
-
-/* =========================================================
-   일반 파일 테스트
-   ========================================================= */
-
-function startFileTest(
-    type
-) {
-
-    const file =
-        getCurrentFile();
-
-
-    if (!file) {
-        return;
-    }
-
-
-    const all =
-        getAllWordsFromFile(
-            file
+            }
         );
 
 
-    if (
-        all.length ===
-        0
-    ) {
+    $("quickWrongButton")
+        ?.addEventListener(
+            "click",
+            () => {
 
-        showToast(
-            "테스트할 단어가 없습니다.",
-            "error"
+                closeModal();
+
+                startQuickTest(
+                    "wrong"
+                );
+
+            }
         );
 
-
-        return;
-
-    }
-
-
-    let questions = [];
-
-
-    if (
-        type === "all"
-    ) {
-
-        questions =
-            all.map(
-                item => {
-
-                    const direction =
-                        Math.random() <
-                        0.5
-                            ? "file-to-meaning"
-                            : "meaning-to-file";
-
-
-                    return makeQuestion(
-                        item,
-                        direction,
-                        file
-                    );
-
-                }
-            );
-
-    } else {
-
-        questions =
-            all.map(
-                item =>
-                    makeQuestion(
-                        item,
-                        type,
-                        file
-                    )
-            );
-
-    }
-
-
-    startTest(
-        questions,
-        getTestName(
-            type,
-            file.name
-        ),
-        type,
-        file.id,
-        null,
-        "file"
-    );
-
 }
 
-
-/* =========================================================
-   테스트 이름
-   ========================================================= */
-
-function getTestName(
-    type,
-    fileName
-) {
-
-    if (
-        type === "all"
-    ) {
-
-        return `${fileName} 전체 테스트`;
-
-    }
-
-
-    if (
-        type ===
-        "file-to-meaning"
-    ) {
-
-        return `${fileName} → 뜻`;
-
-    }
-
-
-    if (
-        type ===
-        "meaning-to-file"
-    ) {
-
-        return `뜻 → ${fileName}`;
-
-    }
-
-
-    return `${fileName} 테스트`;
-
-}
-
-
-/* =========================================================
-   빠른 테스트
-   ========================================================= */
 
 function startQuickTest(
     mode
 ) {
 
     const file =
-        getCurrentFile();
-
-
-    if (!file) {
-        return;
-    }
-
-
-    const all =
-        getAllWordsFromFile(
-            file
+        getFileById(
+            currentFileId
         );
 
 
-    let selected;
+    if (!file) {
+
+        return;
+
+    }
+
+
+    const allWords =
+        file.wordbooks.flatMap(
+            workbook =>
+                workbook.words
+        );
+
+
+    let words;
 
 
     if (
-        mode === "important"
+        mode ===
+        "important"
     ) {
 
-        selected =
-            all.filter(
-                item =>
-                    item.word.important
+        words =
+            allWords.filter(
+                word =>
+                    word.important
             );
 
     } else {
 
-        selected =
-            all.filter(
-                item =>
-                    item.word.wrong > 0
+        words =
+            allWords.filter(
+                word =>
+                    word.wrong > 0
             );
 
     }
 
 
-    if (
-        selected.length ===
-        0
-    ) {
+    if (!words.length) {
 
         showToast(
-            "해당 단어가 없습니다.",
+            "테스트할 단어가 없습니다.",
             "error"
         );
-
 
         return;
 
@@ -3422,35 +3567,22 @@ function startQuickTest(
 
 
     const questions =
-        selected.map(
-            item => {
-
-                const direction =
-                    Math.random() <
-                    0.5
-                        ? "file-to-meaning"
-                        : "meaning-to-file";
-
-
-                return makeQuestion(
-                    item,
-                    direction,
-                    file
-                );
-
-            }
+        buildTestQuestions(
+            words,
+            file,
+            null,
+            "english-to-meaning"
         );
 
 
     startTest(
         questions,
         mode === "important"
-            ? "⭐ 중요 단어 테스트"
-            : "❌ 틀린 단어 테스트",
-        "quick",
+            ? "중요 단어 빠른 테스트"
+            : "틀린 단어 빠른 테스트",
+        "english-to-meaning",
         file.id,
-        null,
-        "file"
+        null
     );
 
 }
@@ -3465,21 +3597,15 @@ function startTest(
     testName,
     testType,
     sourceFileId,
-    sourceWorkbookId,
-    returnPage = "home"
+    sourceWorkbookId
 ) {
 
-    if (
-        !questions ||
-        questions.length ===
-        0
-    ) {
+    if (!questions.length) {
 
         showToast(
             "테스트할 문제가 없습니다.",
             "error"
         );
-
 
         return;
 
@@ -3488,22 +3614,22 @@ function startTest(
 
     stopTimer();
 
+    clearTimeout(
+        testState.autoNextTimer
+    );
+
 
     testState = {
 
         questions,
 
-        currentIndex:
-            0,
+        currentIndex: 0,
 
-        correct:
-            0,
+        correct: 0,
 
-        wrong:
-            0,
+        wrong: 0,
 
-        wrongQuestions:
-            [],
+        wrongQuestions: [],
 
         testName,
 
@@ -3513,29 +3639,26 @@ function startTest(
 
         sourceWorkbookId,
 
-        returnPage,
+        answered: false,
 
-        answered:
-            false,
+        timer: null,
 
-        timer:
-            null,
+        timeLeft: getTestTime(),
 
-        timeLeft:
-            Number(
-                appData.testTime
-            ) || 10,
-
-        autoNextTimer:
-            null
+        autoNextTimer: null
 
     };
 
 
+    closeSidebar();
+
     showPage(
-        "test"
+        "testPage"
     );
 
+    updateNavigation(
+        ""
+    );
 
     renderCurrentQuestion();
 
@@ -3543,13 +3666,10 @@ function startTest(
 
 
 /* =========================================================
-   현재 문제
+   테스트 문제 표시
    ========================================================= */
 
 function renderCurrentQuestion() {
-
-    stopTimer();
-
 
     const question =
         testState.questions[
@@ -3566,97 +3686,104 @@ function renderCurrentQuestion() {
     }
 
 
+    stopTimer();
+
+    clearTimeout(
+        testState.autoNextTimer
+    );
+
+
     testState.answered =
         false;
 
 
-    testState.timeLeft =
-        Number(
-            appData.testTime
-        ) || 10;
+    const total =
+        testState.questions.length;
 
 
     $("testQuestionNumber")
         .textContent =
-        testState.currentIndex +
-        1;
-
+        testState.currentIndex + 1;
 
     $("testTotalQuestions")
         .textContent =
-        testState.questions.length;
+        total;
 
 
-    const fileName =
-        question.file?.name ||
-        "파일";
+    $("testTypeLabel")
+        .textContent =
+        getDirectionLabel(
+            question
+        );
 
 
     if (
         question.direction ===
-        "file-to-meaning"
+        "english-to-meaning"
     ) {
 
-        $("testTypeLabel")
+        $("testQuestion")
             .textContent =
-            `${fileName} → 뜻`;
+            question.word.word;
+
+        $("testAnswerInput")
+            .placeholder =
+            "뜻을 입력하세요";
 
     } else {
 
-        $("testTypeLabel")
+        $("testQuestion")
             .textContent =
-            `뜻 → ${fileName}`;
+            question.word.meanings[0] ||
+            "";
+
+        $("testAnswerInput")
+            .placeholder =
+            `${question.fileName || "언어"}를 입력하세요`;
 
     }
 
 
-    $("testQuestion")
-        .textContent =
-        question.question;
+    $("testFeedback")
+        .className =
+        "test-feedback hidden";
 
-
-    $("testTimer")
-        .textContent =
-        testState.timeLeft;
-
-
-    const input =
-        $("testAnswerInput");
-
-
-    input.value =
+    $("testFeedback")
+        .innerHTML =
         "";
 
 
-    input.disabled =
+    $("testSubmitButton")
+        .disabled =
         false;
-
-
-    const feedback =
-        $("testFeedback");
-
-
-    feedback.classList.add(
-        "hidden"
-    );
-
-
-    feedback.innerHTML =
-        "";
-
 
     $("testSubmitButton")
         .textContent =
         "확인";
 
 
-    setTimeout(
-        () => input.focus(),
-        50
-    );
+    $("testAnswerInput")
+        .value =
+        "";
+
+    $("testAnswerInput")
+        .disabled =
+        false;
+
+
+    $("testHint")
+        .textContent =
+        `문제당 ${getTestTime()}초 · Enter를 눌러 답을 제출할 수 있습니다.`;
 
 
     startTimer();
+
+    setTimeout(
+        () =>
+            $("testAnswerInput")
+                ?.focus(),
+        50
+    );
 
 }
 
@@ -3671,31 +3798,23 @@ function startTimer() {
 
 
     testState.timeLeft =
-        Number(
-            appData.testTime
-        ) || 10;
+        getTestTime();
 
 
-    updateTimerUI();
+    $("testTimer")
+        .textContent =
+        testState.timeLeft;
 
 
     testState.timer =
         setInterval(
             () => {
 
-                if (
-                    testState.answered
-                ) {
-
-                    return;
-
-                }
-
-
                 testState.timeLeft--;
 
-
-                updateTimerUI();
+                $("testTimer")
+                    .textContent =
+                    testState.timeLeft;
 
 
                 if (
@@ -3705,25 +3824,22 @@ function startTimer() {
 
                     stopTimer();
 
+                    if (
+                        !testState.answered
+                    ) {
 
-                    submitAnswer(
-                        true
-                    );
+                        handleAnswer(
+                            "",
+                            true
+                        );
+
+                    }
 
                 }
 
             },
             1000
         );
-
-}
-
-
-function updateTimerUI() {
-
-    $("testTimer")
-        .textContent =
-        testState.timeLeft;
 
 }
 
@@ -3738,101 +3854,80 @@ function stopTimer() {
             testState.timer
         );
 
-
         testState.timer =
             null;
 
     }
 
+}
 
-    if (
-        testState.autoNextTimer
-    ) {
 
-        clearTimeout(
-            testState.autoNextTimer
+/* =========================================================
+   답안 확인
+   ========================================================= */
+
+function normalizeAnswer(
+    value
+) {
+
+    return String(value ?? "")
+        .trim()
+        .toLowerCase();
+
+}
+
+
+function isAnswerCorrect(
+    question,
+    answer
+) {
+
+    const normalized =
+        normalizeAnswer(
+            answer
         );
 
 
-        testState.autoNextTimer =
-            null;
+    if (!normalized) {
 
-    }
-
-}
-
-
-/* =========================================================
-   정답 확인
-   ========================================================= */
-
-function checkAnswer(
-    userAnswer,
-    question
-) {
-
-    const user =
-        String(
-            userAnswer || ""
-        ).trim();
-
-
-    if (!user) {
         return false;
+
     }
 
 
-    const answers =
-        question.answers ||
-        [];
+    if (
+        question.direction ===
+        "english-to-meaning"
+    ) {
 
-
-    return answers.some(
-        answer => {
-
-            const expected =
-                String(
-                    answer
-                ).trim();
-
-
-            if (
-                question.direction ===
-                "meaning-to-file"
-            ) {
-
-                return (
-                    user.toLowerCase() ===
-                    expected.toLowerCase()
-                );
-
-            }
-
-
-            return (
-                user ===
-                expected
+        return question.word.meanings
+            .some(
+                meaning =>
+                    normalizeAnswer(
+                        meaning
+                    ) ===
+                    normalized
             );
 
-        }
-    );
+    }
+
+
+    return normalizeAnswer(
+        question.word.word
+    ) ===
+    normalized;
 
 }
 
 
-/* =========================================================
-   답안 제출
-   ========================================================= */
-
-function submitAnswer(
-    timeOut = false
+function handleAnswer(
+    answer,
+    timedOut = false
 ) {
 
     if (
         testState.answered
     ) {
-
-        nextQuestion();
 
         return;
 
@@ -3846,40 +3941,44 @@ function submitAnswer(
 
 
     if (!question) {
+
         return;
+
     }
-
-
-    stopTimer();
-
-
-    const input =
-        $("testAnswerInput");
-
-
-    const userAnswer =
-        input.value.trim();
-
-
-    const isCorrect =
-        !timeOut &&
-        checkAnswer(
-            userAnswer,
-            question
-        );
 
 
     testState.answered =
         true;
 
 
-    if (isCorrect) {
+    stopTimer();
+
+
+    const correct =
+        !timedOut &&
+        isAnswerCorrect(
+            question,
+            answer
+        );
+
+
+    const word =
+        question.word;
+
+
+    if (correct) {
 
         testState.correct++;
+
+        word.correct =
+            Number(word.correct || 0) + 1;
 
     } else {
 
         testState.wrong++;
+
+        word.wrong =
+            Number(word.wrong || 0) + 1;
 
 
         testState.wrongQuestions.push(
@@ -3889,150 +3988,63 @@ function submitAnswer(
     }
 
 
-    updateWordStatistics(
-        question,
-        isCorrect
-    );
-
-
-    showAnswerFeedback(
-        question,
-        isCorrect,
-        userAnswer,
-        timeOut
-    );
-
-
-    input.disabled =
-        true;
+    const attempts =
+        word.correct +
+        word.wrong;
 
 
     if (
-        testState.currentIndex ===
-        testState.questions.length -
-        1
+        attempts > 0 &&
+        word.wrong / attempts > 0.7
     ) {
 
-        $("testSubmitButton")
-            .textContent =
-            "결과 보기";
-
-    } else {
-
-        $("testSubmitButton")
-            .textContent =
-            "다음 문제";
+        word.important =
+            true;
 
     }
-
-
-    if (
-        timeOut
-    ) {
-
-        testState.autoNextTimer =
-            setTimeout(
-                () => {
-
-                    nextQuestion();
-
-                },
-                900
-            );
-
-    }
-
-}
-
-
-/* =========================================================
-   단어 통계
-   ========================================================= */
-
-function updateWordStatistics(
-    question,
-    isCorrect
-) {
-
-    const file =
-        getFile(
-            question.fileId
-        );
-
-
-    if (!file) {
-        return;
-    }
-
-
-    const workbook =
-        getWorkbook(
-            file.id,
-            question.workbookId
-        );
-
-
-    if (!workbook) {
-        return;
-    }
-
-
-    const word =
-        workbook.words.find(
-            item =>
-                item.id ===
-                question.wordId
-        );
-
-
-    if (!word) {
-        return;
-    }
-
-
-    if (isCorrect) {
-
-        word.correct =
-            Number(word.correct) +
-            1;
-
-    } else {
-
-        word.wrong =
-            Number(word.wrong) +
-            1;
-
-    }
-
-
-    updateImportantStatus(
-        word
-    );
 
 
     saveData();
 
+
+    showAnswerFeedback(
+        question,
+        correct,
+        timedOut
+    );
+
+
+    $("testAnswerInput")
+        .disabled =
+        true;
+
+    $("testSubmitButton")
+        .disabled =
+        true;
+
+
+    $("testSubmitButton")
+        .textContent =
+        "다음 문제";
+
+
+    testState.autoNextTimer =
+        setTimeout(
+            nextQuestion,
+            900
+        );
+
 }
 
 
-/* =========================================================
-   피드백
-   ========================================================= */
-
 function showAnswerFeedback(
     question,
-    isCorrect,
-    userAnswer,
-    timeOut
+    correct,
+    timedOut
 ) {
 
     const feedback =
         $("testFeedback");
-
-
-    if (!feedback) {
-        return;
-    }
 
 
     feedback.classList.remove(
@@ -4040,81 +4052,46 @@ function showAnswerFeedback(
     );
 
 
-    const answerText =
-        question.answers.join(
-            ", "
-        );
+    if (correct) {
 
+        feedback.className =
+            "test-feedback feedback-correct";
 
-    if (isCorrect) {
-
-        feedback.innerHTML = `
-
-            <div class="feedback-correct">
-
-                <strong>
-                    ⭕ 정답!
-                </strong>
-
-                <span>
-                    ${escapeHTML(
-                        answerText
-                    )}
-                </span>
-
-            </div>
-
-        `;
-
+        feedback.innerHTML =
+            `
+                <strong>정답입니다! 🎉</strong>
+            `;
 
         return;
 
     }
 
 
-    feedback.innerHTML = `
+    const answerText =
+        question.direction ===
+        "english-to-meaning"
+            ? question.word.meanings.join(", ")
+            : question.word.word;
 
-        <div class="feedback-wrong">
 
+    feedback.className =
+        "test-feedback feedback-wrong";
+
+
+    feedback.innerHTML =
+        `
             <strong>
-                ❌ ${
-                    timeOut
-                        ? "시간 초과!"
-                        : "오답!"
+                ${
+                    timedOut
+                        ? "시간이 초과되었습니다."
+                        : "아쉬워요. 오답입니다."
                 }
             </strong>
 
-
-            ${
-                userAnswer
-                    ? `
-                        <span>
-                            입력한 답:
-                            ${escapeHTML(
-                                userAnswer
-                            )}
-                        </span>
-                    `
-                    : `
-                        <span>
-                            입력한 답이 없습니다.
-                        </span>
-                    `
-            }
-
-
             <span>
-                정답:
-                <strong>
-                    ${escapeHTML(
-                        answerText
-                    )}
-                </strong>
+                정답: ${escapeHTML(answerText)}
             </span>
-
-        </div>
-
-    `;
+        `;
 
 }
 
@@ -4125,24 +4102,20 @@ function showAnswerFeedback(
 
 function nextQuestion() {
 
-    if (
-        !testState.answered
-    ) {
+    clearTimeout(
+        testState.autoNextTimer
+    );
 
-        submitAnswer(
-            false
-        );
+    testState.autoNextTimer =
+        null;
 
 
-        return;
-
-    }
+    testState.currentIndex++;
 
 
     if (
         testState.currentIndex >=
-        testState.questions.length -
-        1
+        testState.questions.length
     ) {
 
         finishTest();
@@ -4152,30 +4125,28 @@ function nextQuestion() {
     }
 
 
-    testState.currentIndex++;
-
-
     renderCurrentQuestion();
 
 }
 
 
 /* =========================================================
-   테스트 뒤로가기
+   테스트에서 뒤로가기
    ========================================================= */
 
-function leaveTest() {
+function goBackFromTest() {
 
     stopTimer();
 
+    clearTimeout(
+        testState.autoNextTimer
+    );
 
-    const returnPage =
-        testState.returnPage;
+    testState.autoNextTimer =
+        null;
 
 
     if (
-        returnPage ===
-        "workbook" &&
         testState.sourceFileId &&
         testState.sourceWorkbookId
     ) {
@@ -4185,22 +4156,18 @@ function leaveTest() {
             testState.sourceWorkbookId
         );
 
-
         return;
 
     }
 
 
     if (
-        returnPage ===
-        "file" &&
         testState.sourceFileId
     ) {
 
         showFilePage(
             testState.sourceFileId
         );
-
 
         return;
 
@@ -4213,29 +4180,45 @@ function leaveTest() {
 
 
 /* =========================================================
-   테스트 종료
+   테스트 완료
    ========================================================= */
 
 function finishTest() {
 
     stopTimer();
 
+    clearTimeout(
+        testState.autoNextTimer
+    );
+
 
     const total =
         testState.questions.length;
 
 
+    const now =
+        new Date();
+
+
     const record = {
 
-        id:
-            makeId(),
+        id: makeId(),
 
         date:
-            new Date()
-                .toISOString(),
+            now.toISOString(),
 
         fileName:
-            getFileNameForTest(),
+            getFileById(
+                testState.sourceFileId
+            )?.name ||
+            "테스트",
+
+        workbookName:
+            getWorkbookById(
+                testState.sourceFileId,
+                testState.sourceWorkbookId
+            )?.name ||
+            null,
 
         testName:
             testState.testName,
@@ -4283,29 +4266,20 @@ function finishTest() {
 
 
     $("retryWrongButton")
-        .disabled =
-        testState.wrongQuestions
-            .length === 0;
-
-
-    showPage(
-        "result"
-    );
-
-}
-
-
-function getFileNameForTest() {
-
-    const file =
-        getFile(
-            testState.sourceFileId
+        .classList.toggle(
+            "hidden",
+            testState.wrongQuestions.length === 0
         );
 
 
-    return file
-        ? file.name
-        : "알 수 없는 파일";
+    showPage(
+        "resultPage"
+    );
+
+
+    updateNavigation(
+        ""
+    );
 
 }
 
@@ -4316,42 +4290,76 @@ function getFileNameForTest() {
 
 function retryWrongQuestions() {
 
-    if (
-        !testState.wrongQuestions.length
-    ) {
+    const questions =
+        testState.wrongQuestions;
 
-        showToast(
-            "틀린 문제가 없습니다."
-        );
 
+    if (!questions.length) {
 
         return;
 
     }
 
 
-    const questions =
-        testState.wrongQuestions.map(
-            question => ({
-                ...question,
-
-                word:
-                    question.word,
-
-                answers:
-                    [...question.answers]
-            })
+    const shuffled =
+        shuffle(
+            questions
         );
 
 
     startTest(
-        questions,
-        `${testState.testName} - 틀린 문제`,
-        "wrong-retry",
+        shuffled,
+        `${testState.testName} · 오답 다시 풀기`,
+        testState.testType,
         testState.sourceFileId,
-        testState.sourceWorkbookId,
-        testState.returnPage
+        testState.sourceWorkbookId
     );
+
+}
+
+
+/* =========================================================
+   결과 이동
+   ========================================================= */
+
+function goToResultHome() {
+
+    showHomePage();
+
+}
+
+
+function goToResultBack() {
+
+    if (
+        testState.sourceFileId &&
+        testState.sourceWorkbookId
+    ) {
+
+        showWorkbookPage(
+            testState.sourceFileId,
+            testState.sourceWorkbookId
+        );
+
+        return;
+
+    }
+
+
+    if (
+        testState.sourceFileId
+    ) {
+
+        showFilePage(
+            testState.sourceFileId
+        );
+
+        return;
+
+    }
+
+
+    showHomePage();
 
 }
 
@@ -4363,102 +4371,34 @@ function retryWrongQuestions() {
 function renderStatistics() {
 
     const records =
-        Array.isArray(
-            appData.testRecords
-        )
-            ? appData.testRecords
-            : [];
-
-
-    if (
-        records.length ===
-        0
-    ) {
-
-        $("statisticsSummary")
-            .innerHTML =
-            "";
-
-
-        $("statisticsList")
-            .innerHTML =
-            "";
-
-
-        $("emptyStatisticsState")
-            .classList.remove(
-                "hidden"
+        [...appData.testRecords]
+            .sort(
+                (a, b) =>
+                    new Date(b.date) -
+                    new Date(a.date)
             );
 
 
-        return;
+    const totalTests =
+        records.length;
 
-    }
 
-
-    $("emptyStatisticsState")
-        .classList.add(
-            "hidden"
+    const totalQuestions =
+        records.reduce(
+            (sum, record) =>
+                sum +
+                Number(record.total || 0),
+            0
         );
 
 
-    renderStatisticsSummary(
-        records
-    );
-
-
-    renderStatisticsList(
-        records
-    );
-
-}
-
-
-/* =========================================================
-   기록 요약
-   ========================================================= */
-
-function renderStatisticsSummary(
-    records
-) {
-
-    let totalQuestions =
-        0;
-
-
-    let totalCorrect =
-        0;
-
-
-    let totalWrong =
-        0;
-
-
-    records.forEach(
-        record => {
-
-            totalQuestions +=
-                Number(
-                    record.total ||
-                    0
-                );
-
-
-            totalCorrect +=
-                Number(
-                    record.correct ||
-                    0
-                );
-
-
-            totalWrong +=
-                Number(
-                    record.wrong ||
-                    0
-                );
-
-        }
-    );
+    const totalCorrect =
+        records.reduce(
+            (sum, record) =>
+                sum +
+                Number(record.correct || 0),
+            0
+        );
 
 
     const accuracy =
@@ -4474,419 +4414,369 @@ function renderStatisticsSummary(
     $("statisticsSummary")
         .innerHTML = `
 
-        <div class="statistics-card">
+            <div class="statistics-card">
+                <span>📝</span>
+                <strong>${totalTests}</strong>
+                <small>테스트</small>
+            </div>
 
-            <span>📝</span>
+            <div class="statistics-card">
+                <span>📚</span>
+                <strong>${totalQuestions}</strong>
+                <small>문제</small>
+            </div>
 
-            <strong>
-                ${records.length}
-            </strong>
+            <div class="statistics-card">
+                <span>✅</span>
+                <strong>${totalCorrect}</strong>
+                <small>정답</small>
+            </div>
 
-            <small>
-                테스트
-            </small>
+            <div class="statistics-card">
+                <span>🎯</span>
+                <strong>${accuracy}%</strong>
+                <small>정답률</small>
+            </div>
 
-        </div>
-
-
-        <div class="statistics-card">
-
-            <span>📚</span>
-
-            <strong>
-                ${totalQuestions}
-            </strong>
-
-            <small>
-                문제
-            </small>
-
-        </div>
+        `;
 
 
-        <div class="statistics-card">
-
-            <span>⭕</span>
-
-            <strong>
-                ${totalCorrect}
-            </strong>
-
-            <small>
-                정답
-            </small>
-
-        </div>
+    const list =
+        $("statisticsList");
 
 
-        <div class="statistics-card">
-
-            <span>🎯</span>
-
-            <strong>
-                ${accuracy}%
-            </strong>
-
-            <small>
-                정답률
-            </small>
-
-        </div>
-
-    `;
-
-}
+    list.innerHTML =
+        "";
 
 
-/* =========================================================
-   기록 날짜
-   날짜 → 시간 → 테스트 종류
-   ========================================================= */
+    if (!records.length) {
 
-function formatRecordDate(
-    dateString
-) {
+        $("emptyStatisticsState")
+            .classList.remove(
+                "hidden"
+            );
 
-    const date =
-        new Date(
-            dateString
-        );
-
-
-    if (
-        Number.isNaN(
-            date.getTime()
-        )
-    ) {
-
-        return {
-            date: "",
-            time: ""
-        };
+        return;
 
     }
 
 
-    return {
-
-        date:
-            `${date.getFullYear()}.${String(
-                date.getMonth() + 1
-            ).padStart(
-                2,
-                "0"
-            )}.${String(
-                date.getDate()
-            ).padStart(
-                2,
-                "0"
-            )}`,
-
-        time:
-            `${String(
-                date.getHours()
-            ).padStart(
-                2,
-                "0"
-            )}:${String(
-                date.getMinutes()
-            ).padStart(
-                2,
-                "0"
-            )}`
-
-    };
-
-}
-
-
-/* =========================================================
-   기록 목록
-   ========================================================= */
-
-function renderStatisticsList(
-    records
-) {
-
-    const sorted =
-        [...records].sort(
-            (a, b) =>
-                new Date(b.date) -
-                new Date(a.date)
+    $("emptyStatisticsState")
+        .classList.add(
+            "hidden"
         );
 
 
-    $("statisticsList")
-        .innerHTML =
-        sorted
-            .map(
-                record =>
-                    renderStatisticRecord(
-                        record
+    records.forEach(
+        record => {
+
+            const date =
+                new Date(
+                    record.date
+                );
+
+
+            const dateText =
+                date.toLocaleDateString(
+                    "ko-KR",
+                    {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit"
+                    }
+                );
+
+
+            const timeText =
+                date.toLocaleTimeString(
+                    "ko-KR",
+                    {
+                        hour: "2-digit",
+                        minute: "2-digit"
+                    }
+                );
+
+
+            const total =
+                Number(
+                    record.total || 0
+                );
+
+
+            const correct =
+                Number(
+                    record.correct || 0
+                );
+
+
+            const score =
+                total > 0
+                    ? Math.round(
+                        correct /
+                        total *
+                        100
                     )
-            )
-            .join("");
-
-}
+                    : 0;
 
 
-/* =========================================================
-   기록 하나
-   ========================================================= */
-
-function renderStatisticRecord(
-    record
-) {
-
-    const dateInfo =
-        formatRecordDate(
-            record.date
-        );
+            const testType =
+                record.testName ||
+                record.testType ||
+                "테스트";
 
 
-    const testType =
-        getTestTypeText(
-            record
-        );
+            const location =
+                record.workbookName
+                    ? `${record.fileName || ""} · ${record.workbookName}`
+                    : record.fileName || "";
 
 
-    return `
-
-        <div class="statistic-record">
-
-            <div class="statistic-record-info">
-
-                <strong>
-                    ${escapeHTML(
-                        dateInfo.date
-                    )}
-                </strong>
-
-                <span>
-                    ${escapeHTML(
-                        dateInfo.time
-                    )}
-                </span>
-
-                <small>
-                    ${escapeHTML(
-                        testType
-                    )}
-                </small>
-
-            </div>
+            const item =
+                document.createElement(
+                    "div"
+                );
 
 
-            <div class="statistic-record-score">
-
-                <strong>
-                    ${Number(
-                        record.correct ||
-                        0
-                    )}
-                    /
-                    ${Number(
-                        record.total ||
-                        0
-                    )}
-                </strong>
-
-                <span>
-                    ⭕ ${Number(
-                        record.correct ||
-                        0
-                    )}
-                    ·
-                    ❌ ${Number(
-                        record.wrong ||
-                        0
-                    )}
-                </span>
-
-            </div>
-
-        </div>
-
-    `;
-
-}
+            item.className =
+                "statistic-record";
 
 
-/* =========================================================
-   기록 테스트 종류
-   ========================================================= */
+            item.innerHTML = `
 
-function getTestTypeText(
-    record
-) {
+                <div class="statistic-record-info">
 
-    if (
-        record.testType ===
-        "workbook"
-    ) {
+                    <strong class="record-date">
+                        ${escapeHTML(dateText)}
+                    </strong>
 
-        return `단어장 테스트 · ${record.testName}`;
+                    <span class="record-time">
+                        ${escapeHTML(timeText)}
+                        · ${correct}/${total}점
+                    </span>
 
-    }
+                    <small class="record-test-type">
+                        ${escapeHTML(testType)}
+                        ${
+                            location
+                                ? ` · ${escapeHTML(location)}`
+                                : ""
+                        }
+                    </small>
 
-
-    if (
-        record.testType ===
-        "quick"
-    ) {
-
-        return record.testName ||
-            "빠른 테스트";
-
-    }
+                </div>
 
 
-    if (
-        record.testType ===
-        "wrong-retry"
-    ) {
+                <div class="statistic-record-score">
 
-        return record.testName ||
-            "틀린 문제 다시 풀기";
+                    <strong>
+                        ${score}%
+                    </strong>
 
-    }
+                    <span>
+                        정답률
+                    </span>
 
+                </div>
 
-    return record.testName ||
-        "일반 테스트";
-
-}
+            `;
 
 
-/* =========================================================
-   테마
-   ========================================================= */
+            list.appendChild(
+                item
+            );
 
-function applyTheme() {
-
-    const dark =
-        appData.theme ===
-        "dark";
-
-
-    document.body.classList.toggle(
-        "dark-mode",
-        dark
+        }
     );
 
+}
 
-    document.documentElement
-        .dataset.theme =
-        dark
+
+/* =========================================================
+   버전 비교
+   ========================================================= */
+
+function compareVersions(
+    a,
+    b
+) {
+
+    const aParts =
+        String(a)
+            .split(".")
+            .map(Number);
+
+    const bParts =
+        String(b)
+            .split(".")
+            .map(Number);
+
+
+    for (
+        let i = 0;
+        i < Math.max(
+            aParts.length,
+            bParts.length
+        );
+        i++
+    ) {
+
+        const av =
+            aParts[i] || 0;
+
+        const bv =
+            bParts[i] || 0;
+
+
+        if (av > bv) {
+
+            return 1;
+
+        }
+
+        if (av < bv) {
+
+            return -1;
+
+        }
+
+    }
+
+
+    return 0;
+
+}
+
+
+function renderUsageGuide() {
+
+    const visible =
+        USAGE_GUIDE.filter(
+            item => {
+
+                const afterSince =
+                    compareVersions(
+                        APP_VERSION,
+                        item.since
+                    ) >= 0;
+
+
+                const beforeUntil =
+                    !item.until ||
+                    compareVersions(
+                        APP_VERSION,
+                        item.until
+                    ) < 0;
+
+
+                return (
+                    afterSince &&
+                    beforeUntil
+                );
+
+            }
+        );
+
+
+    $("usageGuideContent")
+        .innerHTML = `
+
+            <div class="guide-version">
+                현재 버전 ${APP_VERSION}
+            </div>
+
+            ${visible.map(
+                item => `
+
+                    <div class="guide-item">
+
+                        <strong>
+                            ${escapeHTML(item.title)}
+                        </strong>
+
+                        <p>
+                            ${escapeHTML(item.text)}
+                        </p>
+
+                    </div>
+
+                `
+            ).join("")}
+
+        `;
+
+
+    $("appVersion")
+        .textContent =
+        APP_VERSION;
+
+}
+
+
+/* =========================================================
+   설정
+   ========================================================= */
+
+function renderSettings() {
+
+    $("darkModeToggle")
+        .checked =
+        appData.theme === "dark";
+
+
+    $("testTimeSelect")
+        .value =
+        String(
+            getTestTime()
+        );
+
+
+    renderUsageGuide();
+
+}
+
+
+function toggleTheme(
+    isDark
+) {
+
+    appData.theme =
+        isDark
             ? "dark"
             : "light";
 
 
-    if (
-        $("darkModeToggle")
-    ) {
-
-        $("darkModeToggle")
-            .checked =
-            dark;
-
-    }
-
-
-    if (
-        $("headerThemeButton")
-    ) {
-
-        $("headerThemeButton")
-            .textContent =
-            dark
-                ? "☀️"
-                : "🌙";
-
-    }
-
-}
-
-
-function toggleTheme() {
-
-    appData.theme =
-        appData.theme ===
-        "dark"
-            ? "light"
-            : "dark";
-
-
-    saveData();
-
     applyTheme();
 
-}
-
-
-/* =========================================================
-   테스트 시간
-   ========================================================= */
-
-function applyTestTimeUI() {
-
-    const select =
-        $("testTimeSelect");
-
-
-    if (!select) {
-        return;
-    }
-
-
-    select.value =
-        String(
-            appData.testTime
-        );
-
-}
-
-
-function changeTestTime(
-    value
-) {
-
-    const allowed =
-        [
-            5,
-            10,
-            15,
-            20,
-            30,
-            60
-        ];
-
-
-    const time =
-        Number(value);
-
-
-    if (
-        !allowed.includes(
-            time
-        )
-    ) {
-
-        return;
-
-    }
-
-
-    appData.testTime =
-        time;
-
-
     saveData();
 
+}
 
-    showToast(
-        `문제 제한시간이 ${time}초로 변경되었습니다.`
-    );
+
+function applyTheme() {
+
+    document.body
+        .classList.toggle(
+            "dark-mode",
+            appData.theme ===
+            "dark"
+        );
+
+
+    $("headerThemeButton")
+        .textContent =
+        appData.theme ===
+        "dark"
+            ? "☀️"
+            : "🌙";
+
+
+    $("darkModeToggle")
+        && (
+            $("darkModeToggle")
+                .checked =
+            appData.theme ===
+            "dark"
+        );
 
 }
 
@@ -4897,35 +4787,17 @@ function changeTestTime(
 
 function exportData() {
 
-    const exportObject = {
-
-        appName:
-            "단어 암기장",
-
-        version:
-            APP_VERSION,
-
-        exportedAt:
-            new Date()
-                .toISOString(),
-
-        data:
-            appData
-
-    };
-
-
-    const json =
+    const data =
         JSON.stringify(
-            exportObject,
+            appData,
             null,
-            2
+            4
         );
 
 
     const blob =
         new Blob(
-            [json],
+            [data],
             {
                 type:
                     "application/json"
@@ -4945,32 +4817,16 @@ function exportData() {
         );
 
 
-    const date =
-        new Date()
-            .toISOString()
-            .slice(
-                0,
-                10
-            );
-
-
     link.href =
         url;
 
-
     link.download =
-        `단어장_백업_${date}.json`;
-
-
-    document.body.appendChild(
-        link
-    );
+        `단어암기장_${new Date()
+            .toISOString()
+            .slice(0, 10)}.json`;
 
 
     link.click();
-
-
-    link.remove();
 
 
     URL.revokeObjectURL(
@@ -4985,40 +4841,14 @@ function exportData() {
 }
 
 
-/* =========================================================
-   데이터 가져오기
-   ========================================================= */
-
-function importData() {
-
-    const input =
-        $("importFileInput");
-
-
-    if (!input) {
-        return;
-    }
-
-
-    input.value =
-        "";
-
-
-    input.click();
-
-}
-
-
-function handleImportFile(
-    event
+function importDataFromFile(
+    file
 ) {
 
-    const file =
-        event.target.files?.[0];
-
-
     if (!file) {
+
         return;
+
     }
 
 
@@ -5027,75 +4857,72 @@ function handleImportFile(
 
 
     reader.onload =
-        () => {
+        event => {
 
             try {
 
-                const parsed =
-                    JSON.parse(
-                        reader.result
-                    );
-
-
                 const imported =
-                    parsed?.data &&
-                    typeof parsed.data ===
-                    "object"
-                        ? parsed.data
-                        : parsed;
-
-
-                if (
-                    !imported ||
-                    !Array.isArray(
-                        imported.files
-                    )
-                ) {
-
-                    throw new Error(
-                        "올바른 백업 파일이 아닙니다."
+                    normalizeData(
+                        JSON.parse(
+                            event.target.result
+                        )
                     );
 
-                }
 
-
-                openConfirmModal(
+                openModal(
                     "데이터 가져오기",
-                    "현재 데이터가 가져온 데이터로 교체됩니다.\n계속하시겠습니까?",
-                    () => {
+                    `
+                        <p class="modal-message">
+                            현재 데이터 대신 가져온 데이터로
+                            교체할까요?
+                        </p>
+                    `,
+                    `
+                        <button
+                            id="modalCancelButton"
+                            class="secondary-button"
+                            type="button"
+                        >
+                            취소
+                        </button>
 
-                        appData =
-                            normalizeData(
-                                imported
+                        <button
+                            id="modalConfirmButton"
+                            class="primary-button"
+                            type="button"
+                        >
+                            가져오기
+                        </button>
+                    `
+                );
+
+
+                $("modalConfirmButton")
+                    .addEventListener(
+                        "click",
+                        () => {
+
+                            appData =
+                                imported;
+
+                            saveData();
+
+                            closeModal();
+
+                            applyTheme();
+
+                            renderHome();
+
+                            renderSettings();
+
+                            showHomePage();
+
+                            showToast(
+                                "데이터를 가져왔습니다."
                             );
 
-
-                        saveData();
-
-                        applyTheme();
-
-                        applyTestTimeUI();
-
-
-                        currentFileId =
-                            null;
-
-
-                        currentWorkbookId =
-                            null;
-
-
-                        renderFileList();
-
-                        showHomePage();
-
-
-                        showToast(
-                            "데이터를 가져왔습니다."
-                        );
-
-                    }
-                );
+                        }
+                    );
 
             } catch (error) {
 
@@ -5103,9 +4930,8 @@ function handleImportFile(
                     error
                 );
 
-
                 showToast(
-                    "데이터 파일을 읽을 수 없습니다.",
+                    "올바른 JSON 파일이 아닙니다.",
                     "error"
                 );
 
@@ -5115,422 +4941,20 @@ function handleImportFile(
 
 
     reader.readAsText(
-        file,
-        "UTF-8"
+        file
     );
 
 }
 
 
 /* =========================================================
-   사용 방법
-   ========================================================= */
-
-function getUsageGuide() {
-
-    return [
-
-        {
-            title:
-                "📁 파일",
-
-            text:
-                "파일 안에 여러 개의 단어장을 만들 수 있습니다."
-        },
-
-        {
-            title:
-                "📖 단어장",
-
-            text:
-                "단어장에서는 단어를 추가하고 수정하거나 삭제할 수 있습니다. 드래그하여 순서도 변경할 수 있습니다."
-        },
-
-        {
-            title:
-                "✏️ 단어 빠르게 추가",
-
-            text:
-                "<code>:</code>로 단어와 뜻을 구분하고, <code>,</code>로 여러 뜻을 입력하며, <code>/</code>로 여러 단어를 구분합니다."
-        },
-
-        {
-            title:
-                "📝 일반 테스트",
-
-            text:
-                "파일에 들어 있는 모든 단어를 대상으로 테스트합니다. 전체 테스트에서는 각 문제의 출제 방향이 랜덤으로 결정됩니다."
-        },
-
-        {
-            title:
-                "📚 단어장 테스트",
-
-            text:
-                "단어장 화면의 <strong>📝 단어 테스트</strong> 버튼을 누르면 현재 단어장에 있는 단어만 테스트합니다."
-        },
-
-        {
-            title:
-                "🔄 테스트 방향",
-
-            text:
-                "파일 이름을 기준으로 출제 방향이 표시됩니다. 예를 들어 파일 이름이 일본어라면 <strong>일본어 → 뜻</strong> 또는 <strong>뜻 → 일본어</strong>로 표시됩니다."
-        },
-
-        {
-            title:
-                "⏱️ 제한시간",
-
-            text:
-                "설정에서 문제 하나당 제한시간을 5초부터 60초까지 변경할 수 있습니다."
-        },
-
-        {
-            title:
-                "⭐ 중요 단어",
-
-            text:
-                "전체 시도 횟수 중 틀린 비율이 70%를 초과하면 해당 단어가 자동으로 중요 단어로 표시됩니다."
-        },
-
-        {
-            title:
-                "📊 기록",
-
-            text:
-                "테스트를 완료하면 기록이 저장됩니다. 최신 기록이 가장 위에 표시되며 날짜, 시간, 테스트 종류 순서로 확인할 수 있습니다."
-        },
-
-        {
-            title:
-                "💾 데이터",
-
-            text:
-                "데이터 내보내기로 백업 파일을 만들고, 데이터 가져오기로 백업한 데이터를 복원할 수 있습니다."
-        }
-
-    ];
-
-}
-
-
-function renderUsageGuide() {
-
-    const content =
-        $("usageGuideContent");
-
-
-    if (!content) {
-        return;
-    }
-
-
-    const guide =
-        getUsageGuide();
-
-
-    content.innerHTML =
-        `
-
-            <div class="guide-version">
-                현재 버전 ${APP_VERSION} 기준
-            </div>
-
-            ${
-                guide
-                    .map(
-                        item => `
-
-                            <div class="guide-item">
-
-                                <strong>
-                                    ${item.title}
-                                </strong>
-
-                                <p>
-                                    ${item.text}
-                                </p>
-
-                            </div>
-
-                        `
-                    )
-                    .join("")
-            }
-
-        `;
-
-}
-
-
-function toggleUsageGuide() {
-
-    const content =
-        $("usageGuideContent");
-
-
-    const arrow =
-        $("usageGuideArrow");
-
-
-    if (!content) {
-        return;
-    }
-
-
-    const hidden =
-        content.classList.contains(
-            "hidden"
-        );
-
-
-    content.classList.toggle(
-        "hidden",
-        !hidden
-    );
-
-
-    if (arrow) {
-
-        arrow.textContent =
-            hidden
-                ? "⌃"
-                : "⌄";
-
-    }
-
-}
-
-
-/* =========================================================
-   입력 모달
-   ========================================================= */
-
-function openInputModal(
-    title,
-    description,
-    defaultValue,
-    onConfirm
-) {
-
-    openModal(
-        title,
-
-        `
-
-            <p
-                style="
-                    margin-top:0;
-                    color:var(--text-light);
-                    font-size:13px;
-                "
-            >
-                ${escapeHTML(
-                    description
-                )}
-            </p>
-
-            <input
-                id="modalInputField"
-                class="modal-input"
-                type="text"
-                autocomplete="off"
-                value="${escapeHTML(
-                    defaultValue
-                )}"
-            >
-
-        `,
-
-        `
-
-            <button
-                id="modalCancelButton"
-                class="secondary-button"
-                type="button"
-            >
-                취소
-            </button>
-
-            <button
-                id="modalConfirmButton"
-                class="primary-button"
-                type="button"
-            >
-                확인
-            </button>
-
-        `
-    );
-
-
-    const input =
-        $("modalInputField");
-
-
-    setTimeout(
-        () => {
-
-            input.focus();
-
-            input.select();
-
-        },
-        30
-    );
-
-
-    const confirm =
-        () => {
-
-            const value =
-                input.value.trim();
-
-
-            if (!value) {
-
-                showToast(
-                    "내용을 입력해주세요.",
-                    "error"
-                );
-
-
-                input.focus();
-
-
-                return;
-
-            }
-
-
-            closeModal();
-
-
-            onConfirm(
-                value
-            );
-
-        };
-
-
-    $("modalConfirmButton")
-        .addEventListener(
-            "click",
-            confirm
-        );
-
-
-    $("modalCancelButton")
-        .addEventListener(
-            "click",
-            closeModal
-        );
-
-
-    input.addEventListener(
-        "keydown",
-        event => {
-
-            if (
-                event.key ===
-                "Enter"
-            ) {
-
-                event.preventDefault();
-
-                confirm();
-
-            }
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   확인 모달
-   ========================================================= */
-
-function openConfirmModal(
-    title,
-    message,
-    onConfirm
-) {
-
-    openModal(
-        title,
-
-        `
-
-            <p
-                style="
-                    white-space:pre-line;
-                    line-height:1.6;
-                    margin:0;
-                    color:var(--text-light);
-                "
-            >
-                ${escapeHTML(
-                    message
-                )}
-            </p>
-
-        `,
-
-        `
-
-            <button
-                id="modalCancelButton"
-                class="secondary-button"
-                type="button"
-            >
-                취소
-            </button>
-
-            <button
-                id="modalConfirmButton"
-                class="primary-button"
-                type="button"
-            >
-                확인
-            </button>
-
-        `
-    );
-
-
-    $("modalCancelButton")
-        .addEventListener(
-            "click",
-            closeModal
-        );
-
-
-    $("modalConfirmButton")
-        .addEventListener(
-            "click",
-            () => {
-
-                closeModal();
-
-                onConfirm();
-
-            }
-        );
-
-}
-
-
-/* =========================================================
-   일반 모달
+   모달
    ========================================================= */
 
 function openModal(
     title,
     body,
-    footer = ""
+    footer
 ) {
 
     $("modalTitle")
@@ -5553,6 +4977,13 @@ function openModal(
             "hidden"
         );
 
+
+    $("modalCancelButton")
+        ?.addEventListener(
+            "click",
+            closeModal
+        );
+
 }
 
 
@@ -5567,219 +4998,130 @@ function closeModal() {
 
 
 /* =========================================================
-   뒤로가기
+   토스트
    ========================================================= */
 
-function goBackToHome() {
+function showToast(
+    message,
+    type = "normal"
+) {
 
-    showHomePage();
-
-}
-
-
-function goBackToFile() {
-
-    if (!currentFileId) {
-
-        showHomePage();
-
-        return;
-
-    }
+    const toast =
+        document.createElement(
+            "div"
+        );
 
 
-    showFilePage(
-        currentFileId
+    toast.className =
+        `toast ${
+            type === "error"
+                ? "toast-error"
+                : ""
+        }`;
+
+
+    toast.textContent =
+        message;
+
+
+    $("toastContainer")
+        .appendChild(
+            toast
+        );
+
+
+    setTimeout(
+        () => {
+
+            toast.classList.add(
+                "hide"
+            );
+
+
+            setTimeout(
+                () =>
+                    toast.remove(),
+                300
+            );
+
+        },
+        2500
     );
 
 }
 
 
-function goToResultHome() {
-
-    showHomePage();
-
-}
-
-
-function goToResultBack() {
-
-    if (
-        testState.sourceWorkbookId &&
-        testState.sourceFileId
-    ) {
-
-        showWorkbookPage(
-            testState.sourceFileId,
-            testState.sourceWorkbookId
-        );
-
-
-        return;
-
-    }
-
-
-    if (
-        testState.sourceFileId
-    ) {
-
-        showFilePage(
-            testState.sourceFileId
-        );
-
-
-        return;
-
-    }
-
-
-    showHomePage();
-
-}
-
-
 /* =========================================================
-   네비게이션
+   이벤트
    ========================================================= */
 
-function setupNavigation() {
-
-    document
-        .querySelectorAll(
-            ".nav-item, .mobile-nav-item"
-        )
-        .forEach(
-            button => {
-
-                button.addEventListener(
-                    "click",
-                    () => {
-
-                        const page =
-                            button.dataset.page;
-
-
-                        if (
-                            page ===
-                            "home"
-                        ) {
-
-                            showHomePage();
-
-                        }
-
-
-                        if (
-                            page ===
-                            "statistics"
-                        ) {
-
-                            stopTimer();
-
-                            showPage(
-                                "statistics"
-                            );
-
-
-                            renderStatistics();
-
-                        }
-
-
-                        if (
-                            page ===
-                            "settings"
-                        ) {
-
-                            stopTimer();
-
-                            showPage(
-                                "settings"
-                            );
-
-
-                            applyTestTimeUI();
-
-                        }
-
-                    }
-                );
-
-            }
-        );
-
-}
-
-
-/* =========================================================
-   버튼
-   ========================================================= */
-
-function setupButtons() {
+function setupEvents() {
 
     $("addFileButton")
         .addEventListener(
             "click",
-            addFile
+            openFileModal
         );
 
 
     $("emptyAddFileButton")
         .addEventListener(
             "click",
-            addFile
-        );
-
-
-    $("backToHomeButton")
-        .addEventListener(
-            "click",
-            goBackToHome
+            openFileModal
         );
 
 
     $("addWorkbookButton")
         .addEventListener(
             "click",
-            addWorkbook
+            openWorkbookModal
         );
 
 
     $("emptyAddWorkbookButton")
         .addEventListener(
             "click",
-            addWorkbook
-        );
-
-
-    $("backToFileButton")
-        .addEventListener(
-            "click",
-            goBackToFile
+            openWorkbookModal
         );
 
 
     /*
-       단어장 화면의 + 단어 추가 버튼
-       → 현재 단어장 테스트
+       중요:
+       단어 추가 버튼은 실제로는
+       현재 단어장 테스트 메뉴를 엶
     */
 
     $("addWordButton")
         .addEventListener(
             "click",
-            startWorkbookTest
+            openWorkbookTestMenu
         );
 
-
-    /*
-       실제 단어 추가 버튼
-    */
 
     $("bulkAddWordButton")
         .addEventListener(
             "click",
             addBulkWords
+        );
+
+
+    $("bulkWordInput")
+        .addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter" &&
+                    !event.shiftKey
+                ) {
+
+                    event.preventDefault();
+
+                    addBulkWords();
+
+                }
+
+            }
         );
 
 
@@ -5790,18 +5132,98 @@ function setupButtons() {
         );
 
 
-    $("testSubmitButton")
+    $("backToHomeButton")
         .addEventListener(
             "click",
             () =>
-                submitAnswer(false)
+                showHomePage()
+        );
+
+
+    $("backToFileButton")
+        .addEventListener(
+            "click",
+            () => {
+
+                if (
+                    currentFileId
+                ) {
+
+                    showFilePage(
+                        currentFileId
+                    );
+
+                }
+
+            }
         );
 
 
     $("testBackButton")
         .addEventListener(
             "click",
-            leaveTest
+            goBackFromTest
+        );
+
+
+    $("testSubmitButton")
+        .addEventListener(
+            "click",
+            () => {
+
+                if (
+                    testState.answered
+                ) {
+
+                    nextQuestion();
+
+                    return;
+
+                }
+
+
+                handleAnswer(
+                    $("testAnswerInput")
+                        .value
+                );
+
+            }
+        );
+
+
+    $("testAnswerInput")
+        .addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key !==
+                    "Enter"
+                ) {
+
+                    return;
+
+                }
+
+
+                event.preventDefault();
+
+
+                if (
+                    testState.answered
+                ) {
+
+                    nextQuestion();
+
+                } else {
+
+                    handleAnswer(
+                        event.target.value
+                    );
+
+                }
+
+            }
         );
 
 
@@ -5826,39 +5248,59 @@ function setupButtons() {
         );
 
 
-    $("darkModeToggle")
+    $("headerHomeButton")
         .addEventListener(
-            "change",
-            event => {
-
-                appData.theme =
-                    event.target.checked
-                        ? "dark"
-                        : "light";
-
-
-                saveData();
-
-                applyTheme();
-
-            }
+            "click",
+            showHomePage
         );
 
 
     $("headerThemeButton")
         .addEventListener(
             "click",
-            toggleTheme
+            () =>
+                toggleTheme(
+                    appData.theme !==
+                    "dark"
+                )
+        );
+
+
+    $("darkModeToggle")
+        .addEventListener(
+            "change",
+            event =>
+                toggleTheme(
+                    event.target.checked
+                )
         );
 
 
     $("testTimeSelect")
         .addEventListener(
             "change",
-            event =>
-                changeTestTime(
-                    event.target.value
-                )
+            event => {
+
+                appData.testTime =
+                    normalizeTestTime(
+                        event.target.value
+                    );
+
+
+                saveData();
+
+                $("testTimeSelect")
+                    .value =
+                    String(
+                        appData.testTime
+                    );
+
+
+                showToast(
+                    `문제 제한시간을 ${appData.testTime}초로 설정했습니다.`
+                );
+
+            }
         );
 
 
@@ -5872,21 +5314,58 @@ function setupButtons() {
     $("importDataButton")
         .addEventListener(
             "click",
-            importData
+            () =>
+                $("importFileInput")
+                    .click()
         );
 
 
     $("importFileInput")
         .addEventListener(
             "change",
-            handleImportFile
+            event => {
+
+                const file =
+                    event.target.files?.[0];
+
+
+                if (file) {
+
+                    importDataFromFile(
+                        file
+                    );
+
+                }
+
+
+                event.target.value =
+                    "";
+
+            }
         );
 
 
     $("usageGuideButton")
         .addEventListener(
             "click",
-            toggleUsageGuide
+            () => {
+
+                const content =
+                    $("usageGuideContent");
+
+                const hidden =
+                    content.classList.toggle(
+                        "hidden"
+                    );
+
+
+                $("usageGuideArrow")
+                    .textContent =
+                    hidden
+                        ? "⌄"
+                        : "⌃";
+
+            }
         );
 
 
@@ -5915,110 +5394,105 @@ function setupButtons() {
         );
 
 
+    document
+        .querySelectorAll(
+            ".nav-item, .mobile-nav-item"
+        )
+        .forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        const page =
+                            button.dataset.page;
+
+
+                        if (
+                            page ===
+                            "home"
+                        ) {
+
+                            showHomePage();
+
+                        } else if (
+                            page ===
+                            "statistics"
+                        ) {
+
+                            stopTimer();
+
+                            showPage(
+                                "statisticsPage"
+                            );
+
+                            updateNavigation(
+                                "statistics"
+                            );
+
+                            closeSidebar();
+
+                            renderStatistics();
+
+                        } else if (
+                            page ===
+                            "settings"
+                        ) {
+
+                            stopTimer();
+
+                            showPage(
+                                "settingsPage"
+                            );
+
+                            updateNavigation(
+                                "settings"
+                            );
+
+                            closeSidebar();
+
+                            renderSettings();
+
+                        }
+
+                    }
+                );
+
+            }
+        );
+
+
     $("mobileMenuButton")
         .addEventListener(
             "click",
-            openSidebar
-        );
+            () => {
 
+                $("sidebar")
+                    .classList.toggle(
+                        "open"
+                    );
 
-    $("headerHomeButton")
-        .addEventListener(
-            "click",
-            showHomePage
+            }
         );
 
 }
 
 
 /* =========================================================
-   키보드
+   초기화
    ========================================================= */
 
-function setupKeyboardEvents() {
+function initialize() {
 
-    document.addEventListener(
-        "keydown",
-        event => {
+    applyTheme();
 
-            if (
-                event.target ===
-                $("bulkWordInput")
-            ) {
+    setupEvents();
 
-                if (
-                    event.key ===
-                    "Enter" &&
-                    !event.shiftKey
-                ) {
+    renderHome();
 
-                    event.preventDefault();
+    renderSettings();
 
-                    addBulkWords();
-
-                }
-
-
-                return;
-
-            }
-
-
-            const activePage =
-                document.querySelector(
-                    ".page.active"
-                );
-
-
-            if (
-                !activePage ||
-                activePage.id !==
-                "testPage"
-            ) {
-
-                return;
-
-            }
-
-
-            if (
-                event.key !==
-                "Enter"
-            ) {
-
-                return;
-
-            }
-
-
-            event.preventDefault();
-
-
-            if (
-                testState.answered
-            ) {
-
-                nextQuestion();
-
-            } else {
-
-                submitAnswer(
-                    false
-                );
-
-            }
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   PWA
-   ========================================================= */
-
-function registerServiceWorker() {
 
     if (
         "serviceWorker" in
@@ -6033,25 +5507,12 @@ function registerServiceWorker() {
                     .register(
                         "./sw.js"
                     )
-                    .then(
-                        registration => {
-
-                            console.log(
-                                "Service Worker 등록 완료:",
-                                registration.scope
-                            );
-
-                        }
-                    )
                     .catch(
-                        error => {
-
+                        error =>
                             console.error(
                                 "Service Worker 등록 실패:",
                                 error
-                            );
-
-                        }
+                            )
                     );
 
             }
@@ -6062,69 +5523,18 @@ function registerServiceWorker() {
 }
 
 
-/* =========================================================
-   초기화
-   ========================================================= */
-
-function initializeApp() {
-
-    applyTheme();
-
-    applyTestTimeUI();
-
-    renderUsageGuide();
-
-    $("appVersion")
-        .textContent =
-        APP_VERSION;
-
-    setupNavigation();
-
-    setupButtons();
-
-    setupKeyboardEvents();
-
-    renderFileList();
-
-    showHomePage();
-
-    registerServiceWorker();
-
-
-    console.log(
-        `단어 암기장이 시작되었습니다. v${APP_VERSION}`
-    );
-
-}
+document.addEventListener(
+    "DOMContentLoaded",
+    initialize
+);
 
 
 /* =========================================================
-   시작
-   ========================================================= */
-
-if (
-    document.readyState ===
-    "loading"
-) {
-
-    document.addEventListener(
-        "DOMContentLoaded",
-        initializeApp
-    );
-
-} else {
-
-    initializeApp();
-
-}
-
-
-/* =========================================================
-   HTML onclick 전역 등록
+   기존 inline 호출 호환
    ========================================================= */
 
 window.openFile =
-    openFile;
+    showFilePage;
 
 window.renameFile =
     renameFile;
@@ -6133,7 +5543,7 @@ window.deleteFile =
     deleteFile;
 
 window.openWorkbook =
-    openWorkbook;
+    showWorkbookPage;
 
 window.renameWorkbook =
     renameWorkbook;
@@ -6155,6 +5565,9 @@ window.openQuickTestMenu =
 
 window.startFileTest =
     startFileTest;
+
+window.startWorkbookTest =
+    startWorkbookTest;
 
 window.startQuickTest =
     startQuickTest;
