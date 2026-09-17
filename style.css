@@ -72,7 +72,6 @@ button {
 
 button:disabled {
     cursor: not-allowed;
-
     opacity: 0.5;
 }
 
@@ -247,15 +246,7 @@ button:disabled {
 }
 
 
-.nav-item:hover {
-    background:
-        var(--primary-light);
-
-    color:
-        var(--primary);
-}
-
-
+.nav-item:hover,
 .nav-item.active {
     background:
         var(--primary-light);
@@ -330,7 +321,8 @@ button:disabled {
    ========================================================= */
 
 .primary-button,
-.secondary-button {
+.secondary-button,
+.danger-button {
     border: 0;
 
     border-radius: 12px;
@@ -375,6 +367,21 @@ button:disabled {
 .secondary-button:hover {
     background:
         #ddd6fe;
+}
+
+
+.danger-button {
+    background:
+        var(--danger);
+
+    color:
+        #ffffff;
+}
+
+
+.danger-button:hover {
+    background:
+        #b91c1c;
 }
 
 
@@ -1044,6 +1051,21 @@ code {
         var(--text-light);
 
     font-size: 12px;
+}
+
+
+.record-date {
+    font-size: 16px;
+}
+
+
+.record-time {
+    font-size: 13px;
+}
+
+
+.record-test-type {
+    line-height: 1.5;
 }
 
 
@@ -1906,9 +1928,30 @@ code {
 }
 
 
+.modal-input-spaced {
+    margin-top: 10px;
+}
+
+
 .modal-input:focus {
     border-color:
         var(--primary);
+}
+
+
+.modal-message {
+    margin: 0;
+
+    line-height: 1.7;
+
+    color:
+        var(--text-light);
+}
+
+
+.modal-message strong {
+    color:
+        var(--text);
 }
 
 
