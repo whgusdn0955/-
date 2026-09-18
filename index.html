@@ -184,7 +184,7 @@
                     <div class="input-card-header">
                         <div>
                             <h2>단어 빠르게 추가</h2>
-                            <p>
+                            <p id="wordInputExample">
                                 예: apple:사과,과일 / banana:바나나
                             </p>
                         </div>
@@ -195,6 +195,7 @@
                         <textarea
                             id="bulkWordInput"
                             rows="4"
+                            id="bulkWordInput"
                             placeholder="영어:뜻,뜻 / 영어:뜻"
                             autocomplete="off"
                             spellcheck="false"
@@ -232,10 +233,6 @@
                     <div id="specialJapaneseInfo" class="special-info hidden">
                         <strong>일본어 학습</strong>
                         <span>뜻은 사용하지 않고 한자의 음독·훈독만 학습합니다.</span>
-                    </div>
-
-                    <div id="specialSearchArea" class="special-search-area hidden">
-                        <input id="specialSearch" type="search" placeholder="한자·훈·음 검색" autocomplete="off">
                     </div>
 
                     <div class="special-list-header">
@@ -542,6 +539,8 @@
 
                 <div class="test-header">
 
+                    <button id="testBackButton" class="test-close-button" type="button" aria-label="테스트 닫기">×</button>
+
                     <div class="test-progress">
                         <span id="testQuestionNumber">1</span>
                         <span>/</span>
@@ -713,7 +712,7 @@
 
 
 <!-- JavaScript -->
-<script src="app.js?v=3.4.19"></script>
+<script src="app.js?v=3.4.21"></script>
 
 
 </body>
