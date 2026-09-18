@@ -9,7 +9,7 @@
 
 <title>단어장</title>
 
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3.4.11">
 <link rel="manifest" href="manifest.json">
 
 </head>
@@ -230,12 +230,7 @@
                     </div>
 
                     <div id="specialSearchArea" class="special-search-area hidden">
-                        <input
-                            id="specialSearch"
-                            type="search"
-                            placeholder="한자·훈·음·뜻 검색"
-                            autocomplete="off"
-                        >
+                        <input id="specialSearch" type="search" placeholder="한자·훈·음·뜻 검색" autocomplete="off">
                     </div>
 
                     <div class="special-list-header">
@@ -243,23 +238,9 @@
                     </div>
 
                     <div class="special-list-actions">
-                        <button
-                            id="hanjaListButton"
-                            class="secondary-button"
-                            type="button"
-                        >
-                            📚 한자 목록 보기
-                        </button>
-
-                        <button
-                            id="specialTestButton"
-                            class="primary-button"
-                            type="button"
-                        >
-                            📝 테스트
-                        </button>
+                        <button id="hanjaListButton" class="secondary-button" type="button">📚 한자 목록 보기</button>
+                        <button id="specialTestButton" class="primary-button" type="button">📝 테스트</button>
                     </div>
-
                     <div id="specialList" class="special-list hidden"></div>
                 </div>
 
@@ -289,87 +270,44 @@
             <section id="hanjaListPage" class="page">
 
                 <div class="breadcrumb">
-                    <button
-                        id="hanjaListBackButton"
-                        class="breadcrumb-button"
-                    >
+                    <button id="hanjaListBackButton" class="breadcrumb-button">
                         📖 단어장
                     </button>
-
                     <span>›</span>
-
                     <span>한자 목록</span>
                 </div>
 
                 <div class="page-header">
                     <div>
                         <h1>한자 목록</h1>
-                        <p>
-                            급수별로 확인하거나 전체 한자를 한 번에 볼 수 있습니다.
-                        </p>
+                        <p>급수별로 확인하거나 전체 한자를 한 번에 볼 수 있습니다.</p>
                     </div>
                 </div>
 
                 <div class="hanja-list-mode-switch">
-                    <button
-                        type="button"
-                        class="hanja-list-mode-button active"
-                        data-hanja-list-mode="level"
-                    >
-                        급수별 한자 보기
-                    </button>
-
-                    <button
-                        type="button"
-                        class="hanja-list-mode-button"
-                        data-hanja-list-mode="all"
-                    >
-                        전체 한자 보기
-                    </button>
+                    <button type="button" class="hanja-list-mode-button active" data-hanja-list-mode="level">급수별 한자 보기</button>
+                    <button type="button" class="hanja-list-mode-button" data-hanja-list-mode="all">전체 한자 보기</button>
                 </div>
 
-                <div
-                    id="hanjaListLevelArea"
-                    class="hanja-list-level-area"
-                >
+                <div id="hanjaListLevelArea" class="hanja-list-level-area">
                     <div class="section-header">
                         <div>
                             <h2>급수 선택</h2>
-                            <span>
-                                현재 선택한 급수의 한자를 확인합니다.
-                            </span>
+                            <span>현재 선택한 급수의 한자를 확인합니다.</span>
                         </div>
                     </div>
-
-                    <div
-                        id="hanjaListLevelList"
-                        class="hanja-list-level-list"
-                    ></div>
+                    <div id="hanjaListLevelList" class="hanja-list-level-list"></div>
                 </div>
 
                 <div class="hanja-list-toolbar">
                     <div>
-                        <strong id="hanjaListModeLabel">
-                            급수별 한자 보기
-                        </strong>
-
-                        <span id="hanjaListTitle">
-                            8급 한자 목록
-                        </span>
+                        <strong id="hanjaListModeLabel">급수별 한자 보기</strong>
+                        <span id="hanjaListTitle">8급 한자 목록</span>
                     </div>
-
-                    <input
-                        id="hanjaListSearch"
-                        type="search"
-                        placeholder="한자·훈·음·뜻 검색"
-                        autocomplete="off"
-                    >
+                    <input id="hanjaListSearch" type="search" placeholder="한자·훈·음·뜻 검색" autocomplete="off">
                 </div>
 
-                <div
-                    id="hanjaList"
-                    class="hanja-list-grid"
-                ></div>
+                <div id="hanjaList" class="hanja-list-grid"></div>
 
             </section>
 
@@ -380,35 +318,22 @@
                 <div class="page-header">
                     <div>
                         <h1>통계</h1>
-                        <p>
-                            지금까지의 테스트 기록을 확인할 수 있습니다.
-                        </p>
+                        <p>지금까지의 테스트 기록을 확인할 수 있습니다.</p>
                     </div>
                 </div>
 
-                <div
-                    id="statisticsSummary"
-                    class="statistics-summary"
-                >
+                <div id="statisticsSummary" class="statistics-summary">
                     <!-- JavaScript에서 생성 -->
                 </div>
 
-                <div
-                    id="statisticsList"
-                    class="statistics-list"
-                >
+                <div id="statisticsList" class="statistics-list">
                     <!-- JavaScript에서 생성 -->
                 </div>
 
-                <div
-                    id="emptyStatisticsState"
-                    class="empty-state hidden"
-                >
+                <div id="emptyStatisticsState" class="empty-state hidden">
                     <div class="empty-icon">📊</div>
                     <h2>아직 테스트 기록이 없습니다.</h2>
-                    <p>
-                        단어 테스트를 완료하면 기록이 여기에 표시됩니다.
-                    </p>
+                    <p>단어 테스트를 완료하면 기록이 여기에 표시됩니다.</p>
                 </div>
 
             </section>
@@ -420,9 +345,7 @@
                 <div class="page-header">
                     <div>
                         <h1>설정</h1>
-                        <p>
-                            앱 환경과 데이터를 관리하세요.
-                        </p>
+                        <p>앱 환경과 데이터를 관리하세요.</p>
                     </div>
                 </div>
 
@@ -435,9 +358,7 @@
 
                         <div>
                             <h2>테마</h2>
-                            <p>
-                                앱의 화면 테마를 설정합니다.
-                            </p>
+                            <p>앱의 화면 테마를 설정합니다.</p>
                         </div>
                     </div>
 
@@ -445,16 +366,11 @@
 
                         <div>
                             <strong>다크 모드</strong>
-                            <p>
-                                어두운 화면을 사용합니다.
-                            </p>
+                            <p>어두운 화면을 사용합니다.</p>
                         </div>
 
                         <label class="switch">
-                            <input
-                                type="checkbox"
-                                id="darkModeToggle"
-                            >
+                            <input type="checkbox" id="darkModeToggle">
                             <span class="slider"></span>
                         </label>
 
@@ -471,25 +387,17 @@
 
                         <div>
                             <h2>데이터</h2>
-                            <p>
-                                단어장 데이터를 안전하게 보관할 수 있습니다.
-                            </p>
+                            <p>단어장 데이터를 안전하게 보관할 수 있습니다.</p>
                         </div>
                     </div>
 
                     <div class="settings-actions">
 
-                        <button
-                            id="exportDataButton"
-                            class="secondary-button"
-                        >
+                        <button id="exportDataButton" class="secondary-button">
                             📤 데이터 내보내기
                         </button>
 
-                        <button
-                            id="importDataButton"
-                            class="secondary-button"
-                        >
+                        <button id="importDataButton" class="secondary-button">
                             📥 데이터 가져오기
                         </button>
 
@@ -508,28 +416,20 @@
                 <!-- 사용 방법 -->
                 <div class="settings-card">
 
-                    <button
-                        id="usageGuideButton"
-                        class="collapsible-header"
-                    >
+                    <button id="usageGuideButton" class="collapsible-header">
                         <div class="settings-card-title">
                             <span class="settings-icon">❓</span>
 
                             <div>
                                 <h2>사용 방법</h2>
-                                <p>
-                                    앱의 주요 기능을 확인합니다.
-                                </p>
+                                <p>앱의 주요 기능을 확인합니다.</p>
                             </div>
                         </div>
 
                         <span id="usageGuideArrow">⌄</span>
                     </button>
 
-                    <div
-                        id="usageGuideContent"
-                        class="collapsible-content hidden"
-                    >
+                    <div id="usageGuideContent" class="collapsible-content hidden">
 
                         <div class="guide-item">
                             <strong>📁 파일</strong>
@@ -598,17 +498,11 @@
 
                 <div class="test-card">
 
-                    <div
-                        id="testTypeLabel"
-                        class="test-type-label"
-                    >
+                    <div id="testTypeLabel" class="test-type-label">
                         영어 → 뜻
                     </div>
 
-                    <div
-                        id="testQuestion"
-                        class="test-question"
-                    >
+                    <div id="testQuestion" class="test-question">
                         apple
                     </div>
 
@@ -621,22 +515,13 @@
                         spellcheck="false"
                     >
 
-                    <div
-                        id="testChoiceArea"
-                        class="test-choice-area hidden"
-                    ></div>
+                    <div id="testChoiceArea" class="test-choice-area hidden"></div>
 
-                    <div
-                        id="testFeedback"
-                        class="test-feedback hidden"
-                    >
+                    <div id="testFeedback" class="test-feedback hidden">
                         <!-- 정답/오답 -->
                     </div>
 
-                    <button
-                        id="testSubmitButton"
-                        class="primary-button test-submit-button"
-                    >
+                    <button id="testSubmitButton" class="primary-button test-submit-button">
                         확인
                     </button>
 
@@ -689,24 +574,15 @@
 
                     <div class="result-actions">
 
-                        <button
-                            id="resultHomeButton"
-                            class="primary-button"
-                        >
+                        <button id="resultHomeButton" class="primary-button">
                             🏠 홈으로
                         </button>
 
-                        <button
-                            id="resultBackButton"
-                            class="secondary-button"
-                        >
+                        <button id="resultBackButton" class="secondary-button">
                             📖 단어장으로
                         </button>
 
-                        <button
-                            id="retryWrongButton"
-                            class="secondary-button"
-                        >
+                        <button id="retryWrongButton" class="secondary-button">
                             🔄 틀린 문제 다시 풀기
                         </button>
 
@@ -722,38 +598,23 @@
 
     <!-- ==================== 모달 ==================== -->
 
-    <div
-        id="modalOverlay"
-        class="modal-overlay hidden"
-    >
+    <div id="modalOverlay" class="modal-overlay hidden">
 
-        <div
-            id="modal"
-            class="modal"
-        >
+        <div id="modal" class="modal">
 
             <div class="modal-header">
                 <h2 id="modalTitle">제목</h2>
 
-                <button
-                    id="modalCloseButton"
-                    class="modal-close-button"
-                >
+                <button id="modalCloseButton" class="modal-close-button">
                     ×
                 </button>
             </div>
 
-            <div
-                id="modalBody"
-                class="modal-body"
-            >
+            <div id="modalBody" class="modal-body">
                 <!-- JavaScript에서 생성 -->
             </div>
 
-            <div
-                id="modalFooter"
-                class="modal-footer"
-            >
+            <div id="modalFooter" class="modal-footer">
                 <!-- JavaScript에서 생성 -->
             </div>
 
@@ -764,36 +625,24 @@
 
     <!-- ==================== 토스트 ==================== -->
 
-    <div
-        id="toastContainer"
-        class="toast-container"
-    ></div>
+    <div id="toastContainer" class="toast-container"></div>
 
 
     <!-- ==================== 모바일 하단 네비게이션 ==================== -->
 
     <nav class="mobile-navigation">
 
-        <button
-            class="mobile-nav-item active"
-            data-page="home"
-        >
+        <button class="mobile-nav-item active" data-page="home">
             <span>🏠</span>
             <small>홈</small>
         </button>
 
-        <button
-            class="mobile-nav-item"
-            data-page="statistics"
-        >
+        <button class="mobile-nav-item" data-page="statistics">
             <span>📊</span>
             <small>통계</small>
         </button>
 
-        <button
-            class="mobile-nav-item"
-            data-page="settings"
-        >
+        <button class="mobile-nav-item" data-page="settings">
             <span>⚙️</span>
             <small>설정</small>
         </button>
@@ -804,7 +653,7 @@
 
 
 <!-- JavaScript -->
-<script src="app.js"></script>
+<script src="app.js?v=3.4.11"></script>
 
 
 </body>
