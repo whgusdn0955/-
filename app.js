@@ -2253,6 +2253,17 @@ function addBulkWords() {
    + 단어 추가 버튼
    ========================================================= */
 
+function makeQuestion(item, direction, file) {
+
+    return baseMakeQuestion(
+        item,
+        direction,
+        file
+    );
+
+}
+
+
 function baseStartWorkbookTest() {
 
     const file =
