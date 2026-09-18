@@ -9,7 +9,7 @@
 
 <title>단어장</title>
 
-<link rel="stylesheet" href="style.css?v=3.4.13">
+<link rel="stylesheet" href="style.css?v=3.4.17">
 <link rel="manifest" href="manifest.json">
 
 </head>
@@ -67,6 +67,11 @@
 
         <!-- ==================== 콘텐츠 ==================== -->
         <main id="mainContent" class="main-content">
+
+            <div class="page-backbar">
+                <button id="pageBackButton" class="secondary-button hidden" type="button">← 뒤로가기</button>
+            </div>
+
 
             <!-- ==================== 홈 ==================== -->
             <section id="homePage" class="page active">
@@ -230,7 +235,7 @@
                     </div>
 
                     <div id="specialSearchArea" class="special-search-area hidden">
-                        <input id="specialSearch" type="search" placeholder="한자·훈·음·뜻 검색" autocomplete="off">
+                        <input id="specialSearch" type="search" placeholder="한자·훈·음 검색" autocomplete="off">
                     </div>
 
                     <div class="special-list-header">
@@ -304,7 +309,6 @@
                         <strong id="hanjaListModeLabel">급수별 한자 보기</strong>
                         <span id="hanjaListTitle">8급 한자 목록</span>
                     </div>
-                    <input id="hanjaListSearch" type="search" placeholder="한자·훈·음·뜻 검색" autocomplete="off">
                 </div>
 
                 <div id="hanjaList" class="hanja-list-grid"></div>
@@ -374,6 +378,37 @@
                             <span class="slider"></span>
                         </label>
 
+                    </div>
+
+                </div>
+
+
+                <!-- 테스트 제한 시간 -->
+                <div class="settings-card">
+
+                    <div class="settings-card-title">
+                        <span class="settings-icon">⏱️</span>
+
+                        <div>
+                            <h2>테스트 제한 시간</h2>
+                            <p>문제 하나당 제한 시간을 설정합니다.</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-row">
+                        <div>
+                            <strong>제한 시간</strong>
+                            <p>5초부터 60초까지 선택할 수 있습니다.</p>
+                        </div>
+
+                        <select id="testTimeSelect" class="settings-select">
+                            <option value="5">5초</option>
+                            <option value="10">10초</option>
+                            <option value="15">15초</option>
+                            <option value="20">20초</option>
+                            <option value="30">30초</option>
+                            <option value="60">60초</option>
+                        </select>
                     </div>
 
                 </div>
@@ -471,6 +506,27 @@
                         </div>
 
                     </div>
+
+                </div>
+
+
+                <!-- 버전 정보 -->
+                <div class="settings-card">
+
+                    <button id="versionInfoButton" class="collapsible-header" type="button">
+                        <div class="settings-card-title">
+                            <span class="settings-icon">🆕</span>
+
+                            <div>
+                                <h2>버전 정보</h2>
+                                <p>현재 버전과 업데이트 기록을 확인합니다.</p>
+                            </div>
+                        </div>
+
+                        <span id="versionInfoArrow">⌄</span>
+                    </button>
+
+                    <div id="versionInfoContent" class="collapsible-content hidden"></div>
 
                 </div>
 
@@ -653,7 +709,7 @@
 
 
 <!-- JavaScript -->
-<script src="app.js?v=3.4.15"></script>
+<script src="app.js?v=3.4.17"></script>
 
 
 </body>
