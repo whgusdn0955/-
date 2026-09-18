@@ -5,7 +5,7 @@
    앱 버전
    ========================================================= */
 
-const APP_VERSION = "3.4.11";
+const APP_VERSION = "3.4.13";
 
 const STORAGE_KEY =
     "word_memorize_app_final_v1";
@@ -1301,15 +1301,22 @@ function setupFileDragAndDrop() {
 
                 card.addEventListener(
                     "dragstart",
-                    () => {
+                    event => {
 
                         draggedFileId =
                             card.dataset.fileId;
 
-
                         card.classList.add(
                             "dragging"
                         );
+
+                        if (event.dataTransfer) {
+                            event.dataTransfer.effectAllowed = "move";
+                            event.dataTransfer.setData(
+                                "text/plain",
+                                draggedFileId
+                            );
+                        }
 
                     }
                 );
@@ -1322,6 +1329,9 @@ function setupFileDragAndDrop() {
                         draggedFileId =
                             null;
 
+                        document
+                            .querySelectorAll(".file-card.drag-over")
+                            .forEach(item => item.classList.remove("drag-over"));
 
                         card.classList.remove(
                             "dragging"
@@ -1337,6 +1347,23 @@ function setupFileDragAndDrop() {
 
                         event.preventDefault();
 
+                        if (event.dataTransfer) {
+                            event.dataTransfer.dropEffect = "move";
+                        }
+
+                        if (draggedFileId && draggedFileId !== card.dataset.fileId) {
+                            card.classList.add("drag-over");
+                        }
+
+                    }
+                );
+
+                card.addEventListener(
+                    "dragleave",
+                    event => {
+                        if (!card.contains(event.relatedTarget)) {
+                            card.classList.remove("drag-over");
+                        }
                     }
                 );
 
@@ -1347,21 +1374,17 @@ function setupFileDragAndDrop() {
 
                         event.preventDefault();
 
+                        card.classList.remove("drag-over");
 
                         const targetId =
                             card.dataset.fileId;
 
-
                         if (
                             !draggedFileId ||
-                            draggedFileId ===
-                            targetId
+                            draggedFileId === targetId
                         ) {
-
                             return;
-
                         }
-
 
                         reorderFiles(
                             draggedFileId,
@@ -1768,6 +1791,19 @@ function deleteWorkbook(
             );
 
         }
+    );
+
+}
+
+
+function showWorkbookPage(
+    fileId,
+    workbookId
+) {
+
+    return baseShowWorkbookPage(
+        fileId,
+        workbookId
     );
 
 }
