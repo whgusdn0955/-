@@ -2325,6 +2325,27 @@ function baseStartWorkbookTest() {
 
 
 /* =========================================================
+   단어장 테스트 진입점
+   일반 단어장 / 한자 단어장 분기
+   ========================================================= */
+
+function startWorkbookTest() {
+
+    const workbook = getCurrentWorkbook();
+
+    if (!workbook) {
+        return;
+    }
+
+    if (getWorkbookMode(workbook) === "hanja") {
+        return openSpecialTestMenu();
+    }
+
+    return baseStartWorkbookTest();
+}
+
+
+/* =========================================================
    단어 하나 추가
    ========================================================= */
 
