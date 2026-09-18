@@ -5,7 +5,7 @@
    앱 버전
    ========================================================= */
 
-const APP_VERSION = "3.4.1";
+const APP_VERSION = "3.4.2";
 
 const STORAGE_KEY =
     "word_memorize_app_final_v1";
@@ -6232,7 +6232,7 @@ function setupSpecialPanelEvents(){
         if(workbookButton){
             event.preventDefault();
             event.stopPropagation();
-            openWorkbook(workbookButton.dataset.openWorkbook);
+            openWorkbook(currentFileId, workbookButton.dataset.openWorkbook);
             return;
         }
     }, {capture:false});
