@@ -5,7 +5,7 @@
    앱 버전
    ========================================================= */
 
-const APP_VERSION = "3.4.19";
+const APP_VERSION = "3.4.21";
 
 const STORAGE_KEY =
     "word_memorize_app_final_v1";
@@ -43,6 +43,10 @@ const WORD_LIST_PAGE_SIZE = 50;
 const HANJA_LIST_PAGE_SIZE = 100;
 let wordListPage = 1;
 let hanjaListPage = 1;
+
+const HANJA_HANDWRITING_API = "https://inputtools.google.com/request?ime=handwriting&app=demopage";
+let hanjaHandwritingStrokes = [];
+let hanjaCurrentStroke = null;
 
 
 /* =========================================================
@@ -1097,9 +1101,16 @@ function renderFileList() {
 
                         <div
                             class="file-card"
-                            draggable="true"
                             data-file-id="${escapeHTML(file.id)}"
                         >
+
+                            <button
+                                type="button"
+                                class="file-drag-handle"
+                                draggable="true"
+                                title="파일 순서 변경"
+                                aria-label="파일 순서 변경"
+                            >≡</button>
 
                             <div
                                 class="file-card-main"
@@ -1341,110 +1352,45 @@ function openFile(
 
 function setupFileDragAndDrop() {
 
-    document
-        .querySelectorAll(
-            ".file-card"
-        )
-        .forEach(
-            card => {
+    document.querySelectorAll(".file-card").forEach(card => {
+        const handle = card.querySelector(".file-drag-handle");
+        if (!handle) return;
 
-                card.addEventListener(
-                    "dragstart",
-                    event => {
-
-                        draggedFileId =
-                            card.dataset.fileId;
-
-                        card.classList.add(
-                            "dragging"
-                        );
-
-                        if (event.dataTransfer) {
-                            event.dataTransfer.effectAllowed = "move";
-                            event.dataTransfer.setData(
-                                "text/plain",
-                                draggedFileId
-                            );
-                        }
-
-                    }
-                );
-
-
-                card.addEventListener(
-                    "dragend",
-                    () => {
-
-                        draggedFileId =
-                            null;
-
-                        document
-                            .querySelectorAll(".file-card.drag-over")
-                            .forEach(item => item.classList.remove("drag-over"));
-
-                        card.classList.remove(
-                            "dragging"
-                        );
-
-                    }
-                );
-
-
-                card.addEventListener(
-                    "dragover",
-                    event => {
-
-                        event.preventDefault();
-
-                        if (event.dataTransfer) {
-                            event.dataTransfer.dropEffect = "move";
-                        }
-
-                        if (draggedFileId && draggedFileId !== card.dataset.fileId) {
-                            card.classList.add("drag-over");
-                        }
-
-                    }
-                );
-
-                card.addEventListener(
-                    "dragleave",
-                    event => {
-                        if (!card.contains(event.relatedTarget)) {
-                            card.classList.remove("drag-over");
-                        }
-                    }
-                );
-
-
-                card.addEventListener(
-                    "drop",
-                    event => {
-
-                        event.preventDefault();
-
-                        card.classList.remove("drag-over");
-
-                        const targetId =
-                            card.dataset.fileId;
-
-                        if (
-                            !draggedFileId ||
-                            draggedFileId === targetId
-                        ) {
-                            return;
-                        }
-
-                        reorderFiles(
-                            draggedFileId,
-                            targetId
-                        );
-
-                    }
-                );
-
+        handle.addEventListener("dragstart", event => {
+            draggedFileId = card.dataset.fileId;
+            wasDraggingFileOrWorkbook = true;
+            card.classList.add("dragging");
+            if (event.dataTransfer) {
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", draggedFileId);
             }
-        );
+        });
+
+        handle.addEventListener("dragend", () => {
+            draggedFileId = null;
+            card.classList.remove("dragging");
+            document.querySelectorAll(".file-card.drag-over").forEach(item => item.classList.remove("drag-over"));
+            setTimeout(() => { wasDraggingFileOrWorkbook = false; }, 0);
+        });
+
+        card.addEventListener("dragover", event => {
+            if (!draggedFileId || draggedFileId === card.dataset.fileId) return;
+            event.preventDefault();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+            card.classList.add("drag-over");
+        });
+
+        card.addEventListener("dragleave", event => {
+            if (!card.contains(event.relatedTarget)) card.classList.remove("drag-over");
+        });
+
+        card.addEventListener("drop", event => {
+            if (!draggedFileId || draggedFileId === card.dataset.fileId) return;
+            event.preventDefault();
+            card.classList.remove("drag-over");
+            reorderFiles(draggedFileId, card.dataset.fileId);
+        });
+    });
 
 }
 
@@ -2473,13 +2419,8 @@ function startWorkbookTest(type = "menu") {
 
 
 function openWorkbookTestMenu() {
-
     const workbook = getCurrentWorkbook();
-
-    if (!workbook) {
-        return;
-    }
-
+    if (!workbook) return;
     if (!Array.isArray(workbook.words) || workbook.words.length === 0) {
         showToast("테스트할 단어가 없습니다.", "error");
         return;
@@ -2487,28 +2428,44 @@ function openWorkbookTestMenu() {
 
     const importantCount = workbook.words.filter(word => word.important).length;
     const wrongCount = workbook.words.filter(word => Number(word.wrong) > 0).length;
+    const kana = getWorkbookMode(workbook) === "kana";
 
     openModal(
-        "영어 단어장 테스트",
-        `<div class="test-menu">
-            <button type="button" class="test-menu-button" onclick="closeModal(); startWorkbookTest('all')">
-                <strong>📝 전체 테스트</strong>
-                <span>영어 → 뜻 / 뜻 → 영어가 문제마다 랜덤으로 출제됩니다.</span>
-            </button>
-            <button type="button" class="test-menu-button" onclick="closeModal(); startWorkbookTest('file-to-meaning')">
-                <strong>영어 → 뜻</strong>
-                <span>영어 단어를 보고 뜻을 입력합니다.</span>
-            </button>
-            <button type="button" class="test-menu-button" onclick="closeModal(); startWorkbookTest('meaning-to-file')">
-                <strong>뜻 → 영어</strong>
-                <span>뜻을 보고 영어 단어를 입력합니다.</span>
-            </button>
-            <button type="button" class="test-menu-button" onclick="openWorkbookQuickTestMenu()">
-                <strong>⚡ 빠른 테스트</strong>
-                <span>중요 단어 또는 틀린 기록이 있는 단어만 테스트합니다.</span>
-                <small>⭐ 중요 ${importantCount}개 · ❌ 틀린 기록 ${wrongCount}개</small>
-            </button>
-        </div>`
+        kana ? "히라가나·가타카나 테스트" : "영어 단어장 테스트",
+        kana
+            ? `<div class="test-menu">
+                <button type="button" class="test-menu-button" onclick="closeModal(); startWorkbookTest('all')">
+                    <strong>📝 전체 테스트</strong>
+                    <span>형태 → 발음 / 발음 → 형태가 문제마다 랜덤으로 출제됩니다.</span>
+                </button>
+                <button type="button" class="test-menu-button" onclick="closeModal(); startWorkbookTest('kana-to-pronunciation')">
+                    <strong>형태 → 발음</strong>
+                    <span>히라가나·가타카나 형태를 보고 발음을 입력합니다.</span>
+                </button>
+                <button type="button" class="test-menu-button" onclick="closeModal(); startWorkbookTest('pronunciation-to-kana')">
+                    <strong>발음 → 형태</strong>
+                    <span>발음을 보고 히라가나·가타카나 형태를 입력합니다.</span>
+                </button>
+            </div>`
+            : `<div class="test-menu">
+                <button type="button" class="test-menu-button" onclick="closeModal(); startWorkbookTest('all')">
+                    <strong>📝 전체 테스트</strong>
+                    <span>영어 → 뜻 / 뜻 → 영어가 문제마다 랜덤으로 출제됩니다.</span>
+                </button>
+                <button type="button" class="test-menu-button" onclick="closeModal(); startWorkbookTest('file-to-meaning')">
+                    <strong>영어 → 뜻</strong>
+                    <span>영어 단어를 보고 뜻을 입력합니다.</span>
+                </button>
+                <button type="button" class="test-menu-button" onclick="closeModal(); startWorkbookTest('meaning-to-file')">
+                    <strong>뜻 → 영어</strong>
+                    <span>뜻을 보고 영어 단어를 입력합니다.</span>
+                </button>
+                <button type="button" class="test-menu-button" onclick="openWorkbookQuickTestMenu()">
+                    <strong>⚡ 빠른 테스트</strong>
+                    <span>중요 단어 또는 틀린 기록이 있는 단어만 테스트합니다.</span>
+                    <small>⭐ 중요 ${importantCount}개 · ❌ 틀린 기록 ${wrongCount}개</small>
+                </button>
+            </div>`
     );
 }
 
@@ -2576,9 +2533,11 @@ function startNormalWorkbookTest(type = "all") {
         questions,
         type === "all"
             ? `${workbook.name} 전체 테스트`
-            : type === "file-to-meaning"
-                ? `${workbook.name} → 뜻`
-                : `뜻 → ${workbook.name}`,
+            : getWorkbookMode(workbook) === "kana"
+                ? (type === "kana-to-pronunciation" ? `${workbook.name} → 발음` : `발음 → ${workbook.name}`)
+                : type === "file-to-meaning"
+                    ? `${workbook.name} → 뜻`
+                    : `뜻 → ${workbook.name}`,
         "workbook",
         file.id,
         workbook.id,
@@ -3464,27 +3423,12 @@ function baseMakeQuestion(
     let answers;
 
 
-    if (
-        direction ===
-        "file-to-meaning"
-    ) {
-
-        question =
-            word.word;
-
-
-        answers =
-            meanings;
-
+    if (direction === "file-to-meaning" || direction === "kana-to-pronunciation") {
+        question = word.word;
+        answers = meanings;
     } else {
-
-        question =
-            meanings[0];
-
-
-        answers =
-            [word.word];
-
+        question = meanings[0];
+        answers = [word.word];
     }
 
 
@@ -3889,21 +3833,14 @@ function baseRenderCurrentQuestion() {
         "파일";
 
 
-    if (
-        question.direction ===
-        "file-to-meaning"
-    ) {
-
-        $("testTypeLabel")
-            .textContent =
-            `${fileName} → 뜻`;
-
+    if (question.direction === "file-to-meaning" || question.direction === "kana-to-pronunciation") {
+        $("testTypeLabel").textContent = question.direction === "kana-to-pronunciation"
+            ? `${fileName} → 발음`
+            : `${fileName} → 뜻`;
     } else {
-
-        $("testTypeLabel")
-            .textContent =
-            `뜻 → ${fileName}`;
-
+        $("testTypeLabel").textContent = question.direction === "pronunciation-to-kana"
+            ? `발음 → ${fileName}`
+            : `뜻 → ${fileName}`;
     }
 
 
@@ -3912,9 +3849,7 @@ function baseRenderCurrentQuestion() {
         question.question;
 
 
-    $("testTimer")
-        .textContent =
-        testState.timeLeft;
+    updateTimerUI();
 
 
     const input =
@@ -4017,11 +3952,10 @@ function startTimer() {
 
 
 function updateTimerUI() {
-
-    $("testTimer")
-        .textContent =
-        testState.timeLeft;
-
+    const timer = $("testTimer");
+    if (!timer) return;
+    timer.textContent = testState.timeLeft;
+    timer.classList.toggle("timer-danger", Number(testState.timeLeft) <= 5 && Number(testState.timeLeft) > 0);
 }
 
 
@@ -4171,18 +4105,12 @@ function submitAnswer(
 
 
     if (isCorrect) {
-
         testState.correct++;
-
     } else {
-
-        testState.wrong++;
-
-
-        testState.wrongQuestions.push(
-            question
-        );
-
+        if (!timeOut) {
+            testState.wrong++;
+        }
+        testState.wrongQuestions.push(question);
     }
 
 
@@ -4223,21 +4151,7 @@ function submitAnswer(
     }
 
 
-    if (
-        timeOut
-    ) {
 
-        testState.autoNextTimer =
-            setTimeout(
-                () => {
-
-                    nextQuestion();
-
-                },
-                900
-            );
-
-    }
 
 }
 
@@ -4612,44 +4526,16 @@ function getFileNameForTest() {
    ========================================================= */
 
 function retryWrongQuestions() {
-
-    if (
-        !testState.wrongQuestions.length
-    ) {
-
-        showToast(
-            "틀린 문제가 없습니다."
-        );
-
-
-        return;
-
-    }
-
-
-    const questions =
-        testState.wrongQuestions.map(
-            question => ({
-                ...question,
-
-                word:
-                    question.word,
-
-                answers:
-                    [...question.answers]
-            })
-        );
-
-
+    const unresolved = Array.isArray(testState.wrongQuestions) ? [...testState.wrongQuestions] : [];
+    if(!unresolved.length){ showToast("틀린 문제가 없습니다."); return; }
     startTest(
-        questions,
+        unresolved.map(question=>({...question,word:question.word,answers:[...question.answers]})),
         `${testState.testName} - 틀린 문제`,
         "wrong-retry",
         testState.sourceFileId,
         testState.sourceWorkbookId,
         testState.returnPage
     );
-
 }
 
 
@@ -5491,6 +5377,41 @@ function handleImportFile(
 
 
 /* =========================================================
+   전체 기록 초기화
+   ========================================================= */
+
+function resetAllData(){
+    openConfirmModal(
+        "전체 기록 초기화",
+        "정말로 전부 초기화하시겠습니까?",
+        () => {
+            stopTimer();
+            appData = {
+                files: [],
+                testRecords: [],
+                theme: "light",
+                testTime: 10
+            };
+            localStorage.removeItem(STORAGE_KEY);
+            currentFileId = null;
+            currentWorkbookId = null;
+            testState = {
+                questions: [], currentIndex: 0, correct: 0, wrong: 0, wrongQuestions: [],
+                testName: "", testType: "", sourceFileId: null, sourceWorkbookId: null,
+                returnPage: "home", answered: false, timer: null, timeLeft: 10, autoNextTimer: null
+            };
+            saveData();
+            applyTheme();
+            applyTestTimeUI();
+            renderFileList();
+            renderStatistics();
+            showHomePage();
+            showToast("전체 기록이 초기화되었습니다.");
+        }
+    );
+}
+
+/* =========================================================
    버전 / 업데이트 기록 / 사용 설명서
    ========================================================= */
 
@@ -6288,7 +6209,7 @@ function setupNavigation() {
 /* =========================================================
    한자 / 일본어 전용 단어장 모드
    - 단어장 이름에 "한자" 포함 → 한자 모드
-   - 단어장 이름에 "일본어" 포함 → 일본어 모드
+   - 단어장 이름에 "히라가나" 또는 "가타카나" 포함 → 일반 단어 입력/테스트 모드
    ========================================================= */
 
 function renderWordList() {
@@ -6770,15 +6691,15 @@ function renderSpecialWorkbookPanel() {
     if (!panel || !normal || !workbook) return;
 
     const mode = getWorkbookMode(workbook);
-    panel.classList.toggle("hidden", mode === "normal");
-    normal.classList.toggle("hidden", mode !== "normal");
+    panel.classList.toggle("hidden", mode !== "hanja");
+    normal.classList.toggle("hidden", mode === "hanja");
 
     if (mode !== "hanja") return;
 
     $("specialWorkbookTitle").textContent = "🀄 한자 학습";
     $("specialWorkbookDescription").textContent = "한자능력시험검정 5,978자를 급수별로 학습합니다.";
     $("specialLevelArea").classList.remove("hidden");
-    $("specialSearchArea").classList.remove("hidden");
+    $("specialSearchArea").classList.add("hidden");
     $("specialJapaneseInfo").classList.add("hidden");
     $("specialSearch").placeholder = "한자·훈·음 검색";
 
@@ -6882,15 +6803,10 @@ async function openSpecialTestMenu() {
             <span>한자를 보고 음을 입력합니다.</span>
             <small>${HANJA_TEST_EXAMPLES.eum}</small>
         </button>
-        <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','hun-hanja')">
-            <strong>훈 → 한자</strong>
-            <span>훈을 보고 한자를 입력합니다.</span>
-            <small>${HANJA_TEST_EXAMPLES.hunToChar}</small>
-        </button>
-        <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','eum-hanja')">
-            <strong>음 → 한자</strong>
-            <span>음을 보고 한자를 입력합니다.</span>
-            <small>${HANJA_TEST_EXAMPLES.eumToChar}</small>
+        <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','hun-eum-hanja')">
+            <strong>✍️ 훈·음 → 한자 필기</strong>
+            <span>훈과 음을 보고 한자를 직접 그리고 필기 인식기로 인식합니다.</span>
+            <small>${HANJA_TEST_EXAMPLES.hunToChar} · ${HANJA_TEST_EXAMPLES.eumToChar}</small>
         </button>
     </div>`);
 }
@@ -6917,23 +6833,23 @@ function makeSpecialQuestion(item, direction){
     if (direction === "hanja-hun") {
         q.question = item.char;
         q.answers = info.hunAnswers.length ? [...info.hunAnswers] : (info.hun ? [info.hun] : []);
-        q.label = "한자 → 훈독";
+        q.label = "한자 → 훈";
     } else if (direction === "hanja-eum") {
         q.question = item.char;
         q.answers = info.eumAnswers.length ? [...info.eumAnswers] : (info.eum ? [info.eum] : []);
-        q.label = "한자 → 음독";
-    } else if (direction === "hun-hanja") {
-        q.question = info.hun;
+        q.label = "한자 → 음";
+    } else if (direction === "hun-eum-hanja") {
+        const readings = [];
+        if (info.hun) readings.push(`훈: ${info.hun}`);
+        if (info.eum) readings.push(`음: ${info.eum}`);
+        q.question = readings.join("  ·  ");
         q.answers = [item.char];
-        q.label = "훈독 → 한자";
-    } else if (direction === "eum-hanja") {
-        q.question = info.eumAnswers[0] || info.eum;
-        q.answers = [item.char];
-        q.label = "음독 → 한자";
+        q.label = "훈·음 → 한자";
     }
 
     return q;
 }
+
 
 function makeSpecialChoiceQuestion(item, pool){
     const info = getHanjaInfo(item.char);
@@ -6997,7 +6913,7 @@ async function startSpecialHanjaTest(level, type = "mixed"){
     if (type === "choice") {
         questions = data.map(item => makeSpecialChoiceQuestion(item, data));
     } else {
-        const directions = ["hanja-hun", "hanja-eum", "hun-hanja", "eum-hanja"];
+        const directions = ["hanja-hun", "hanja-eum", "hun-eum-hanja"];
         questions = data
             .map(item => makeSpecialQuestion(
                 item,
@@ -7137,6 +7053,7 @@ function setupHanjaListEvents() {
 function getWorkbookMode(workbook) {
     const name = String(workbook?.name || "");
     if (name.includes("한자")) return "hanja";
+    if (name.includes("히라가나") || name.includes("가타카나")) return "kana";
     return "normal";
 }
 
@@ -7171,274 +7088,184 @@ const JAPANESE_DATA = [
 
 function injectHanjaHandwritingStyles(){
     if(document.getElementById("hanjaHandwritingStyles")) return;
-
     const style=document.createElement("style");
     style.id="hanjaHandwritingStyles";
     style.textContent=`
-        .hanja-writing-area{
-            margin-top:16px;
-            padding:16px;
-            border:1px solid var(--border);
-            border-radius:16px;
-            background:var(--surface-2);
-            text-align:left;
-        }
-        .hanja-writing-title{
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:10px;
-            margin-bottom:10px;
-        }
-        .hanja-writing-title strong{font-size:15px}
-        .hanja-writing-title span{font-size:12px;color:var(--text-light)}
-        .hanja-writing-canvas-wrap{
-            display:flex;
-            justify-content:center;
-            margin:10px 0;
-        }
-        #hanjaWritingCanvas{
-            width:min(100%,280px);
-            height:auto;
-            aspect-ratio:1;
-            border:2px dashed var(--border);
-            border-radius:14px;
-            background:#fff;
-            touch-action:none;
-            cursor:crosshair;
-        }
-        .hanja-writing-actions{
-            display:flex;
-            flex-wrap:wrap;
-            gap:8px;
-        }
-        .hanja-writing-actions button{
-            border:0;
-            border-radius:10px;
-            padding:9px 12px;
-            background:var(--surface);
-            color:var(--text);
-            cursor:pointer;
-            font-weight:700;
-        }
-        .hanja-writing-actions button.primary{
-            background:var(--primary);
-            color:#fff;
-        }
-        .hanja-candidate-title{
-            margin:14px 0 8px;
-            font-size:12px;
-            color:var(--text-light);
-        }
-        .hanja-candidate-list{
-            display:grid;
-            grid-template-columns:repeat(8,minmax(0,1fr));
-            gap:6px;
-        }
-        .hanja-candidate-button{
-            min-height:48px;
-            border:1px solid var(--border);
-            background:var(--surface);
-            color:var(--text);
-            border-radius:10px;
-            font-size:25px;
-            font-weight:800;
-            cursor:pointer;
-        }
-        .hanja-candidate-button:hover,
-        .hanja-candidate-button.selected{
-            border-color:var(--primary);
-            background:var(--primary-light);
-            color:var(--primary);
-        }
-        .hanja-selected-answer{
-            margin-top:10px;
-            min-height:34px;
-            color:var(--text-light);
-            font-size:13px;
-        }
-        .hanja-selected-answer strong{
-            color:var(--primary);
-            font-size:21px;
-        }
-        .hanja-writing-status{
-            min-height:18px;
-            margin-top:8px;
-            color:var(--text-light);
-            font-size:12px;
-        }
+        .hanja-writing-area{margin-top:16px;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--surface-2);text-align:left}
+        .hanja-writing-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+        .hanja-writing-title strong{font-size:15px}.hanja-writing-title span{font-size:12px;color:var(--text-light)}
+        .hanja-writing-canvas-wrap{display:flex;justify-content:center;margin:10px 0}
+        #hanjaWritingCanvas{width:min(100%,280px);height:auto;aspect-ratio:1;border:2px dashed var(--border);border-radius:14px;background:#fff;touch-action:none;cursor:crosshair}
+        .hanja-writing-actions{display:flex;flex-wrap:wrap;gap:8px}
+        .hanja-writing-actions button{border:0;border-radius:10px;padding:9px 12px;background:var(--surface);color:var(--text);cursor:pointer;font-weight:700}
+        .hanja-writing-actions button.primary{background:var(--primary);color:#fff}
+        .hanja-candidate-title{margin:14px 0 8px;font-size:12px;color:var(--text-light)}
+        .hanja-candidate-list{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
+        .hanja-candidate-button{min-height:48px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:10px;font-size:25px;font-weight:800;cursor:pointer}
+        .hanja-candidate-button:hover,.hanja-candidate-button.selected{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+        .hanja-selected-answer{margin-top:10px;min-height:34px;color:var(--text-light);font-size:13px}.hanja-selected-answer strong{color:var(--primary);font-size:21px}
+        .hanja-writing-status{min-height:18px;margin-top:8px;color:var(--text-light);font-size:12px}
         body.dark-mode #hanjaWritingCanvas{background:#fff;color:#111}
-        @media(max-width:600px){
-            .hanja-candidate-list{grid-template-columns:repeat(5,minmax(0,1fr))}
-        }
+        @media(max-width:600px){.hanja-candidate-list{grid-template-columns:repeat(5,minmax(0,1fr))}}
     `;
     document.head.appendChild(style);
 }
 
-function loadHanjaHandwritingScript(src){
-    return new Promise((resolve,reject)=>{
-        const existing=document.querySelector(`script[data-hanja-script="${src}"]`);
-        if(existing){
-            if(existing.dataset.loaded==="true") return resolve();
-            existing.addEventListener("load",()=>resolve(),{once:true});
-            existing.addEventListener("error",()=>reject(new Error("필기 라이브러리 로드 실패")),{once:true});
-            return;
-        }
+function getHanjaCanvasPoint(canvas,event){
+    const rect=canvas.getBoundingClientRect();
+    return {
+        x:Math.max(0,Math.min(canvas.width,(event.clientX-rect.left)*(canvas.width/rect.width))),
+        y:Math.max(0,Math.min(canvas.height,(event.clientY-rect.top)*(canvas.height/rect.height))),
+        t:Date.now()
+    };
+}
 
-        const script=document.createElement("script");
-        script.src=src;
-        script.async=true;
-        script.dataset.hanjaScript=src;
-        script.addEventListener("load",()=>{
-            script.dataset.loaded="true";
-            resolve();
-        },{once:true});
-        script.addEventListener("error",()=>reject(new Error("필기 라이브러리 로드 실패")),{once:true});
-        document.head.appendChild(script);
+function drawHanjaCanvas(){
+    const canvas=document.getElementById("hanjaWritingCanvas");
+    if(!canvas) return;
+    const ctx=canvas.getContext("2d");
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.save();
+    ctx.lineWidth=6;
+    ctx.strokeStyle="#111";
+    ctx.lineCap="round";
+    ctx.lineJoin="round";
+    for(const stroke of hanjaHandwritingStrokes){
+        if(stroke.length<1) continue;
+        ctx.beginPath();
+        ctx.moveTo(stroke[0].x,stroke[0].y);
+        for(let i=1;i<stroke.length;i++) ctx.lineTo(stroke[i].x,stroke[i].y);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+function bindHanjaCanvas(){
+    const canvas=document.getElementById("hanjaWritingCanvas");
+    if(!canvas || canvas.dataset.bound==="true") return;
+    canvas.dataset.bound="true";
+    canvas.addEventListener("pointerdown",event=>{
+        event.preventDefault();
+        canvas.setPointerCapture?.(event.pointerId);
+        hanjaCurrentStroke=[getHanjaCanvasPoint(canvas,event)];
+        hanjaHandwritingStrokes.push(hanjaCurrentStroke);
+        drawHanjaCanvas();
+    });
+    canvas.addEventListener("pointermove",event=>{
+        if(!hanjaCurrentStroke) return;
+        event.preventDefault();
+        hanjaCurrentStroke.push(getHanjaCanvasPoint(canvas,event));
+        drawHanjaCanvas();
+    });
+    const finish=event=>{
+        if(!hanjaCurrentStroke) return;
+        event.preventDefault();
+        hanjaCurrentStroke=null;
+    };
+    canvas.addEventListener("pointerup",finish);
+    canvas.addEventListener("pointercancel",finish);
+    canvas.addEventListener("pointerleave",event=>{
+        if(event.buttons===0) finish(event);
     });
 }
 
-async function ensureHanjaHandwritingReady(){
-    if(hanjaHandwritingReadyPromise) return hanjaHandwritingReadyPromise;
-
-    hanjaHandwritingReadyPromise=(async()=>{
-        await loadHanjaHandwritingScript(HANJA_HANDWRITING_SCRIPT_URL);
-
-        if(!window.KanjiCanvas){
-            throw new Error("KanjiCanvas를 찾을 수 없습니다.");
-        }
-
-        await loadHanjaHandwritingScript(HANJA_HANDWRITING_PATTERNS_URL);
-        return true;
-    })().catch(error=>{
-        hanjaHandwritingReadyPromise=null;
-        throw error;
-    });
-
-    return hanjaHandwritingReadyPromise;
-}
-
-async function initializeHanjaWritingCanvas(){
+function initializeHanjaWritingCanvas(){
+    injectHanjaHandwritingStyles();
     const canvas=document.getElementById("hanjaWritingCanvas");
     if(!canvas) return false;
-
-    try{
-        await ensureHanjaHandwritingReady();
-        window.KanjiCanvas.init("hanjaWritingCanvas");
-        return true;
-    }catch(error){
-        console.error("한자 필기 입력 초기화 실패:",error);
-        const status=document.getElementById("hanjaWritingStatus");
-        if(status) status.textContent="필기 인식을 불러오지 못했습니다. 키보드 입력을 사용할 수 있습니다.";
-        return false;
-    }
+    bindHanjaCanvas();
+    drawHanjaCanvas();
+    return true;
 }
 
 function clearHanjaDrawing(){
-    try{
-        if(window.KanjiCanvas) window.KanjiCanvas.erase("hanjaWritingCanvas");
-    }catch(error){
-        console.warn("한자 필기 지우기 실패:",error);
-    }
-
-    const list=document.getElementById("hanjaCandidateList");
-    if(list) list.innerHTML="";
-
-    const selected=document.getElementById("hanjaSelectedAnswer");
-    if(selected) selected.innerHTML="";
-
-    const input=$("testAnswerInput");
-    if(input) input.value="";
-
-    const status=document.getElementById("hanjaWritingStatus");
-    if(status) status.textContent="한자를 그린 뒤 인식 버튼을 눌러주세요.";
-
+    hanjaHandwritingStrokes=[];
+    hanjaCurrentStroke=null;
+    drawHanjaCanvas();
+    const list=document.getElementById("hanjaCandidateList"); if(list) list.innerHTML="";
+    const selected=document.getElementById("hanjaSelectedAnswer"); if(selected) selected.innerHTML="";
+    const input=$("testAnswerInput"); if(input) input.value="";
+    const status=document.getElementById("hanjaWritingStatus"); if(status) status.textContent="훈·음을 보고 한자를 그린 뒤 인식 버튼을 눌러주세요.";
     updateHanjaWritingSubmitState();
 }
 
 function undoHanjaStroke(){
-    try{
-        if(window.KanjiCanvas) window.KanjiCanvas.deleteLast("hanjaWritingCanvas");
-    }catch(error){
-        console.warn("한자 한 획 지우기 실패:",error);
-    }
-
-    const list=document.getElementById("hanjaCandidateList");
-    if(list) list.innerHTML="";
-
-    const selected=document.getElementById("hanjaSelectedAnswer");
-    if(selected) selected.innerHTML="";
-
-    const input=$("testAnswerInput");
-    if(input) input.value="";
+    hanjaCurrentStroke=null;
+    hanjaHandwritingStrokes.pop();
+    drawHanjaCanvas();
+    const list=document.getElementById("hanjaCandidateList"); if(list) list.innerHTML="";
+    const selected=document.getElementById("hanjaSelectedAnswer"); if(selected) selected.innerHTML="";
+    const input=$("testAnswerInput"); if(input) input.value="";
+    const status=document.getElementById("hanjaWritingStatus"); if(status) status.textContent="마지막 획을 지웠습니다.";
     updateHanjaWritingSubmitState();
 }
 
 function selectHanjaCandidate(character){
-    const buttons=document.querySelectorAll(".hanja-candidate-button");
-    buttons.forEach(button=>button.classList.toggle("selected",button.dataset.character===character));
-
-    const input=$("testAnswerInput");
-    if(input) input.value=character;
-
-    const selected=document.getElementById("hanjaSelectedAnswer");
-    if(selected) selected.innerHTML=`선택한 한자: <strong>${escapeHTML(character)}</strong>`;
-
-    const status=document.getElementById("hanjaWritingStatus");
-    if(status) status.textContent="선택했습니다. 아래 확인 버튼을 눌러 채점하세요.";
-
+    document.querySelectorAll(".hanja-candidate-button").forEach(button=>button.classList.toggle("selected",button.dataset.character===character));
+    const input=$("testAnswerInput"); if(input) input.value=character;
+    const selected=document.getElementById("hanjaSelectedAnswer"); if(selected) selected.innerHTML=`선택한 한자: <strong>${escapeHTML(character)}</strong>`;
+    const status=document.getElementById("hanjaWritingStatus"); if(status) status.textContent="선택했습니다. 확인 버튼을 눌러 채점하세요.";
     updateHanjaWritingSubmitState();
 }
 
 function updateHanjaWritingSubmitState(){
     const submit=$("testSubmitButton");
     const input=$("testAnswerInput");
-    if(submit && input){
-        submit.disabled=!String(input.value||"").trim();
-    }
+    if(submit && input) submit.disabled=!String(input.value||"").trim();
 }
 
 async function recognizeHanjaDrawing(){
     const status=document.getElementById("hanjaWritingStatus");
     const list=document.getElementById("hanjaCandidateList");
-
-    if(!window.KanjiCanvas){
-        if(status) status.textContent="필기 인식기를 아직 불러오지 못했습니다.";
+    if(!hanjaHandwritingStrokes.length){
+        if(status) status.textContent="먼저 한자를 그려주세요.";
         return;
     }
-
-    if(status) status.textContent="한자를 인식하는 중...";
-
+    if(status) status.textContent="필기 인식 중...";
     try{
-        const raw=window.KanjiCanvas.recognize("hanjaWritingCanvas");
-        const characters=Array.from(String(raw||""));
+        const canvas=document.getElementById("hanjaWritingCanvas");
+        const payload={
+            app_version:0.4,
+            api_level:"537.36",
+            device:navigator.userAgent,
+            input_type:0,
+            options:"enable_pre_space",
+            requests:[{
+                writing_guide:{writing_area_width:canvas.width,writing_area_height:canvas.height},
+                pre_context:"",
+                max_num_results:10,
+                max_completions:0,
+                language:"zh",
+                ink:hanjaHandwritingStrokes.map(stroke=>[
+                    stroke.map(p=>Math.round(p.x)),
+                    stroke.map(p=>Math.round(p.y)),
+                    stroke.map(p=>Math.max(0,p.t-stroke[0].t))
+                ])
+            }]
+        };
+        const response=await fetch(HANJA_HANDWRITING_API,{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(payload)
+        });
+        if(!response.ok) throw new Error(`필기 인식 HTTP ${response.status}`);
+        const data=await response.json();
+        const characters=Array.isArray(data?.[1]?.[0]?.[1]) ? data[1][0][1].filter(Boolean) : [];
         const level=getSelectedHanjaLevel();
         const validSet=new Set(specialDataForLevel(level).map(item=>item.char));
-        const prioritized=[
-            ...characters.filter(char=>validSet.has(char)),
-            ...characters.filter(char=>!validSet.has(char))
-        ].filter((char,index,array)=>array.indexOf(char)===index).slice(0,8);
-
-        if(!list) return;
-
+        const prioritized=[...characters.filter(char=>validSet.has(char)),...characters.filter(char=>!validSet.has(char))]
+            .filter((char,index,array)=>array.indexOf(char)===index).slice(0,8);
         if(!prioritized.length){
             list.innerHTML="<span style='font-size:12px;color:var(--text-light)'>후보를 찾지 못했습니다. 다시 그려보세요.</span>";
             if(status) status.textContent="후보를 찾지 못했습니다.";
             return;
         }
-
-        list.innerHTML=prioritized.map(char=>
-            `<button type="button" class="hanja-candidate-button" data-character="${escapeHTML(char)}">${escapeHTML(char)}</button>`
-        ).join("");
-
-        list.querySelectorAll(".hanja-candidate-button").forEach(button=>{
-            button.addEventListener("click",()=>selectHanjaCandidate(button.dataset.character));
-        });
-
-        if(status) status.textContent="후보를 선택하세요.";
+        list.innerHTML=prioritized.map(char=>`<button type="button" class="hanja-candidate-button" data-character="${escapeHTML(char)}">${escapeHTML(char)}</button>`).join("");
+        list.querySelectorAll(".hanja-candidate-button").forEach(button=>button.addEventListener("click",()=>selectHanjaCandidate(button.dataset.character)));
+        if(status) status.textContent="인식 후보를 선택하세요.";
     }catch(error){
         console.error("한자 필기 인식 실패:",error);
-        if(status) status.textContent="인식에 실패했습니다. 다시 그려보거나 키보드 입력을 사용하세요.";
+        if(status) status.textContent="필기 인식에 실패했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.";
     }
 }
 
@@ -7446,77 +7273,56 @@ function showHanjaKeyboardInput(){
     const input=$("testAnswerInput");
     const area=document.getElementById("hanjaWritingArea");
     if(area) area.classList.add("hidden");
-    if(input){
-        input.classList.remove("hidden");
-        input.disabled=false;
-        input.focus();
-        updateHanjaWritingSubmitState();
-    }
+    if(input){input.classList.remove("hidden");input.disabled=false;input.focus();updateHanjaWritingSubmitState();}
 }
 
 function showHanjaWritingInput(){
     const input=$("testAnswerInput");
     const area=document.getElementById("hanjaWritingArea");
     if(input) input.classList.add("hidden");
-    if(area){
-        area.classList.remove("hidden");
-        initializeHanjaWritingCanvas();
-    }
+    if(area){area.classList.remove("hidden");initializeHanjaWritingCanvas();}
     updateHanjaWritingSubmitState();
 }
 
 function createHanjaWritingArea(){
     let area=document.getElementById("hanjaWritingArea");
     if(area) return area;
-
     const card=$("testAnswerInput")?.closest(".test-card");
     if(!card) return null;
-
     area=document.createElement("div");
     area.id="hanjaWritingArea";
     area.className="hanja-writing-area hidden";
     area.innerHTML=`
-        <div class="hanja-writing-title">
-            <strong>✍️ 한자 필기 입력</strong>
-            <span>마우스·터치·펜으로 한자를 그려주세요.</span>
-        </div>
-        <div class="hanja-writing-canvas-wrap">
-            <canvas id="hanjaWritingCanvas" width="256" height="256"></canvas>
-        </div>
+        <div class="hanja-writing-title"><strong>✍️ 한자 필기 인식기</strong><span>마우스·터치·펜으로 한자를 그려주세요.</span></div>
+        <div class="hanja-writing-canvas-wrap"><canvas id="hanjaWritingCanvas" width="280" height="280"></canvas></div>
         <div class="hanja-writing-actions">
             <button type="button" id="hanjaUndoButton">↩ 한 획 지우기</button>
             <button type="button" id="hanjaClearButton">🗑 모두 지우기</button>
-            <button type="button" id="hanjaRecognizeButton" class="primary">🔎 인식</button>
+            <button type="button" id="hanjaRecognizeButton" class="primary">🔎 필기 인식</button>
             <button type="button" id="hanjaKeyboardButton">⌨ 키보드 입력</button>
         </div>
-        <div id="hanjaWritingStatus" class="hanja-writing-status">한자를 그린 뒤 인식 버튼을 눌러주세요.</div>
+        <div id="hanjaWritingStatus" class="hanja-writing-status">훈·음을 보고 한자를 그린 뒤 필기 인식을 눌러주세요.</div>
         <div class="hanja-candidate-title">인식 후보</div>
         <div id="hanjaCandidateList" class="hanja-candidate-list"></div>
-        <div id="hanjaSelectedAnswer" class="hanja-selected-answer"></div>
-    `;
-
+        <div id="hanjaSelectedAnswer" class="hanja-selected-answer"></div>`;
     card.insertBefore(area,$("testSubmitButton"));
-
     $("hanjaUndoButton")?.addEventListener("click",undoHanjaStroke);
     $("hanjaClearButton")?.addEventListener("click",clearHanjaDrawing);
     $("hanjaRecognizeButton")?.addEventListener("click",recognizeHanjaDrawing);
     $("hanjaKeyboardButton")?.addEventListener("click",showHanjaKeyboardInput);
-
     return area;
 }
 
 function handleHanjaAnswerInputMode(question){
-    const needsDrawing=question?.direction === "hun-hanja" || question?.direction === "eum-hanja";
+    const needsDrawing=question?.direction === "hun-eum-hanja";
     const area=createHanjaWritingArea();
     const input=$("testAnswerInput");
-
     if(!needsDrawing){
         area?.classList.add("hidden");
         input?.classList.remove("hidden");
         if(input) input.disabled=false;
         return;
     }
-
     showHanjaWritingInput();
 }
 
@@ -7540,7 +7346,7 @@ function renderCurrentQuestion(){
 
     if(number) number.textContent=String(testState.currentIndex+1);
     if(total) total.textContent=String(testState.questions.length);
-    if(timer) timer.textContent=String(testState.timeLeft);
+    if(timer){ timer.textContent=String(testState.timeLeft); timer.classList.remove("timer-danger"); }
     if(typeLabel) typeLabel.textContent=q.label||"테스트";
     if(question) question.textContent=q.question||"";
     if(feedback){
@@ -7575,7 +7381,7 @@ function renderCurrentQuestion(){
             answerInput.disabled=false;
         }
 
-        if(q.direction === "hun-hanja" || q.direction === "eum-hanja"){
+        if(q.direction === "hun-eum-hanja"){
             clearHanjaDrawing();
         }
 
@@ -7585,10 +7391,10 @@ function renderCurrentQuestion(){
     const submit=$("testSubmitButton");
     if(submit){
         submit.textContent="확인";
-        submit.disabled=!!(q.direction==="hun-hanja"||q.direction==="eum-hanja");
+        submit.disabled=!!(q.direction==="hun-eum-hanja");
     }
 
-    if(q.direction!=="hun-hanja" && q.direction!=="eum-hanja"){
+    if(q.direction!=="hun-eum-hanja"){
         setTimeout(()=>answerInput?.focus(),50);
     }
 
