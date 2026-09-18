@@ -5,7 +5,7 @@
    앱 버전
    ========================================================= */
 
-const APP_VERSION = "3.4.13";
+const APP_VERSION = "3.4.15";
 
 const STORAGE_KEY =
     "word_memorize_app_final_v1";
@@ -36,6 +36,8 @@ let draggedFileId = null;
 let draggedWorkbookId = null;
 
 let draggedWordId = null;
+
+let wasDraggingFileOrWorkbook = false;
 
 
 /* =========================================================
@@ -1054,7 +1056,7 @@ function renderFileList() {
 
                             <div
                                 class="file-card-main"
-                                onclick="openFile('${file.id}')"
+                                onclick="if(!wasDraggingFileOrWorkbook) openFile('${file.id}')"
                             >
 
                                 <div class="file-icon">
@@ -1533,6 +1535,7 @@ function renderWorkbookList() {
                             <div
                                 class="workbook-card-main"
                                 data-open-workbook="${escapeHTML(workbook.id)}"
+                                onclick="event.stopPropagation(); openWorkbook('${escapeHTML(file.id)}', '${escapeHTML(workbook.id)}')"
                             >
 
                                 <div class="workbook-icon">
@@ -1801,10 +1804,27 @@ function showWorkbookPage(
     workbookId
 ) {
 
-    return baseShowWorkbookPage(
+    baseShowWorkbookPage(
         fileId,
         workbookId
     );
+
+    const workbook = getCurrentWorkbook();
+
+    if (!workbook) {
+        return;
+    }
+
+    renderSpecialWorkbookPanel();
+
+    if (getWorkbookMode(workbook) === "hanja") {
+        loadHanjaDictionary()
+            .then(() => {
+                renderSpecialList();
+                renderWordList();
+            })
+            .catch(() => {});
+    }
 
 }
 
@@ -1841,7 +1861,7 @@ function setupWorkbookDragAndDrop() {
 
                         draggedWorkbookId =
                             card.dataset.workbookId;
-
+                        wasDraggingFileOrWorkbook = true;
 
                         card.classList.add(
                             "dragging"
@@ -1858,6 +1878,9 @@ function setupWorkbookDragAndDrop() {
                         draggedWorkbookId =
                             null;
 
+                        setTimeout(() => {
+                            wasDraggingFileOrWorkbook = false;
+                        }, 0);
 
                         card.classList.remove(
                             "dragging"
@@ -2372,11 +2395,11 @@ function baseStartWorkbookTest() {
 
 
 /* =========================================================
-   단어장 테스트 진입점
-   일반 단어장 / 한자 단어장 분기
+   단어장 테스트
+   기존 영어 단어장 테스트 기능 복원
    ========================================================= */
 
-function startWorkbookTest() {
+function startWorkbookTest(type = "menu") {
 
     const workbook = getCurrentWorkbook();
 
@@ -2384,11 +2407,175 @@ function startWorkbookTest() {
         return;
     }
 
-    if (getWorkbookMode(workbook) === "hanja") {
+    const mode = getWorkbookMode(workbook);
+
+    if (mode === "hanja") {
         return openSpecialTestMenu();
     }
 
-    return baseStartWorkbookTest();
+    if (
+        type === "all" ||
+        type === "file-to-meaning" ||
+        type === "meaning-to-file"
+    ) {
+        return startNormalWorkbookTest(type);
+    }
+
+    return openWorkbookTestMenu();
+}
+
+
+function openWorkbookTestMenu() {
+
+    const workbook = getCurrentWorkbook();
+
+    if (!workbook) {
+        return;
+    }
+
+    if (!Array.isArray(workbook.words) || workbook.words.length === 0) {
+        showToast("테스트할 단어가 없습니다.", "error");
+        return;
+    }
+
+    const importantCount = workbook.words.filter(word => word.important).length;
+    const wrongCount = workbook.words.filter(word => Number(word.wrong) > 0).length;
+
+    openModal(
+        "영어 단어장 테스트",
+        `<div class="test-menu">
+            <button type="button" class="test-menu-button" onclick="closeModal(); startWorkbookTest('all')">
+                <strong>📝 전체 테스트</strong>
+                <span>영어 → 뜻 / 뜻 → 영어가 문제마다 랜덤으로 출제됩니다.</span>
+            </button>
+            <button type="button" class="test-menu-button" onclick="closeModal(); startWorkbookTest('file-to-meaning')">
+                <strong>영어 → 뜻</strong>
+                <span>영어 단어를 보고 뜻을 입력합니다.</span>
+            </button>
+            <button type="button" class="test-menu-button" onclick="closeModal(); startWorkbookTest('meaning-to-file')">
+                <strong>뜻 → 영어</strong>
+                <span>뜻을 보고 영어 단어를 입력합니다.</span>
+            </button>
+            <button type="button" class="test-menu-button" onclick="openWorkbookQuickTestMenu()">
+                <strong>⚡ 빠른 테스트</strong>
+                <span>중요 단어 또는 틀린 기록이 있는 단어만 테스트합니다.</span>
+                <small>⭐ 중요 ${importantCount}개 · ❌ 틀린 기록 ${wrongCount}개</small>
+            </button>
+        </div>`
+    );
+}
+
+
+function openWorkbookQuickTestMenu() {
+
+    const workbook = getCurrentWorkbook();
+
+    if (!workbook) {
+        return;
+    }
+
+    const importantCount = workbook.words.filter(word => word.important).length;
+    const wrongCount = workbook.words.filter(word => Number(word.wrong) > 0).length;
+
+    openModal(
+        "빠른 테스트",
+        `<div class="test-menu">
+            <button type="button" class="test-menu-button" ${importantCount === 0 ? "disabled" : ""} onclick="closeModal(); startWorkbookQuickTest('important')">
+                <strong>⭐ 중요 단어 테스트</strong>
+                <span>중요 표시된 단어만 테스트합니다.</span>
+                <small>현재 ${importantCount}개</small>
+            </button>
+            <button type="button" class="test-menu-button" ${wrongCount === 0 ? "disabled" : ""} onclick="closeModal(); startWorkbookQuickTest('wrong')">
+                <strong>❌ 틀린 단어 테스트</strong>
+                <span>한 번이라도 틀린 기록이 있는 단어를 테스트합니다.</span>
+                <small>현재 ${wrongCount}개</small>
+            </button>
+            <button type="button" class="test-menu-button" onclick="openWorkbookTestMenu()">
+                <strong>← 돌아가기</strong>
+                <span>단어장 테스트 메뉴로 돌아갑니다.</span>
+            </button>
+        </div>`
+    );
+}
+
+
+function startNormalWorkbookTest(type = "all") {
+
+    const file = getCurrentFile();
+    const workbook = getCurrentWorkbook();
+
+    if (!file || !workbook) {
+        return;
+    }
+
+    if (!Array.isArray(workbook.words) || workbook.words.length === 0) {
+        showToast("테스트할 단어가 없습니다.", "error");
+        return;
+    }
+
+    const questions = workbook.words.map(word => {
+        let direction = type;
+
+        if (type === "all") {
+            direction = Math.random() < 0.5
+                ? "file-to-meaning"
+                : "meaning-to-file";
+        }
+
+        return makeQuestion({ word, workbook }, direction, file);
+    });
+
+    startTest(
+        questions,
+        type === "all"
+            ? `${workbook.name} 전체 테스트`
+            : type === "file-to-meaning"
+                ? `${workbook.name} → 뜻`
+                : `뜻 → ${workbook.name}`,
+        "workbook",
+        file.id,
+        workbook.id,
+        "workbook"
+    );
+}
+
+
+function startWorkbookQuickTest(mode) {
+
+    const file = getCurrentFile();
+    const workbook = getCurrentWorkbook();
+
+    if (!file || !workbook) {
+        return;
+    }
+
+    const selected = mode === "important"
+        ? workbook.words.filter(word => word.important)
+        : workbook.words.filter(word => Number(word.wrong) > 0);
+
+    if (!selected.length) {
+        showToast("해당 조건에 맞는 단어가 없습니다.", "error");
+        return;
+    }
+
+    const questions = selected.map(word => {
+        const direction = Math.random() < 0.5
+            ? "file-to-meaning"
+            : "meaning-to-file";
+
+        return makeQuestion({ word, workbook }, direction, file);
+    });
+
+    startTest(
+        questions,
+        mode === "important"
+            ? `${workbook.name} - ⭐ 중요 단어 테스트`
+            : `${workbook.name} - ❌ 틀린 단어 테스트`,
+        "workbook-quick",
+        file.id,
+        workbook.id,
+        "workbook"
+    );
 }
 
 
@@ -2397,6 +2584,12 @@ function startWorkbookTest() {
    ========================================================= */
 
 function addSingleWord() {
+
+    const workbook = getCurrentWorkbook();
+
+    if (!workbook || getWorkbookMode(workbook) === "hanja") {
+        return;
+    }
 
     startWorkbookTest();
 
@@ -2428,6 +2621,55 @@ function baseRenderWordList() {
 
         return;
 
+    }
+
+
+    /* =====================================================
+       한자 단어장
+       사용자가 지정한 8급 ~ 특급 급수 데이터만 사용하고
+       직접 단어를 추가/수정/삭제하지 않습니다.
+       단어 목록에는 한자 / 훈 / 음 / 뜻 / 급수를 표시합니다.
+       ===================================================== */
+
+    if (getWorkbookMode(workbook) === "hanja") {
+
+        const level = getSelectedHanjaLevel();
+        const data = specialDataForLevel(level);
+
+        empty?.classList.add("hidden");
+        updateWordCountUI(data.length);
+
+        if (!data.length) {
+            list.innerHTML = `<div class="empty">한자 데이터를 불러오는 중...</div>`;
+            return;
+        }
+
+        list.innerHTML = data.map((item, index) => {
+            const info = getHanjaInfo(item.char);
+
+            return `<div class="word-card hanja-word-card">
+                <div class="word-number">${index + 1}</div>
+                <div class="word-main">
+                    <div class="word-title">
+                        <strong>${escapeHTML(item.char)}</strong>
+                    </div>
+                    <div class="word-meaning">
+                        훈: ${escapeHTML(info.hun || "-")}
+                    </div>
+                    <div class="word-meaning">
+                        음: ${escapeHTML(info.eum || "-")}
+                    </div>
+                    <div class="word-meaning">
+                        뜻: ${escapeHTML(info.meaning || info.hun || "-")}
+                    </div>
+                    <div class="word-stat">
+                        급수: ${escapeHTML(item.level || level)}
+                    </div>
+                </div>
+            </div>`;
+        }).join("");
+
+        return;
     }
 
 
@@ -5984,6 +6226,20 @@ function setupNavigation() {
    - 단어장 이름에 "일본어" 포함 → 일본어 모드
    ========================================================= */
 
+function renderWordList() {
+
+    const workbook = getCurrentWorkbook();
+    const list = $("wordList");
+
+    if (!workbook || !list) {
+        return;
+    }
+
+    baseRenderWordList();
+
+}
+
+
 const HANJA_SOURCE_SITE = "https://hanjasajun.co.kr/index.php?g=80";
 const HANJA_DATA_URL = "https://raw.githubusercontent.com/rycont/hanja-grade-dataset/main/hanja.csv";
 const HANJA_DATA_FALLBACK_URL = "https://github.com/rycont/hanja-grade-dataset/raw/refs/heads/main/hanja.csv";
@@ -6376,6 +6632,7 @@ function renderSpecialWorkbookPanel() {
         return `<button type="button" class="special-level-button ${isSelected ? "selected" : ""}" data-hanja-level="${escapeHTML(level)}"><strong>${escapeHTML(level)}</strong><small>${count.toLocaleString("ko-KR")}자</small></button>`;
     }).join("");
 
+    $("specialList")?.classList.add("hidden");
     renderSpecialList();
     renderWordList();
 
@@ -7186,7 +7443,9 @@ function setupSpecialPanelEvents(){
         if (workbookButton) {
             event.preventDefault();
             event.stopPropagation();
-            openWorkbook(currentFileId, workbookButton.dataset.openWorkbook);
+            if (!wasDraggingFileOrWorkbook) {
+                openWorkbook(currentFileId, workbookButton.dataset.openWorkbook);
+            }
         }
     }, { capture: false });
 
