@@ -5,7 +5,7 @@
    앱 버전
    ========================================================= */
 
-const APP_VERSION = "3.4.9";
+const APP_VERSION = "3.4.11";
 
 const STORAGE_KEY =
     "word_memorize_app_final_v1";
@@ -7574,7 +7574,7 @@ function initializeApp() {
     registerServiceWorker();
 
     console.log(
-        `단어 암기장이 시작되었습니다. v${APP_VERSION}`
+        `단어 암기장이 시작되었습니다. v${APP_VERSION} / 클릭 수정본`
     );
 
 }
