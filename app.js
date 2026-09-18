@@ -5,7 +5,7 @@
    앱 버전
    ========================================================= */
 
-const APP_VERSION = "3.4.18";
+const APP_VERSION = "3.4.19";
 
 const STORAGE_KEY =
     "word_memorize_app_final_v1";
@@ -4350,7 +4350,7 @@ function baseShowAnswerFeedback(
             <div class="feedback-correct">
 
                 <strong>
-                    ⭕ 정답
+                    ⭕ 정답!
                 </strong>
 
                 <span>
@@ -4376,8 +4376,8 @@ function baseShowAnswerFeedback(
             <strong>
                 ❌ ${
                     timeOut
-                        ? "시간 초과"
-                        : "오답"
+                        ? "시간 초과!"
+                        : "오답!"
                 }
             </strong>
 
@@ -6289,19 +6289,19 @@ const HANJA_TEST_EXAMPLES = {
 };
 
 /*
-   한자사전에서 사용되는 호환 한자 표기 보정
-   현재 데이터셋의 표준 통합문자(金/樂/宅)를
-   사용자가 요청한 호환 한자(金/樂/宅)로 표시하고
-   훈·음을 명시적으로 보정한다.
+   내장 보정 한자
+   - 金 / 樂 / 宅 호환 한자 표기를 항상 사용할 수 있도록 보정
+   - 기존 데이터에 해당 표준 문자가 있으면 그 급수는 유지
+   - 기존 데이터에 없을 때만 아래 기본 급수를 사용
 */
-const HANJA_COMPATIBILITY_FIXES = {
+const HANJA_BUILTIN_FIXES = {
     "金": {
         char: "金",
         hun: "쇠",
         hunAnswers: ["쇠"],
         eum: "금 · 김",
         eumAnswers: ["금", "김"],
-        level: "8급"
+        fallbackLevel: "8급"
     },
     "樂": {
         char: "樂",
@@ -6309,7 +6309,7 @@ const HANJA_COMPATIBILITY_FIXES = {
         hunAnswers: ["즐길"],
         eum: "락 · 악 · 요",
         eumAnswers: ["락", "악", "요"],
-        level: "준6급"
+        fallbackLevel: "5급"
     },
     "宅": {
         char: "宅",
@@ -6317,7 +6317,7 @@ const HANJA_COMPATIBILITY_FIXES = {
         hunAnswers: ["집"],
         eum: "택",
         eumAnswers: ["택"],
-        level: "준5급"
+        fallbackLevel: "4급"
     }
 };
 
@@ -6460,14 +6460,14 @@ function parseHanjaCSV(text) {
     return rows;
 }
 
-function applyHanjaCompatibilityFixes(rows) {
+function applyHanjaBuiltinFixes(rows) {
     const sourceRows = Array.isArray(rows) ? rows : [];
     const result = [];
     const seenBases = new Set();
 
     for (const row of sourceRows) {
         const baseChar = normalizeHanjaCharacter(row?.char);
-        const fix = HANJA_COMPATIBILITY_FIXES[baseChar];
+        const fix = HANJA_BUILTIN_FIXES[baseChar];
 
         if (!fix) {
             result.push(row);
@@ -6479,32 +6479,31 @@ function applyHanjaCompatibilityFixes(rows) {
         }
 
         seenBases.add(baseChar);
-
         result.push({
             ...row,
             id: `hanja_${fix.char}`,
             char: fix.char,
             hun: fix.hun,
-            eum: fix.eum,
             hunAnswers: [...fix.hunAnswers],
+            eum: fix.eum,
             eumAnswers: [...fix.eumAnswers],
-            level: fix.level
+            level: row.level || fix.fallbackLevel
         });
     }
 
-    for (const [baseChar, fix] of Object.entries(HANJA_COMPATIBILITY_FIXES)) {
+    for (const [baseChar, fix] of Object.entries(HANJA_BUILTIN_FIXES)) {
         if (seenBases.has(baseChar)) continue;
 
         result.push({
             id: `hanja_${fix.char}`,
             char: fix.char,
             hun: fix.hun,
-            eum: fix.eum,
             hunAnswers: [...fix.hunAnswers],
+            eum: fix.eum,
             eumAnswers: [...fix.eumAnswers],
             meaning: "",
-            level: fix.level,
-            sourceLevel: HANJA_SOURCE_LEVEL[fix.level] || fix.level,
+            level: fix.fallbackLevel,
+            sourceLevel: HANJA_SOURCE_LEVEL[fix.fallbackLevel] || fix.fallbackLevel,
             radical: "",
             strokes: 0,
             totalStrokes: 0,
@@ -6516,15 +6515,14 @@ function applyHanjaCompatibilityFixes(rows) {
 }
 
 function buildHanjaIndexes(rows) {
-    HANJA_DATA = applyHanjaCompatibilityFixes(rows);
+    HANJA_DATA = applyHanjaBuiltinFixes(rows);
     HANJA_DATA_MAP = new Map();
     HANJA_DATA_BY_LEVEL = new Map();
 
     for (const item of HANJA_DATA) {
-        const normalizedChar = normalizeHanjaCharacter(item.char);
-
-        if (!HANJA_DATA_MAP.has(normalizedChar)) {
-            HANJA_DATA_MAP.set(normalizedChar, item);
+        const key = normalizeHanjaCharacter(item.char);
+        if (!HANJA_DATA_MAP.has(key)) {
+            HANJA_DATA_MAP.set(key, item);
         }
 
         if (!HANJA_DATA_BY_LEVEL.has(item.level)) {
@@ -6549,8 +6547,9 @@ function cumulativeHanjaData(level) {
     for (let i = 0; i <= targetIndex; i += 1) {
         const currentLevel = HANJA_LEVEL_ORDER[i];
         for (const item of getHanjaExactLevelData(currentLevel)) {
-            if (seen.has(item.char)) continue;
-            seen.add(item.char);
+            const key = normalizeHanjaCharacter(item.char);
+            if (seen.has(key)) continue;
+            seen.add(key);
             result.push(item);
         }
     }
@@ -6609,8 +6608,9 @@ function normalizeHanjaCharacter(value) {
 function getHanjaInfo(char) {
     const key = normalizeHanjaCharacter(char);
     const item = HANJA_DATA_MAP.get(key);
+    const fix = HANJA_BUILTIN_FIXES[key];
 
-    if (!item) {
+    if (!item && !fix) {
         return {
             hun: "",
             eum: "",
@@ -6622,12 +6622,12 @@ function getHanjaInfo(char) {
     }
 
     return {
-        hun: item.hun,
-        eum: item.eum,
-        meaning: item.meaning,
-        hunAnswers: [...item.hunAnswers],
-        eumAnswers: [...item.eumAnswers],
-        pairs: item.pairs || []
+        hun: item?.hun || fix?.hun || "",
+        eum: item?.eum || fix?.eum || "",
+        meaning: item?.meaning || "",
+        hunAnswers: item?.hunAnswers?.length ? [...item.hunAnswers] : [...(fix?.hunAnswers || [])],
+        eumAnswers: item?.eumAnswers?.length ? [...item.eumAnswers] : [...(fix?.eumAnswers || [])],
+        pairs: item?.pairs || []
     };
 }
 
@@ -7068,6 +7068,26 @@ function getWorkbookMode(workbook) {
     if (name.includes("한자")) return "hanja";
     return "normal";
 }
+
+/* 세 보정 한자는 앱 시작 시에도 바로 존재하도록 기본 데이터로 심어 둡니다.
+   5,978자 전체 원자료는 기존 HANJA_DATA 로더가 그대로 사용합니다. */
+buildHanjaIndexes(
+    Object.entries(HANJA_BUILTIN_FIXES).map(([baseChar, fix]) => ({
+        id: `hanja_${fix.char}`,
+        char: fix.char,
+        hun: fix.hun,
+        hunAnswers: [...fix.hunAnswers],
+        eum: fix.eum,
+        eumAnswers: [...fix.eumAnswers],
+        meaning: "",
+        level: fix.fallbackLevel,
+        sourceLevel: HANJA_SOURCE_LEVEL[fix.fallbackLevel] || fix.fallbackLevel,
+        radical: "",
+        strokes: 0,
+        totalStrokes: 0,
+        pairs: []
+    }))
+);
 
 const JAPANESE_DATA = [
     ["日","にち・じつ","ひ・か"],["月","げつ・がつ","つき"],["火","か","ひ"],["水","すい","みず"],["木","もく","き"],
@@ -7550,7 +7570,6 @@ function checkAnswer(userAnswer, question){
     );
 }
 
-/* 정답이면 "정답", 오답이면 "오답"과 함께 반드시 정답을 표시한다. */
 function showAnswerFeedback(question, isCorrect, userAnswer, timeOut){
     if(!question?.specialMode){
         return baseShowAnswerFeedback(question, isCorrect, userAnswer, timeOut);
@@ -7560,8 +7579,8 @@ function showAnswerFeedback(question, isCorrect, userAnswer, timeOut){
     feedback.classList.remove("hidden");
     const answer = question.answers.join(" / ");
     feedback.innerHTML = isCorrect
-        ? `<div class="feedback-correct"><strong>⭕ 정답</strong><span>${escapeHTML(answer)}</span></div>`
-        : `<div class="feedback-wrong"><strong>❌ ${timeOut ? "시간 초과" : "오답"}</strong>${userAnswer ? `<span>입력한 답: ${escapeHTML(userAnswer)}</span>` : "<span>입력한 답이 없습니다.</span>"}<span>정답: <strong>${escapeHTML(answer)}</strong></span></div>`;
+        ? `<div class="feedback-correct"><strong>⭕ 정답!</strong><span>${escapeHTML(answer)}</span></div>`
+        : `<div class="feedback-wrong"><strong>❌ ${timeOut ? "시간 초과!" : "오답!"}</strong>${userAnswer ? `<span>입력한 답: ${escapeHTML(userAnswer)}</span>` : "<span>입력한 답이 없습니다.</span>"}<span>정답: <strong>${escapeHTML(answer)}</strong></span></div>`;
 }
 
 function finishTest(){
