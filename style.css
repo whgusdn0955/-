@@ -2468,6 +2468,14 @@ body.dark-mode .feedback-wrong {
 .special-workbook-panel{margin-top:20px}
 .special-level-area h3{margin:0 0 12px}
 .special-level-list{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.page-backbar{display:flex;align-items:center;gap:8px;margin:0 0 12px;}
+.pagination{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;margin:18px 0 4px;width:100%;}
+.pagination-button{min-width:38px;height:38px;padding:0 10px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;}
+.pagination-button:hover:not(:disabled){border-color:var(--primary);background:var(--primary-light);}
+.pagination-button.active{border-color:var(--primary);background:var(--primary);color:#fff;}
+.pagination-button:disabled{opacity:.45;cursor:not-allowed;}
+.pagination-nav{font-size:18px;}
+.pagination-ellipsis{color:var(--text-light);padding:0 3px;}
 .special-level-button{border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:13px;padding:13px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
 .special-level-button:hover:not(:disabled),.special-level-button.selected{border-color:var(--primary);background:var(--primary-light)}
 .special-level-button strong{font-size:16px}
