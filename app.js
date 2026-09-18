@@ -5,7 +5,7 @@
    앱 버전
    ========================================================= */
 
-const APP_VERSION = "3.4.19";
+const APP_VERSION = "3.4.20";
 
 const STORAGE_KEY =
     "word_memorize_app_final_v1";
@@ -1097,7 +1097,7 @@ function renderFileList() {
 
                         <div
                             class="file-card"
-                            draggable="true"
+                            draggable="false"
                             data-file-id="${escapeHTML(file.id)}"
                         >
 
@@ -1342,109 +1342,50 @@ function openFile(
 function setupFileDragAndDrop() {
 
     document
-        .querySelectorAll(
-            ".file-card"
-        )
-        .forEach(
-            card => {
+        .querySelectorAll(".file-card")
+        .forEach(card => {
 
-                card.addEventListener(
-                    "dragstart",
-                    event => {
+            const handle = card.querySelector("[data-file-drag-handle]");
 
-                        draggedFileId =
-                            card.dataset.fileId;
+            handle?.addEventListener("dragstart", event => {
+                draggedFileId = card.dataset.fileId;
+                wasDraggingFileOrWorkbook = true;
+                card.classList.add("dragging");
 
-                        card.classList.add(
-                            "dragging"
-                        );
+                if (event.dataTransfer) {
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData("text/plain", draggedFileId);
+                }
+            });
 
-                        if (event.dataTransfer) {
-                            event.dataTransfer.effectAllowed = "move";
-                            event.dataTransfer.setData(
-                                "text/plain",
-                                draggedFileId
-                            );
-                        }
+            handle?.addEventListener("dragend", () => {
+                draggedFileId = null;
+                document.querySelectorAll(".file-card.drag-over").forEach(item => item.classList.remove("drag-over"));
+                card.classList.remove("dragging");
+                setTimeout(() => { wasDraggingFileOrWorkbook = false; }, 0);
+            });
 
-                    }
-                );
+            card.addEventListener("dragover", event => {
+                if (!draggedFileId) return;
+                event.preventDefault();
+                if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+                if (draggedFileId !== card.dataset.fileId) card.classList.add("drag-over");
+            });
 
+            card.addEventListener("dragleave", event => {
+                if (!card.contains(event.relatedTarget)) card.classList.remove("drag-over");
+            });
 
-                card.addEventListener(
-                    "dragend",
-                    () => {
-
-                        draggedFileId =
-                            null;
-
-                        document
-                            .querySelectorAll(".file-card.drag-over")
-                            .forEach(item => item.classList.remove("drag-over"));
-
-                        card.classList.remove(
-                            "dragging"
-                        );
-
-                    }
-                );
-
-
-                card.addEventListener(
-                    "dragover",
-                    event => {
-
-                        event.preventDefault();
-
-                        if (event.dataTransfer) {
-                            event.dataTransfer.dropEffect = "move";
-                        }
-
-                        if (draggedFileId && draggedFileId !== card.dataset.fileId) {
-                            card.classList.add("drag-over");
-                        }
-
-                    }
-                );
-
-                card.addEventListener(
-                    "dragleave",
-                    event => {
-                        if (!card.contains(event.relatedTarget)) {
-                            card.classList.remove("drag-over");
-                        }
-                    }
-                );
-
-
-                card.addEventListener(
-                    "drop",
-                    event => {
-
-                        event.preventDefault();
-
-                        card.classList.remove("drag-over");
-
-                        const targetId =
-                            card.dataset.fileId;
-
-                        if (
-                            !draggedFileId ||
-                            draggedFileId === targetId
-                        ) {
-                            return;
-                        }
-
-                        reorderFiles(
-                            draggedFileId,
-                            targetId
-                        );
-
-                    }
-                );
-
-            }
-        );
+            card.addEventListener("drop", event => {
+                if (!draggedFileId) return;
+                event.preventDefault();
+                card.classList.remove("drag-over");
+                const targetId = card.dataset.fileId;
+                if (draggedFileId !== targetId) reorderFiles(draggedFileId, targetId);
+                draggedFileId = null;
+                setTimeout(() => { wasDraggingFileOrWorkbook = false; }, 0);
+            });
+        });
 
 }
 
@@ -2649,66 +2590,39 @@ function addSingleWord() {
 
 function renderPagination(containerClass, currentPage, totalPages, handlerName) {
 
-    if (totalPages <= 1) {
-        return "";
-    }
+    if (totalPages <= 1) return "";
 
+    const go = page => Math.min(totalPages, Math.max(1, page));
     const pages = [];
     const addPage = page => {
-        if (page >= 1 && page <= totalPages && !pages.includes(page)) {
-            pages.push(page);
-        }
+        if (page >= 1 && page <= totalPages && !pages.includes(page)) pages.push(page);
     };
 
     addPage(1);
-    for (let page = currentPage - 2; page <= currentPage + 2; page += 1) {
-        addPage(page);
-    }
+    for (let page = currentPage - 2; page <= currentPage + 2; page += 1) addPage(page);
     addPage(totalPages);
 
     const controls = [];
     let previous = 0;
-
     pages.forEach(page => {
-        if (previous && page - previous > 1) {
-            controls.push(`<span class="pagination-ellipsis">…</span>`);
-        }
-
-        controls.push(`
-            <button
-                type="button"
-                class="pagination-button ${page === currentPage ? "active" : ""}"
-                onclick="${handlerName}(${page})"
-            >
-                ${page}
-            </button>
-        `);
-
+        if (previous && page - previous > 1) controls.push(`<span class="pagination-ellipsis">…</span>`);
+        controls.push(`<button type="button" class="pagination-button ${page === currentPage ? "active" : ""}" onclick="${handlerName}(${page})">${page}</button>`);
         previous = page;
     });
 
     return `
         <div class="${containerClass} pagination">
-            <button
-                type="button"
-                class="pagination-button pagination-nav"
-                ${currentPage <= 1 ? "disabled" : ""}
-                onclick="${handlerName}(${currentPage - 1})"
-            >
-                ‹
-            </button>
+            <button type="button" class="pagination-button pagination-nav pagination-fast" ${currentPage <= 1 ? "disabled" : ""} onclick="${handlerName}(${go(currentPage - 10)})" title="10페이지 뒤로">&lt;&lt;&lt;</button>
+            <button type="button" class="pagination-button pagination-nav pagination-fast" ${currentPage <= 1 ? "disabled" : ""} onclick="${handlerName}(${go(currentPage - 5)})" title="5페이지 뒤로">&lt;&lt;</button>
+            <button type="button" class="pagination-button pagination-nav" ${currentPage <= 1 ? "disabled" : ""} onclick="${handlerName}(${currentPage - 1})" title="이전 페이지">&lt;</button>
             ${controls.join("")}
-            <button
-                type="button"
-                class="pagination-button pagination-nav"
-                ${currentPage >= totalPages ? "disabled" : ""}
-                onclick="${handlerName}(${currentPage + 1})"
-            >
-                ›
-            </button>
+            <button type="button" class="pagination-button pagination-nav" ${currentPage >= totalPages ? "disabled" : ""} onclick="${handlerName}(${currentPage + 1})" title="다음 페이지">&gt;</button>
+            <button type="button" class="pagination-button pagination-nav pagination-fast" ${currentPage >= totalPages ? "disabled" : ""} onclick="${handlerName}(${go(currentPage + 5)})" title="5페이지 앞으로">&gt;&gt;</button>
+            <button type="button" class="pagination-button pagination-nav pagination-fast" ${currentPage >= totalPages ? "disabled" : ""} onclick="${handlerName}(${go(currentPage + 10)})" title="10페이지 앞으로">&gt;&gt;&gt;</button>
         </div>
     `;
 }
+
 
 function changeWordListPage(page) {
     wordListPage = Math.max(1, Number(page) || 1);
@@ -4223,21 +4137,13 @@ function submitAnswer(
     }
 
 
-    if (
-        timeOut
-    ) {
-
-        testState.autoNextTimer =
-            setTimeout(
-                () => {
-
-                    nextQuestion();
-
-                },
-                900
-            );
-
-    }
+    testState.autoNextTimer =
+        setTimeout(
+            () => {
+                nextQuestion();
+            },
+            850
+        );
 
 }
 
@@ -6224,10 +6130,16 @@ function renderWordList() {
 
     const workbook = getCurrentWorkbook();
     const list = $("wordList");
+    const section = $("wordListSection");
 
     if (!workbook || !list) {
         return;
     }
+
+    const special = getWorkbookMode(workbook) !== "normal";
+    section?.classList.toggle("hidden", special);
+    list.classList.toggle("hidden", special);
+    $("emptyWordState")?.classList.toggle("hidden", special || !Array.isArray(workbook.words) || workbook.words.length > 0);
 
     baseRenderWordList();
 
@@ -6327,6 +6239,7 @@ let HANJA_DATA_BY_LEVEL = new Map();
 let hanjaDataPromise = null;
 let currentHanjaListMode = "level";
 let hanjaListSelectedLevel = "8급";
+let currentHanjaListInitial = "";
 
 
 function normalizeHanjaSourceLevel(level) {
@@ -6519,6 +6432,7 @@ function buildHanjaIndexes(rows) {
     HANJA_DATA_MAP = new Map();
     HANJA_DATA_BY_LEVEL = new Map();
 
+    const seenByLevel = new Map();
     for (const item of HANJA_DATA) {
         const key = normalizeHanjaCharacter(item.char);
         if (!HANJA_DATA_MAP.has(key)) {
@@ -6527,8 +6441,12 @@ function buildHanjaIndexes(rows) {
 
         if (!HANJA_DATA_BY_LEVEL.has(item.level)) {
             HANJA_DATA_BY_LEVEL.set(item.level, []);
+            seenByLevel.set(item.level, new Set());
         }
 
+        const levelSeen = seenByLevel.get(item.level);
+        if (levelSeen.has(key)) continue;
+        levelSeen.add(key);
         HANJA_DATA_BY_LEVEL.get(item.level).push(item);
     }
 }
@@ -6701,15 +6619,16 @@ function renderSpecialWorkbookPanel() {
     const mode = getWorkbookMode(workbook);
     panel.classList.toggle("hidden", mode === "normal");
     normal.classList.toggle("hidden", mode !== "normal");
+    $("wordListSection")?.classList.toggle("hidden", mode !== "normal");
+    $("wordList")?.classList.toggle("hidden", mode !== "normal");
 
     if (mode !== "hanja") return;
 
     $("specialWorkbookTitle").textContent = "🀄 한자 학습";
     $("specialWorkbookDescription").textContent = "한자능력시험검정 5,978자를 급수별로 학습합니다.";
     $("specialLevelArea").classList.remove("hidden");
-    $("specialSearchArea").classList.remove("hidden");
+    $("specialSearchArea")?.classList.add("hidden");
     $("specialJapaneseInfo").classList.add("hidden");
-    $("specialSearch").placeholder = "한자·훈·음 검색";
 
     const selected = getSelectedHanjaLevel();
     $("specialLevelList").innerHTML = HANJA_LEVEL_ORDER.map(level => {
@@ -6719,16 +6638,13 @@ function renderSpecialWorkbookPanel() {
     }).join("");
 
     $("specialList")?.classList.add("hidden");
-    renderSpecialList();
     renderWordList();
 
     loadHanjaData()
         .then(() => {
-            renderSpecialList();
             renderWordList();
         })
         .catch(() => {
-            renderSpecialList();
             showToast("한자 데이터를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.", "error");
         });
 }
@@ -6756,7 +6672,10 @@ function renderSpecialList() {
         specialListTitle.textContent = `${level} 학습 목록`;
     }
 
-    $("specialList").innerHTML = data.length
+    const specialList = $("specialList");
+    if (!specialList) return;
+
+    specialList.innerHTML = data.length
         ? data.map(item => {
             const info = getHanjaInfo(item.char);
             return `<div class="special-item">
@@ -6811,15 +6730,10 @@ async function openSpecialTestMenu() {
             <span>한자를 보고 음을 입력합니다.</span>
             <small>${HANJA_TEST_EXAMPLES.eum}</small>
         </button>
-        <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','hun-hanja')">
-            <strong>훈 → 한자</strong>
-            <span>훈을 보고 한자를 입력합니다.</span>
-            <small>${HANJA_TEST_EXAMPLES.hunToChar}</small>
-        </button>
-        <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','eum-hanja')">
-            <strong>음 → 한자</strong>
-            <span>음을 보고 한자를 입력합니다.</span>
-            <small>${HANJA_TEST_EXAMPLES.eumToChar}</small>
+        <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','hun-eum-hanja')">
+            <strong>음, 훈 → 한자</strong>
+            <span>음독과 훈독을 함께 보고 한자를 직접 그립니다.</span>
+            <small>예: 아비 부 → 父</small>
         </button>
     </div>`);
 }
@@ -6851,14 +6765,12 @@ function makeSpecialQuestion(item, direction){
         q.question = item.char;
         q.answers = info.eumAnswers.length ? [...info.eumAnswers] : (info.eum ? [info.eum] : []);
         q.label = "한자 → 음독";
-    } else if (direction === "hun-hanja") {
-        q.question = info.hun;
+    } else if (direction === "hun-eum-hanja") {
+        const hun = info.hunAnswers.length ? info.hunAnswers.join(" · ") : info.hun;
+        const eum = info.eumAnswers.length ? info.eumAnswers.join(" · ") : info.eum;
+        q.question = [hun, eum].filter(Boolean).join(" / ");
         q.answers = [item.char];
-        q.label = "훈독 → 한자";
-    } else if (direction === "eum-hanja") {
-        q.question = info.eumAnswers[0] || info.eum;
-        q.answers = [item.char];
-        q.label = "음독 → 한자";
+        q.label = "음, 훈 → 한자";
     }
 
     return q;
@@ -6924,17 +6836,17 @@ async function startSpecialHanjaTest(level, type = "mixed"){
     let questions = [];
 
     if (type === "choice") {
-        questions = data.map(item => makeSpecialChoiceQuestion(item, data));
+        questions = shuffleArray(data.map(item => makeSpecialChoiceQuestion(item, data)));
+    } else if (type === "mixed") {
+        questions = shuffleArray(data.flatMap(item => [
+            makeSpecialQuestion(item, "hanja-hun"),
+            makeSpecialQuestion(item, "hanja-eum"),
+            makeSpecialQuestion(item, "hun-eum-hanja")
+        ])).filter(question => question.answers.length > 0 && question.question);
     } else {
-        const directions = ["hanja-hun", "hanja-eum", "hun-hanja", "eum-hanja"];
-        questions = data
-            .map(item => makeSpecialQuestion(
-                item,
-                type === "mixed"
-                    ? directions[Math.floor(Math.random() * directions.length)]
-                    : type
-            ))
-            .filter(question => question.answers.length > 0 && question.question);
+        questions = shuffleArray(data
+            .map(item => makeSpecialQuestion(item, type))
+            .filter(question => question.answers.length > 0 && question.question));
     }
 
     if (!questions.length) {
@@ -6959,6 +6871,7 @@ async function startSpecialHanjaTest(level, type = "mixed"){
 function openHanjaListPage() {
     currentHanjaListMode = "level";
     hanjaListSelectedLevel = getSelectedHanjaLevel();
+    currentHanjaListInitial = "";
     hanjaListPage = 1;
     showPage("hanjaList");
     renderHanjaListPage();
@@ -6967,6 +6880,36 @@ function openHanjaListPage() {
 function changeHanjaListPage(page) {
     hanjaListPage = Math.max(1, Number(page) || 1);
     renderHanjaListPage();
+}
+
+const HANJA_INITIALS = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+
+function getKoreanInitial(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    const first = text.charAt(0);
+    const code = first.charCodeAt(0) - 0xAC00;
+    if (code >= 0 && code <= 11171) return HANJA_INITIALS[Math.floor(code / 588)] || "";
+    return "";
+}
+
+function uniqueHanjaRows(rows) {
+    const seen = new Set();
+    return (Array.isArray(rows) ? rows : []).filter(item => {
+        const key = normalizeHanjaCharacter(item?.char);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+function filterHanjaByInitial(rows, initial) {
+    if (!initial) return rows;
+    return rows.filter(item => {
+        const info = getHanjaInfo(item.char);
+        const sounds = info.eumAnswers.length ? info.eumAnswers : String(info.eum || "").split("·").map(v => v.trim()).filter(Boolean);
+        return sounds.some(sound => getKoreanInitial(sound) === initial);
+    });
 }
 
 function renderHanjaListPage() {
@@ -6983,6 +6926,13 @@ function renderHanjaListPage() {
     }).join("");
 
     $("hanjaListLevelArea")?.classList.toggle("hidden", currentHanjaListMode !== "level");
+
+    const initialArea = document.getElementById("hanjaListInitialFilter");
+    if (initialArea) {
+        initialArea.innerHTML = ["", ...HANJA_INITIALS].map(initial => `
+            <button type="button" class="hanja-initial-button ${currentHanjaListInitial === initial ? "active" : ""}" data-hanja-initial="${initial}">${initial || "전체"}</button>
+        `).join("");
+    }
 
     const hanjaListModeLabel = $("hanjaListModeLabel");
     const hanjaListTitle = $("hanjaListTitle");
@@ -7007,9 +6957,11 @@ function renderHanjaListPage() {
         return;
     }
 
-    const rows = currentHanjaListMode === "level"
+    const baseRows = currentHanjaListMode === "level"
         ? cumulativeHanjaData(hanjaListSelectedLevel)
-        : [...HANJA_DATA];
+        : uniqueHanjaRows(HANJA_DATA);
+
+    const rows = filterHanjaByInitial(baseRows, currentHanjaListInitial);
 
     const totalPages = Math.max(1, Math.ceil(rows.length / HANJA_LIST_PAGE_SIZE));
     hanjaListPage = Math.min(hanjaListPage, totalPages);
@@ -7044,6 +6996,7 @@ function setupHanjaListEvents() {
         const modeButton = event.target.closest("[data-hanja-list-mode]");
         if (modeButton) {
             currentHanjaListMode = modeButton.dataset.hanjaListMode;
+            currentHanjaListInitial = "";
             hanjaListPage = 1;
             document.querySelectorAll("[data-hanja-list-mode]").forEach(button => {
                 button.classList.toggle("active", button.dataset.hanjaListMode === currentHanjaListMode);
@@ -7052,10 +7005,19 @@ function setupHanjaListEvents() {
             return;
         }
 
+        const initialButton = event.target.closest("[data-hanja-initial]");
+        if (initialButton) {
+            currentHanjaListInitial = initialButton.dataset.hanjaInitial || "";
+            hanjaListPage = 1;
+            renderHanjaListPage();
+            return;
+        }
+
         const levelButton = event.target.closest("[data-hanja-list-level]");
         if (levelButton) {
             hanjaListSelectedLevel = levelButton.dataset.hanjaListLevel;
             currentHanjaListMode = "level";
+            currentHanjaListInitial = "";
             hanjaListPage = 1;
             renderHanjaListPage();
         }
@@ -7066,6 +7028,7 @@ function setupHanjaListEvents() {
 function getWorkbookMode(workbook) {
     const name = String(workbook?.name || "");
     if (name.includes("한자")) return "hanja";
+    if (name.includes("일본어")) return "japanese";
     return "normal";
 }
 
@@ -7203,6 +7166,10 @@ function injectHanjaHandwritingStyles(){
     `;
     document.head.appendChild(style);
 }
+
+const HANJA_HANDWRITING_SCRIPT_URL = "https://raw.githubusercontent.com/asdfjkl/kanjicanvas/master/docs/resources/javascript/kanji-canvas.min.js";
+const HANJA_HANDWRITING_PATTERNS_URL = "https://raw.githubusercontent.com/asdfjkl/kanjicanvas/master/docs/resources/javascript/ref-patterns.js";
+let hanjaHandwritingReadyPromise = null;
 
 function loadHanjaHandwritingScript(src){
     return new Promise((resolve,reject)=>{
@@ -7410,7 +7377,7 @@ function createHanjaWritingArea(){
             <span>마우스·터치·펜으로 한자를 그려주세요.</span>
         </div>
         <div class="hanja-writing-canvas-wrap">
-            <canvas id="hanjaWritingCanvas" width="256" height="256"></canvas>
+            <canvas id="hanjaWritingCanvas" data-stroke-numbers="false" width="256" height="256"></canvas>
         </div>
         <div class="hanja-writing-actions">
             <button type="button" id="hanjaUndoButton">↩ 한 획 지우기</button>
@@ -7435,7 +7402,7 @@ function createHanjaWritingArea(){
 }
 
 function handleHanjaAnswerInputMode(question){
-    const needsDrawing=question?.direction === "hun-hanja" || question?.direction === "eum-hanja";
+    const needsDrawing=question?.direction === "hun-eum-hanja";
     const area=createHanjaWritingArea();
     const input=$("testAnswerInput");
 
@@ -7504,7 +7471,7 @@ function renderCurrentQuestion(){
             answerInput.disabled=false;
         }
 
-        if(q.direction === "hun-hanja" || q.direction === "eum-hanja"){
+        if(q.direction === "hun-eum-hanja"){
             clearHanjaDrawing();
         }
 
@@ -7514,10 +7481,10 @@ function renderCurrentQuestion(){
     const submit=$("testSubmitButton");
     if(submit){
         submit.textContent="확인";
-        submit.disabled=!!(q.direction==="hun-hanja"||q.direction==="eum-hanja");
+        submit.disabled=!!(q.direction==="hun-eum-hanja");
     }
 
-    if(q.direction!=="hun-hanja" && q.direction!=="eum-hanja"){
+    if(q.direction!=="hun-eum-hanja"){
         setTimeout(()=>answerInput?.focus(),50);
     }
 
@@ -7558,6 +7525,8 @@ function submitSpecialChoice(userAnswer, question){
                 ? "결과 보기"
                 : "다음 문제";
     }
+
+    testState.autoNextTimer = setTimeout(() => nextQuestion(), 850);
 }
 
 function checkAnswer(userAnswer, question){
@@ -7609,8 +7578,6 @@ function setupSpecialPanelEvents(){
         }
     }, { capture: false });
 
-    $("specialSearch")?.addEventListener("input", renderSpecialList);
-    $("specialTestButton")?.addEventListener("click", openSpecialTestMenu);
     $("hanjaListButton")?.addEventListener("click", openHanjaListPage);
     $("hanjaListBackButton")?.addEventListener("click", () => showWorkbookPage(currentFileId, currentWorkbookId));
 }
