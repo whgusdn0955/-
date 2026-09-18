@@ -5,7 +5,7 @@
    앱 버전
    ========================================================= */
 
-const APP_VERSION = "3.4.0";
+const APP_VERSION = "3.4.1";
 
 const STORAGE_KEY =
     "word_memorize_app_final_v1";
@@ -889,7 +889,7 @@ function showFilePage(
    단어장
    ========================================================= */
 
-function showWorkbookPage(
+function baseShowWorkbookPage(
     fileId,
     workbookId
 ) {
@@ -2251,7 +2251,7 @@ function addBulkWords() {
    + 단어 추가 버튼
    ========================================================= */
 
-function startWorkbookTest() {
+function baseStartWorkbookTest() {
 
     const file =
         getCurrentFile();
@@ -2337,7 +2337,7 @@ function addSingleWord() {
    단어 목록
    ========================================================= */
 
-function renderWordList() {
+function baseRenderWordList() {
 
     const workbook =
         getCurrentWorkbook();
@@ -3144,7 +3144,7 @@ function openQuickTestMenu() {
    문제 생성
    ========================================================= */
 
-function makeQuestion(
+function baseMakeQuestion(
     item,
     direction,
     file
@@ -3546,7 +3546,7 @@ function startTest(
    현재 문제
    ========================================================= */
 
-function renderCurrentQuestion() {
+function baseRenderCurrentQuestion() {
 
     stopTimer();
 
@@ -3766,7 +3766,7 @@ function stopTimer() {
    정답 확인
    ========================================================= */
 
-function checkAnswer(
+function baseCheckAnswer(
     userAnswer,
     question
 ) {
@@ -3949,7 +3949,7 @@ function submitAnswer(
    단어 통계
    ========================================================= */
 
-function updateWordStatistics(
+function baseUpdateWordStatistics(
     question,
     isCorrect
 ) {
@@ -4019,7 +4019,7 @@ function updateWordStatistics(
    피드백
    ========================================================= */
 
-function showAnswerFeedback(
+function baseShowAnswerFeedback(
     question,
     isCorrect,
     userAnswer,
@@ -4216,7 +4216,7 @@ function leaveTest() {
    테스트 종료
    ========================================================= */
 
-function finishTest() {
+function baseFinishTest() {
 
     stopTimer();
 
@@ -6103,106 +6103,121 @@ function startSpecialJapaneseTest(type="mixed"){
     startTest(questions,`일본어 ${type==="mixed"?"전체 테스트":"테스트"}`,"special-japanese",currentFileId,currentWorkbookId,"workbook");
 }
 
-/* 기존 일반 기능은 그대로 두고, 전용 단어장일 때만 화면을 교체합니다. */
-const originalShowWorkbookPage = showWorkbookPage;
-function showWorkbookPage(fileId,workbookId){
-    originalShowWorkbookPage(fileId,workbookId);
-    const workbook=getCurrentWorkbook();
-    if(workbook)renderSpecialWorkbookPanel();
+/* =========================================================
+   전용 단어장 연결
+   ========================================================= */
+
+function showWorkbookPage(fileId, workbookId){
+    baseShowWorkbookPage(fileId, workbookId);
+    const workbook = getCurrentWorkbook();
+    if(workbook) renderSpecialWorkbookPanel();
 }
 
-const originalRenderWordList = renderWordList;
 function renderWordList(){
-    const workbook=getCurrentWorkbook();
-    if(workbook && getWorkbookMode(workbook)!=="normal"){
+    const workbook = getCurrentWorkbook();
+    if(workbook && getWorkbookMode(workbook) !== "normal"){
         renderSpecialWorkbookPanel();
-        const list=$("wordList"),empty=$("emptyWordState");
-        if(list)list.innerHTML="";
-        if(empty){empty.classList.remove("hidden");empty.innerHTML='<div class="empty-icon">📚</div><h2>내장 학습 자료를 사용합니다.</h2><p>이 단어장은 사용자가 단어를 직접 추가하지 않습니다.</p>';} 
-        $("wordListCount").textContent="내장 자료";
+        const list = $("wordList");
+        const empty = $("emptyWordState");
+        if(list) list.innerHTML = "";
+        if(empty){
+            empty.classList.remove("hidden");
+            empty.innerHTML = '<div class="empty-icon">📚</div><h2>내장 학습 자료를 사용합니다.</h2><p>이 단어장은 사용자가 단어를 직접 추가하지 않습니다.</p>';
+        }
+        const count = $("wordListCount");
+        if(count) count.textContent = "내장 자료";
         return;
     }
-    originalRenderWordList();
+    baseRenderWordList();
 }
 
-const originalStartWorkbookTest = startWorkbookTest;
 function startWorkbookTest(){
-    const workbook=getCurrentWorkbook();
-    if(workbook && getWorkbookMode(workbook)==="hanja") return openSpecialTestMenu();
-    return originalStartWorkbookTest();
+    const workbook = getCurrentWorkbook();
+    if(workbook && getWorkbookMode(workbook) === "hanja") return openSpecialTestMenu();
+    return baseStartWorkbookTest();
 }
 
-const originalUpdateWordStatistics = updateWordStatistics;
-function updateWordStatistics(question,isCorrect){
-    if(question?.specialMode)return;
-    return originalUpdateWordStatistics(question,isCorrect);
+function updateWordStatistics(question, isCorrect){
+    if(question?.specialMode) return;
+    return baseUpdateWordStatistics(question, isCorrect);
 }
 
-const originalMakeQuestion = makeQuestion;
-function makeQuestion(item,direction,file){return originalMakeQuestion(item,direction,file);}
+function makeQuestion(item, direction, file){
+    return baseMakeQuestion(item, direction, file);
+}
 
-const originalRenderCurrentQuestion = renderCurrentQuestion;
 function renderCurrentQuestion(){
-    const q=testState.questions[testState.currentIndex];
-    if(!q?.specialMode)return originalRenderCurrentQuestion();
+    const q = testState.questions[testState.currentIndex];
+    if(!q?.specialMode) return baseRenderCurrentQuestion();
     stopTimer();
-    testState.answered=false;
-    testState.timeLeft=Number(appData.testTime)||10;
-    $("testQuestionNumber").textContent=testState.currentIndex+1;
-    $("testTotalQuestions").textContent=testState.questions.length;
-    $("testTypeLabel").textContent=q.label||((q.specialMode==="hanja-choice")?"한자 4지선다":q.specialMode==="japanese"?q.direction:q.direction);
-    $("testQuestion").textContent=q.question;
-    const input=$("testAnswerInput"), choice=$("testChoiceArea");
-    if(q.specialMode==="hanja-choice"){
-        input.classList.add("hidden");
-        choice.classList.remove("hidden");
-        $("testSubmitButton").classList.add("hidden");
-        choice.innerHTML=q.choiceOptions.map((x,i)=>`<button class="test-choice-button" data-choice-index="${i}">${String.fromCharCode(9312+i)} ${escapeHTML(x)}</button>`).join("");
-        choice.querySelectorAll("button").forEach(btn=>btn.onclick=()=>submitSpecialChoice(btn.textContent.replace(/^. /,""),q));
-    }else{
-        $("testSubmitButton").classList.remove("hidden");
-        input.classList.remove("hidden");
-        input.value="";input.disabled=false;
-        choice.classList.add("hidden");choice.innerHTML="";
-        setTimeout(()=>input.focus(),50);
+    testState.answered = false;
+    testState.timeLeft = Number(appData.testTime) || 10;
+
+    const number = $("testQuestionNumber");
+    const total = $("testTotalQuestions");
+    const timer = $("testTimer");
+    const typeLabel = $("testTypeLabel");
+    const question = $("testQuestion");
+    const answerInput = $("testAnswerInput");
+    const choiceArea = $("testChoiceArea");
+    const feedback = $("testFeedback");
+
+    if(number) number.textContent = String(testState.currentIndex + 1);
+    if(total) total.textContent = String(testState.questions.length);
+    if(timer) timer.textContent = String(testState.timeLeft);
+    if(typeLabel) typeLabel.textContent = q.label || "테스트";
+    if(question) question.textContent = q.question || "";
+    if(feedback){ feedback.className = "test-feedback hidden"; feedback.textContent = ""; }
+
+    if(choiceArea) choiceArea.classList.toggle("hidden", !q.choiceOptions);
+    if(q.choiceOptions){
+        if(answerInput) answerInput.classList.add("hidden");
+        if(choiceArea){
+            choiceArea.innerHTML = q.choiceOptions.map(option => `
+                <button type="button" class="test-choice-button">${escapeHTML(String(option))}</button>
+            `).join("");
+            choiceArea.querySelectorAll("button").forEach(button=>{
+                button.addEventListener("click", ()=> submitSpecialChoice(button.textContent || "", q));
+            });
+        }
+    } else {
+        if(answerInput){
+            answerInput.classList.remove("hidden");
+            answerInput.value = "";
+            answerInput.focus();
+        }
     }
-    $("testFeedback").classList.add("hidden");$("testFeedback").innerHTML="";$("testSubmitButton").textContent="확인";
+
+    const submit = $("testSubmitButton");
+    if(submit) submit.textContent = "확인";
     startTimer();
 }
 
-function submitSpecialChoice(answer,q){
-    if(testState.answered)return;
-    const ok=q.answers.includes(answer);
-    testState.answered=true;stopTimer();
-    if(ok)testState.correct++;else{testState.wrong++;testState.wrongQuestions.push(q);}
-    showAnswerFeedback(q,ok,answer,false);
-    $("testChoiceArea").querySelectorAll("button").forEach(b=>b.disabled=true);
-    $("testSubmitButton").classList.remove("hidden");
-    $("testSubmitButton").textContent=testState.currentIndex===testState.questions.length-1?"결과 보기":"다음 문제";
+function checkAnswer(userAnswer, question){
+    if(!question?.specialMode){
+        return baseCheckAnswer(userAnswer, question);
+    }
+    const raw = String(userAnswer || "").trim();
+    return question.answers.some(
+        answer => String(answer).trim().toLocaleLowerCase() === raw.toLocaleLowerCase()
+    );
 }
 
-const originalCheckAnswer = checkAnswer;
-function checkAnswer(userAnswer,question){
-    if(!question?.specialMode)return originalCheckAnswer(userAnswer,question);
-    const raw=String(userAnswer||"").trim();
-    return question.answers.some(a=>String(a).trim().toLocaleLowerCase()==raw.toLocaleLowerCase());
-}
-
-const originalShowAnswerFeedback = showAnswerFeedback;
-function showAnswerFeedback(question,isCorrect,userAnswer,timeOut){
-    if(!question?.specialMode)return originalShowAnswerFeedback(question,isCorrect,userAnswer,timeOut);
-    const feedback=$("testFeedback"); if(!feedback)return;
+function showAnswerFeedback(question, isCorrect, userAnswer, timeOut){
+    if(!question?.specialMode){
+        return baseShowAnswerFeedback(question, isCorrect, userAnswer, timeOut);
+    }
+    const feedback = $("testFeedback");
+    if(!feedback) return;
     feedback.classList.remove("hidden");
-    const answer=question.answers.join(" / ");
-    feedback.innerHTML=isCorrect?`<div class="feedback-correct"><strong>⭕ 정답!</strong><span>${escapeHTML(answer)}</span></div>`:`<div class="feedback-wrong"><strong>❌ ${timeOut?"시간 초과!":"오답!"}</strong>${userAnswer?`<span>입력한 답: ${escapeHTML(userAnswer)}</span>`:"<span>입력한 답이 없습니다.</span>"}<span>정답: <strong>${escapeHTML(answer)}</strong></span></div>`;
+    const answer = question.answers.join(" / ");
+    feedback.innerHTML = isCorrect
+        ? `<div class="feedback-correct"><strong>⭕ 정답!</strong><span>${escapeHTML(answer)}</span></div>`
+        : `<div class="feedback-wrong"><strong>❌ ${timeOut ? "시간 초과!" : "오답!"}</strong>${userAnswer ? `<span>입력한 답: ${escapeHTML(userAnswer)}</span>` : "<span>입력한 답이 없습니다.</span>"}<span>정답: <strong>${escapeHTML(answer)}</strong></span></div>`;
 }
 
-const originalFinishTest = finishTest;
-function finishTest(){return originalFinishTest();}
-
-function selectHanjaLevel(level){
-    $("specialLevelList")?.querySelectorAll("button").forEach(b=>b.classList.toggle("selected",b.dataset.hanjaLevel===level));
-    renderSpecialList();
+function finishTest(){
+    return baseFinishTest();
 }
 
 function setupSpecialPanelEvents(){
