@@ -5,7 +5,7 @@
    앱 버전
    ========================================================= */
 
-const APP_VERSION = "3.4.15";
+const APP_VERSION = "3.4.17";
 
 const STORAGE_KEY =
     "word_memorize_app_final_v1";
@@ -38,6 +38,11 @@ let draggedWorkbookId = null;
 let draggedWordId = null;
 
 let wasDraggingFileOrWorkbook = false;
+
+const WORD_LIST_PAGE_SIZE = 50;
+const HANJA_LIST_PAGE_SIZE = 100;
+let wordListPage = 1;
+let hanjaListPage = 1;
 
 
 /* =========================================================
@@ -797,9 +802,49 @@ function showPage(
         pageName
     );
 
+    updatePageBackButton(pageName);
 
     closeSidebar();
 
+}
+
+
+function updatePageBackButton(pageName) {
+
+    const button = $("pageBackButton");
+
+    if (!button) {
+        return;
+    }
+
+    let handler = null;
+
+    if (pageName === "file") {
+        handler = goBackToHome;
+    } else if (pageName === "workbook") {
+        handler = goBackToFile;
+    } else if (pageName === "hanjaList") {
+        handler = () => {
+            if (currentFileId && currentWorkbookId) {
+                showWorkbookPage(currentFileId, currentWorkbookId);
+            } else {
+                showHomePage();
+            }
+        };
+    } else if (pageName === "test") {
+        handler = leaveTest;
+    } else if (pageName === "result") {
+        handler = goToResultBack;
+    }
+
+    if (!handler) {
+        button.classList.add("hidden");
+        button.onclick = null;
+        return;
+    }
+
+    button.classList.remove("hidden");
+    button.onclick = handler;
 }
 
 
@@ -863,6 +908,7 @@ function showFilePage(
     currentWorkbookId =
         null;
 
+    wordListPage = 1;
 
     showPage(
         "file"
@@ -933,6 +979,7 @@ function baseShowWorkbookPage(
     currentWorkbookId =
         workbookId;
 
+    wordListPage = 1;
 
     showPage(
         "workbook"
@@ -2600,41 +2647,91 @@ function addSingleWord() {
    단어 목록
    ========================================================= */
 
-function baseRenderWordList() {
+function renderPagination(containerClass, currentPage, totalPages, handlerName) {
 
-    const workbook =
-        getCurrentWorkbook();
-
-
-    const list =
-        $("wordList");
-
-
-    const empty =
-        $("emptyWordState");
-
-
-    if (
-        !workbook ||
-        !list
-    ) {
-
-        return;
-
+    if (totalPages <= 1) {
+        return "";
     }
 
+    const pages = [];
+    const addPage = page => {
+        if (page >= 1 && page <= totalPages && !pages.includes(page)) {
+            pages.push(page);
+        }
+    };
 
-    /* =====================================================
-       한자 단어장
-       사용자가 지정한 8급 ~ 특급 급수 데이터만 사용하고
-       직접 단어를 추가/수정/삭제하지 않습니다.
-       단어 목록에는 한자 / 훈 / 음 / 뜻 / 급수를 표시합니다.
-       ===================================================== */
+    addPage(1);
+    for (let page = currentPage - 2; page <= currentPage + 2; page += 1) {
+        addPage(page);
+    }
+    addPage(totalPages);
+
+    const controls = [];
+    let previous = 0;
+
+    pages.forEach(page => {
+        if (previous && page - previous > 1) {
+            controls.push(`<span class="pagination-ellipsis">…</span>`);
+        }
+
+        controls.push(`
+            <button
+                type="button"
+                class="pagination-button ${page === currentPage ? "active" : ""}"
+                onclick="${handlerName}(${page})"
+            >
+                ${page}
+            </button>
+        `);
+
+        previous = page;
+    });
+
+    return `
+        <div class="${containerClass} pagination">
+            <button
+                type="button"
+                class="pagination-button pagination-nav"
+                ${currentPage <= 1 ? "disabled" : ""}
+                onclick="${handlerName}(${currentPage - 1})"
+            >
+                ‹
+            </button>
+            ${controls.join("")}
+            <button
+                type="button"
+                class="pagination-button pagination-nav"
+                ${currentPage >= totalPages ? "disabled" : ""}
+                onclick="${handlerName}(${currentPage + 1})"
+            >
+                ›
+            </button>
+        </div>
+    `;
+}
+
+function changeWordListPage(page) {
+    wordListPage = Math.max(1, Number(page) || 1);
+    renderWordList();
+}
+
+function baseRenderWordList() {
+
+    const workbook = getCurrentWorkbook();
+    const list = $("wordList");
+    const empty = $("emptyWordState");
+
+    if (!workbook || !list) {
+        return;
+    }
 
     if (getWorkbookMode(workbook) === "hanja") {
 
         const level = getSelectedHanjaLevel();
         const data = specialDataForLevel(level);
+        const totalPages = Math.max(1, Math.ceil(data.length / WORD_LIST_PAGE_SIZE));
+
+        wordListPage = Math.min(wordListPage, totalPages);
 
         empty?.classList.add("hidden");
         updateWordCountUI(data.length);
@@ -2644,11 +2741,14 @@ function baseRenderWordList() {
             return;
         }
 
-        list.innerHTML = data.map((item, index) => {
+        const start = (wordListPage - 1) * WORD_LIST_PAGE_SIZE;
+        const visible = data.slice(start, start + WORD_LIST_PAGE_SIZE);
+
+        list.innerHTML = visible.map((item, index) => {
             const info = getHanjaInfo(item.char);
 
             return `<div class="word-card hanja-word-card">
-                <div class="word-number">${index + 1}</div>
+                <div class="word-number">${start + index + 1}</div>
                 <div class="word-main">
                     <div class="word-title">
                         <strong>${escapeHTML(item.char)}</strong>
@@ -2659,9 +2759,6 @@ function baseRenderWordList() {
                     <div class="word-meaning">
                         음: ${escapeHTML(info.eum || "-")}
                     </div>
-                    <div class="word-meaning">
-                        뜻: ${escapeHTML(info.meaning || info.hun || "-")}
-                    </div>
                     <div class="word-stat">
                         급수: ${escapeHTML(item.level || level)}
                     </div>
@@ -2669,189 +2766,77 @@ function baseRenderWordList() {
             </div>`;
         }).join("");
 
+        list.insertAdjacentHTML(
+            "beforeend",
+            renderPagination("word-list-pagination", wordListPage, totalPages, "changeWordListPage")
+        );
+
         return;
     }
 
+    const words = workbook.words
+        .map((word, index) => ({ word, index }))
+        .sort((a, b) => {
+            if (a.word.important && !b.word.important) return -1;
+            if (!a.word.important && b.word.important) return 1;
+            return a.index - b.index;
+        });
 
-    const words =
-        workbook.words
-            .map(
-                (
-                    word,
-                    index
-                ) => ({
-                    word,
-                    index
-                })
-            )
-            .sort(
-                (a, b) => {
-
-                    if (
-                        a.word.important &&
-                        !b.word.important
-                    ) {
-
-                        return -1;
-
-                    }
-
-
-                    if (
-                        !a.word.important &&
-                        b.word.important
-                    ) {
-
-                        return 1;
-
-                    }
-
-
-                    return (
-                        a.index -
-                        b.index
-                    );
-
-                }
-            );
-
-
-    if (
-        words.length ===
-        0
-    ) {
-
-        list.innerHTML =
-            "";
-
-
-        empty?.classList.remove(
-            "hidden"
-        );
-
-
-        updateWordCountUI(
-            0
-        );
-
-
+    if (words.length === 0) {
+        list.innerHTML = "";
+        empty?.classList.remove("hidden");
+        updateWordCountUI(0);
         return;
-
     }
 
+    empty?.classList.add("hidden");
+    updateWordCountUI(workbook.words.length);
 
-    empty?.classList.add(
-        "hidden"
-    );
+    const totalPages = Math.max(1, Math.ceil(words.length / WORD_LIST_PAGE_SIZE));
+    wordListPage = Math.min(wordListPage, totalPages);
 
+    const start = (wordListPage - 1) * WORD_LIST_PAGE_SIZE;
+    const visible = words.slice(start, start + WORD_LIST_PAGE_SIZE);
 
-    updateWordCountUI(
-        workbook.words.length
-    );
+    list.innerHTML = visible.map((item, displayIndex) => {
+        const word = item.word;
+        const attempts = getAttemptCount(word);
 
-
-    list.innerHTML =
-        words
-            .map(
-                (
-                    item,
-                    displayIndex
-                ) => {
-
-                    const word =
-                        item.word;
-
-
-                    const attempts =
-                        getAttemptCount(
-                            word
-                        );
-
-
-                    return `
-
-                        <div
-                            class="
-                                word-card
-                                ${
-                                    word.important
-                                        ? "important-word"
-                                        : ""
-                                }
-                            "
-                            draggable="true"
-                            data-word-id="${escapeHTML(word.id)}"
-                        >
-
-                            <div class="word-number">
-                                ${displayIndex + 1}
-                            </div>
-
-
-                            <div class="word-main">
-
-                                <div class="word-title">
-
-                                    ${
-                                        word.important
-                                            ? `<span class="important-star">⭐</span>`
-                                            : ""
-                                    }
-
-                                    <strong>
-                                        ${escapeHTML(word.word)}
-                                    </strong>
-
-                                </div>
-
-
-                                <div class="word-meaning">
-                                    ${getMeaningsText(word)}
-                                </div>
-
-
-                                ${
-                                    attempts > 0
-                                        ? `
-                                            <div class="word-stat">
-                                                정답 ${word.correct}
-                                                · 오답 ${word.wrong}
-                                            </div>
-                                        `
-                                        : ""
-                                }
-
-                            </div>
-
-
-                            <div class="word-actions">
-
-                                <button
-                                    type="button"
-                                    title="수정"
-                                    onclick="editWord('${word.id}')"
-                                >
-                                    ✏️
-                                </button>
-
-                                <button
-                                    type="button"
-                                    title="삭제"
-                                    onclick="deleteWord('${word.id}')"
-                                >
-                                    🗑️
-                                </button>
-
-                            </div>
-
+        return `
+            <div
+                class="word-card ${word.important ? "important-word" : ""}"
+                draggable="true"
+                data-word-id="${escapeHTML(word.id)}"
+            >
+                <div class="word-number">
+                    ${start + displayIndex + 1}
+                </div>
+                <div class="word-main">
+                    <div class="word-title">
+                        ${word.important ? `<span class="important-star">⭐</span>` : ""}
+                        <strong>${escapeHTML(word.word)}</strong>
+                    </div>
+                    <div class="word-meaning">
+                        ${getMeaningsText(word)}
+                    </div>
+                    ${attempts > 0 ? `
+                        <div class="word-stat">
+                            정답 ${word.correct} · 오답 ${word.wrong}
                         </div>
+                    ` : ""}
+                </div>
+                <div class="word-actions">
+                    <button type="button" title="수정" onclick="editWord('${word.id}')">✏️</button>
+                    <button type="button" title="삭제" onclick="deleteWord('${word.id}')">🗑️</button>
+                </div>
+            </div>
+        `;
+    }).join("");
 
-                    `;
-
-                }
-            )
-            .join("");
-
+    list.insertAdjacentHTML(
+        "beforeend",
+        renderPagination("word-list-pagination", wordListPage, totalPages, "changeWordListPage")
+    );
 
     setupWordDragAndDrop();
 
@@ -5581,7 +5566,7 @@ const USAGE_GUIDE = [
         since: "3.0.0",
         until: null,
         title: "🀄 한자 단어장",
-        text: "단어장 이름에 <strong>한자</strong>가 포함되면 내장 한자 학습 모드가 사용됩니다. 급수를 선택하고 뜻·음 테스트 또는 4지선다 테스트를 할 수 있습니다."
+        text: "단어장 이름에 <strong>한자</strong>가 포함되면 내장 한자 학습 모드가 사용됩니다. 급수를 선택하고 훈·음 테스트 또는 4지선다 테스트를 할 수 있습니다."
     },
 
     {
@@ -5729,10 +5714,6 @@ function renderUsageGuide() {
 
     content.innerHTML = `
 
-        <div class="guide-version">
-            현재 버전 ${escapeHTML(APP_VERSION)}
-        </div>
-
         ${
             guide
                 .map(
@@ -5755,22 +5736,35 @@ function renderUsageGuide() {
                 .join("")
         }
 
-        <div class="guide-item">
-
-            <strong>🆕 업데이트 기록</strong>
-
-            <p>
-                각 버전에서 추가·수정·제거된 기능을 확인할 수 있습니다.
-            </p>
-
-            ${renderChangelog()}
-
-        </div>
-
     `;
 
 }
 
+
+function renderVersionInfo() {
+    const content = $("versionInfoContent");
+    if (!content) return;
+
+    content.innerHTML = `
+        <div class="version-info">
+            <span>현재 버전</span>
+            <strong>v${escapeHTML(APP_VERSION)}</strong>
+        </div>
+        ${renderChangelog()}
+    `;
+}
+
+function toggleVersionInfo() {
+    const content = $("versionInfoContent");
+    const arrow = $("versionInfoArrow");
+    if (!content) return;
+
+    const hidden = content.classList.contains("hidden");
+    content.classList.toggle("hidden", !hidden);
+    if (arrow) {
+        arrow.textContent = hidden ? "⌃" : "⌄";
+    }
+}
 
 function toggleUsageGuide() {
 
@@ -6301,6 +6295,7 @@ let hanjaDataPromise = null;
 let currentHanjaListMode = "level";
 let hanjaListSelectedLevel = "8급";
 
+
 function normalizeHanjaSourceLevel(level) {
     return String(level || "")
         .normalize("NFKC")
@@ -6506,6 +6501,7 @@ function selectHanjaLevel(level) {
 
     if (!selectedButton || selectedButton.disabled) return;
 
+    wordListPage = 1;
     renderSpecialList();
     renderWordList();
 }
@@ -6623,7 +6619,7 @@ function renderSpecialWorkbookPanel() {
     $("specialLevelArea").classList.remove("hidden");
     $("specialSearchArea").classList.remove("hidden");
     $("specialJapaneseInfo").classList.add("hidden");
-    $("specialSearch").placeholder = "한자·훈·음·뜻 검색";
+    $("specialSearch").placeholder = "한자·훈·음 검색";
 
     const selected = getSelectedHanjaLevel();
     $("specialLevelList").innerHTML = HANJA_LEVEL_ORDER.map(level => {
@@ -6661,7 +6657,7 @@ function renderSpecialList() {
             return normalizeSearch(item.char).includes(query)
                 || normalizeSearch(info.hun).includes(query)
                 || normalizeSearch(info.eum).includes(query)
-                || normalizeSearch(info.meaning).includes(query);
+;
         });
     }
 
@@ -6677,7 +6673,6 @@ function renderSpecialList() {
                 <strong>${escapeHTML(item.char)}</strong>
                 <span>훈: ${escapeHTML(info.hun || "-")}</span>
                 <span>음: ${escapeHTML(info.eum || "-")}</span>
-                <span>뜻: ${escapeHTML(info.meaning || info.hun || "-")}</span>
             </div>`;
         }).join("")
         : '<div class="empty">선택한 조건에 맞는 한자가 없습니다.</div>';
@@ -6710,6 +6705,11 @@ async function openSpecialTestMenu() {
             <strong>📝 전체 테스트</strong>
             <span>한자 → 훈 / 한자 → 음 / 훈 → 한자 / 음 → 한자를 섞어서 출제합니다.</span>
             <small>${HANJA_TEST_EXAMPLES.hun} · ${HANJA_TEST_EXAMPLES.eum}</small>
+        </button>
+        <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','choice')">
+            <strong>🎯 4지선다 테스트</strong>
+            <span>훈·음 정보를 이용해 보기에서 정답을 고릅니다.</span>
+            <small>예: 父 → 아비 · 부</small>
         </button>
         <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','hanja-hun')">
             <strong>한자 → 훈</strong>
@@ -6774,6 +6774,46 @@ function makeSpecialQuestion(item, direction){
     return q;
 }
 
+function makeSpecialChoiceQuestion(item, pool){
+    const info = getHanjaInfo(item.char);
+    const reverse = Math.random() < 0.5;
+    const distractors = shuffleArray(pool.filter(x => x.id !== item.id)).slice(0, 3);
+    const itemLabel = `${info.hun || "-"} · ${info.eum || "-"}`;
+
+    if (reverse) {
+        return {
+            ...item,
+            specialMode: "hanja-choice",
+            choiceType: "pair-hanja",
+            direction: "choice",
+            question: itemLabel,
+            answers: [item.char],
+            choiceOptions: shuffleArray([item, ...distractors]).map(x => x.char),
+            file: { name: "한자" },
+            wordId: null,
+            workbookId: null,
+            fileId: null
+        };
+    }
+
+    return {
+        ...item,
+        specialMode: "hanja-choice",
+        choiceType: "hanja-pair",
+        direction: "choice",
+        question: item.char,
+        answers: [itemLabel],
+        choiceOptions: shuffleArray([item, ...distractors]).map(x => {
+            const selected = getHanjaInfo(x.char);
+            return `${selected.hun || "-"} · ${selected.eum || "-"}`;
+        }),
+        file: { name: "한자" },
+        wordId: null,
+        workbookId: null,
+        fileId: null
+    };
+}
+
 async function startSpecialHanjaTest(level, type = "mixed"){
     const workbook = getCurrentWorkbook();
     if (!workbook) return;
@@ -6791,15 +6831,21 @@ async function startSpecialHanjaTest(level, type = "mixed"){
         return;
     }
 
-    const directions = ["hanja-hun", "hanja-eum", "hun-hanja", "eum-hanja"];
-    const questions = data
-        .map(item => makeSpecialQuestion(
-            item,
-            type === "mixed"
-                ? directions[Math.floor(Math.random() * directions.length)]
-                : type
-        ))
-        .filter(question => question.answers.length > 0 && question.question);
+    let questions = [];
+
+    if (type === "choice") {
+        questions = data.map(item => makeSpecialChoiceQuestion(item, data));
+    } else {
+        const directions = ["hanja-hun", "hanja-eum", "hun-hanja", "eum-hanja"];
+        questions = data
+            .map(item => makeSpecialQuestion(
+                item,
+                type === "mixed"
+                    ? directions[Math.floor(Math.random() * directions.length)]
+                    : type
+            ))
+            .filter(question => question.answers.length > 0 && question.question);
+    }
 
     if (!questions.length) {
         showToast("훈·음 데이터를 찾을 수 없습니다.", "error");
@@ -6808,7 +6854,7 @@ async function startSpecialHanjaTest(level, type = "mixed"){
 
     startTest(
         questions,
-        `한자 ${level} 테스트`,
+        `한자 ${level} ${type === "choice" ? "4지선다" : "테스트"}`,
         "special-hanja",
         currentFileId,
         currentWorkbookId,
@@ -6823,14 +6869,19 @@ async function startSpecialHanjaTest(level, type = "mixed"){
 function openHanjaListPage() {
     currentHanjaListMode = "level";
     hanjaListSelectedLevel = getSelectedHanjaLevel();
+    hanjaListPage = 1;
     showPage("hanjaList");
+    renderHanjaListPage();
+}
+
+function changeHanjaListPage(page) {
+    hanjaListPage = Math.max(1, Number(page) || 1);
     renderHanjaListPage();
 }
 
 function renderHanjaListPage() {
     const list = $("hanjaList");
     const levelList = $("hanjaListLevelList");
-    const search = normalizeSearch($("hanjaListSearch")?.value || "");
     if (!list || !levelList) return;
 
     levelList.innerHTML = HANJA_LEVEL_ORDER.map(level => {
@@ -6842,46 +6893,19 @@ function renderHanjaListPage() {
     }).join("");
 
     $("hanjaListLevelArea")?.classList.toggle("hidden", currentHanjaListMode !== "level");
+
     const hanjaListModeLabel = $("hanjaListModeLabel");
     const hanjaListTitle = $("hanjaListTitle");
+
     if (hanjaListModeLabel) {
         hanjaListModeLabel.textContent = currentHanjaListMode === "level" ? "급수별 한자 보기" : "전체 한자 보기";
     }
+
     if (hanjaListTitle) {
         hanjaListTitle.textContent = currentHanjaListMode === "level"
             ? `${hanjaListSelectedLevel} 한자 목록`
             : "전체 한자 목록";
     }
-
-    const render = rows => {
-        let data = rows;
-
-        if (search) {
-            data = data.filter(item => {
-                const info = getHanjaInfo(item.char);
-                return normalizeSearch(item.char).includes(search)
-                    || normalizeSearch(info.hun).includes(search)
-                    || normalizeSearch(info.eum).includes(search)
-                    || normalizeSearch(info.meaning).includes(search);
-            });
-        }
-
-        list.innerHTML = data.length
-            ? data.map((item, index) => {
-                const info = getHanjaInfo(item.char);
-                return `<article class="hanja-list-card">
-                    <div class="hanja-list-number">${index + 1}</div>
-                    <div class="hanja-list-character">${escapeHTML(item.char)}</div>
-                    <div class="hanja-list-info">
-                        <div><strong>훈</strong><span>${escapeHTML(info.hun || "-")}</span></div>
-                        <div><strong>음</strong><span>${escapeHTML(info.eum || "-")}</span></div>
-                        <div><strong>뜻</strong><span>${escapeHTML(info.meaning || info.hun || "-")}</span></div>
-                    </div>
-                    <span class="hanja-list-level">${escapeHTML(item.level)}</span>
-                </article>`;
-            }).join("")
-            : '<div class="hanja-list-empty">표시할 한자가 없습니다.</div>';
-    };
 
     if (!HANJA_DATA.length) {
         list.innerHTML = '<div class="hanja-list-empty">한자 데이터를 불러오는 중...</div>';
@@ -6897,14 +6921,40 @@ function renderHanjaListPage() {
         ? cumulativeHanjaData(hanjaListSelectedLevel)
         : [...HANJA_DATA];
 
-    render(rows);
+    const totalPages = Math.max(1, Math.ceil(rows.length / HANJA_LIST_PAGE_SIZE));
+    hanjaListPage = Math.min(hanjaListPage, totalPages);
+
+    const start = (hanjaListPage - 1) * HANJA_LIST_PAGE_SIZE;
+    const visible = rows.slice(start, start + HANJA_LIST_PAGE_SIZE);
+
+    list.innerHTML = visible.length
+        ? visible.map((item, index) => {
+            const info = getHanjaInfo(item.char);
+            return `<article class="hanja-list-card">
+                <div class="hanja-list-number">${start + index + 1}</div>
+                <div class="hanja-list-character">${escapeHTML(item.char)}</div>
+                <div class="hanja-list-info">
+                    <div><strong>훈</strong><span>${escapeHTML(info.hun || "-")}</span></div>
+                    <div><strong>음</strong><span>${escapeHTML(info.eum || "-")}</span></div>
+                </div>
+                <span class="hanja-list-level">${escapeHTML(item.level)}</span>
+            </article>`;
+        }).join("")
+        : '<div class="hanja-list-empty">표시할 한자가 없습니다.</div>';
+
+    list.insertAdjacentHTML(
+        "beforeend",
+        renderPagination("hanja-list-pagination", hanjaListPage, totalPages, "changeHanjaListPage")
+    );
 }
+
 
 function setupHanjaListEvents() {
     document.addEventListener("click", event => {
         const modeButton = event.target.closest("[data-hanja-list-mode]");
         if (modeButton) {
             currentHanjaListMode = modeButton.dataset.hanjaListMode;
+            hanjaListPage = 1;
             document.querySelectorAll("[data-hanja-list-mode]").forEach(button => {
                 button.classList.toggle("active", button.dataset.hanjaListMode === currentHanjaListMode);
             });
@@ -6916,11 +6966,11 @@ function setupHanjaListEvents() {
         if (levelButton) {
             hanjaListSelectedLevel = levelButton.dataset.hanjaListLevel;
             currentHanjaListMode = "level";
+            hanjaListPage = 1;
             renderHanjaListPage();
         }
     });
 
-    $("hanjaListSearch")?.addEventListener("input", renderHanjaListPage);
 }
 
 function getWorkbookMode(workbook) {
@@ -7637,6 +7687,13 @@ function setupButtons() {
 
 
     on(
+        "versionInfoButton",
+        "click",
+        toggleVersionInfo
+    );
+
+
+    on(
         "modalCloseButton",
         "click",
         closeModal
@@ -7837,8 +7894,9 @@ function initializeApp() {
 
     try {
         renderUsageGuide();
+        renderVersionInfo();
     } catch (error) {
-        console.error("사용 방법 초기화 실패:", error);
+        console.error("설명서/버전 정보 초기화 실패:", error);
     }
 
     const appVersion = $("appVersion");
@@ -7913,6 +7971,12 @@ if (
 
 window.openFile =
     openFile;
+
+window.changeWordListPage =
+    changeWordListPage;
+
+window.changeHanjaListPage =
+    changeHanjaListPage;
 
 window.renameFile =
     renameFile;
