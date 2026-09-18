@@ -2223,518 +2223,1273 @@ function addBulkWords() {
             "error"
         );
 
+    }
 
-   function openSpecialTestMenu(){
 
-    const b=
-        book();
+    if (
+        duplicates > 0
+    ) {
 
-    if(!b){
+        setTimeout(
+            () => {
+
+                showToast(
+                    `중복된 뜻 ${duplicates}개는 제외되었습니다.`
+                );
+
+            },
+            350
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   단어장 전용 테스트
+   + 단어 추가 버튼
+   ========================================================= */
+
+function startWorkbookTest() {
+
+    const file =
+        getCurrentFile();
+
+
+    const workbook =
+        getCurrentWorkbook();
+
+
+    if (
+        !file ||
+        !workbook
+    ) {
+
+        return;
+
+    }
+
+
+    if (
+        workbook.words.length ===
+        0
+    ) {
+
+        showToast(
+            "테스트할 단어가 없습니다.",
+            "error"
+        );
+
+
+        return;
+
+    }
+
+
+    const questions =
+        workbook.words.map(
+            word => {
+
+                const direction =
+                    Math.random() < 0.5
+                        ? "file-to-meaning"
+                        : "meaning-to-file";
+
+
+                return makeQuestion(
+                    {
+                        word,
+                        workbook
+                    },
+                    direction,
+                    file
+                );
+
+            }
+        );
+
+
+    startTest(
+        questions,
+        `${workbook.name} 테스트`,
+        "workbook",
+        file.id,
+        workbook.id,
+        "workbook"
+    );
+
+}
+
+
+/* =========================================================
+   단어 하나 추가
+   ========================================================= */
+
+function addSingleWord() {
+
+    startWorkbookTest();
+
+}
+
+
+/* =========================================================
+   단어 목록
+   ========================================================= */
+
+function renderWordList() {
+
+    const workbook =
+        getCurrentWorkbook();
+
+
+    const list =
+        $("wordList");
+
+
+    const empty =
+        $("emptyWordState");
+
+
+    if (
+        !workbook ||
+        !list
+    ) {
+
+        return;
+
+    }
+
+
+    const words =
+        workbook.words
+            .map(
+                (
+                    word,
+                    index
+                ) => ({
+                    word,
+                    index
+                })
+            )
+            .sort(
+                (a, b) => {
+
+                    if (
+                        a.word.important &&
+                        !b.word.important
+                    ) {
+
+                        return -1;
+
+                    }
+
+
+                    if (
+                        !a.word.important &&
+                        b.word.important
+                    ) {
+
+                        return 1;
+
+                    }
+
+
+                    return (
+                        a.index -
+                        b.index
+                    );
+
+                }
+            );
+
+
+    if (
+        words.length ===
+        0
+    ) {
+
+        list.innerHTML =
+            "";
+
+
+        empty?.classList.remove(
+            "hidden"
+        );
+
+
+        updateWordCountUI(
+            0
+        );
+
+
+        return;
+
+    }
+
+
+    empty?.classList.add(
+        "hidden"
+    );
+
+
+    updateWordCountUI(
+        workbook.words.length
+    );
+
+
+    list.innerHTML =
+        words
+            .map(
+                (
+                    item,
+                    displayIndex
+                ) => {
+
+                    const word =
+                        item.word;
+
+
+                    const attempts =
+                        getAttemptCount(
+                            word
+                        );
+
+
+                    return `
+
+                        <div
+                            class="
+                                word-card
+                                ${
+                                    word.important
+                                        ? "important-word"
+                                        : ""
+                                }
+                            "
+                            draggable="true"
+                            data-word-id="${escapeHTML(word.id)}"
+                        >
+
+                            <div class="word-number">
+                                ${displayIndex + 1}
+                            </div>
+
+
+                            <div class="word-main">
+
+                                <div class="word-title">
+
+                                    ${
+                                        word.important
+                                            ? `<span class="important-star">⭐</span>`
+                                            : ""
+                                    }
+
+                                    <strong>
+                                        ${escapeHTML(word.word)}
+                                    </strong>
+
+                                </div>
+
+
+                                <div class="word-meaning">
+                                    ${getMeaningsText(word)}
+                                </div>
+
+
+                                ${
+                                    attempts > 0
+                                        ? `
+                                            <div class="word-stat">
+                                                정답 ${word.correct}
+                                                · 오답 ${word.wrong}
+                                            </div>
+                                        `
+                                        : ""
+                                }
+
+                            </div>
+
+
+                            <div class="word-actions">
+
+                                <button
+                                    type="button"
+                                    title="수정"
+                                    onclick="editWord('${word.id}')"
+                                >
+                                    ✏️
+                                </button>
+
+                                <button
+                                    type="button"
+                                    title="삭제"
+                                    onclick="deleteWord('${word.id}')"
+                                >
+                                    🗑️
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                }
+            )
+            .join("");
+
+
+    setupWordDragAndDrop();
+
+}
+
+
+function updateWordCountUI(
+    count
+) {
+
+    $("wordCountDescription")
+        .textContent =
+        `${count}개의 단어`;
+
+
+    $("wordListCount")
+        .textContent =
+        `${count}개`;
+
+}
+
+
+/* =========================================================
+   단어 수정
+   ========================================================= */
+
+function editWord(
+    wordId
+) {
+
+    const workbook =
+        getCurrentWorkbook();
+
+
+    if (!workbook) {
         return;
     }
 
-    const mode=
-        getWorkbookMode(
-            b
+
+    const word =
+        workbook.words.find(
+            item =>
+                item.id ===
+                wordId
         );
 
-    if(
-        mode==="hanja"
-    ){
 
-        const level=
-            $("specialLevelList")
-                ?.querySelector(
-                    ".selected"
-                )
-                ?.dataset
-                .hanjaLevel||
-            "8급";
+    if (!word) {
+        return;
+    }
 
-        const d=
-            specialHanja(
-                level
+
+    openInputModal(
+        "단어 수정",
+        "영어 단어를 입력하세요.",
+        word.word,
+        newWord => {
+
+            openInputModal(
+                "뜻 수정",
+                "뜻을 입력하세요. 여러 뜻은 쉼표로 입력할 수 있습니다.",
+                word.meanings.join(","),
+                newMeaningText => {
+
+                    const cleanWord =
+                        newWord.trim();
+
+
+                    const meanings =
+                        normalizeMeanings(
+                            newMeaningText
+                                .split(",")
+                        );
+
+
+                    const duplicateWord =
+                        workbook.words.find(
+                            item =>
+                                item.id !==
+                                wordId &&
+                                item.word
+                                    .toLowerCase() ===
+                                cleanWord
+                                    .toLowerCase()
+                        );
+
+
+                    if (
+                        duplicateWord
+                    ) {
+
+                        const duplicateMeaning =
+                            meanings.some(
+                                meaning =>
+                                    duplicateWord
+                                        .meanings
+                                        .includes(
+                                            meaning
+                                        )
+                            );
+
+
+                        if (
+                            duplicateMeaning
+                        ) {
+
+                            showToast(
+                                "같은 단어와 뜻이 이미 있습니다.",
+                                "error"
+                            );
+
+
+                            return;
+
+                        }
+
+                    }
+
+
+                    word.word =
+                        cleanWord;
+
+
+                    word.meanings =
+                        meanings;
+
+
+                    saveData();
+
+                    renderWordList();
+
+
+                    showToast(
+                        "단어가 수정되었습니다."
+                    );
+
+                }
             );
 
-        if(
-            !d.length
-        ){
-
-            toast(
-                "내장 데이터가 없습니다.",
-                "error"
-            );
-
-            return;
         }
+    );
 
-        openModal(
-            "한자 테스트",
-            `
+}
+
+
+/* =========================================================
+   단어 삭제
+   ========================================================= */
+
+function deleteWord(
+    wordId
+) {
+
+    const workbook =
+        getCurrentWorkbook();
+
+
+    if (!workbook) {
+        return;
+    }
+
+
+    const word =
+        workbook.words.find(
+            item =>
+                item.id ===
+                wordId
+        );
+
+
+    if (!word) {
+        return;
+    }
+
+
+    openConfirmModal(
+        "단어 삭제",
+        `"${word.word}" 단어를 삭제할까요?`,
+        () => {
+
+            workbook.words =
+                workbook.words.filter(
+                    item =>
+                        item.id !==
+                        wordId
+                );
+
+
+            saveData();
+
+            renderWordList();
+
+
+            showToast(
+                "단어가 삭제되었습니다."
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   단어 드래그
+   ========================================================= */
+
+function setupWordDragAndDrop() {
+
+    document
+        .querySelectorAll(
+            ".word-card"
+        )
+        .forEach(
+            card => {
+
+                card.addEventListener(
+                    "dragstart",
+                    () => {
+
+                        draggedWordId =
+                            card.dataset.wordId;
+
+
+                        card.classList.add(
+                            "dragging"
+                        );
+
+                    }
+                );
+
+
+                card.addEventListener(
+                    "dragend",
+                    () => {
+
+                        draggedWordId =
+                            null;
+
+
+                        card.classList.remove(
+                            "dragging"
+                        );
+
+                    }
+                );
+
+
+                card.addEventListener(
+                    "dragover",
+                    event => {
+
+                        event.preventDefault();
+
+                    }
+                );
+
+
+                card.addEventListener(
+                    "drop",
+                    event => {
+
+                        event.preventDefault();
+
+
+                        const targetId =
+                            card.dataset.wordId;
+
+
+                        if (
+                            !draggedWordId ||
+                            draggedWordId ===
+                            targetId
+                        ) {
+
+                            return;
+
+                        }
+
+
+                        reorderWords(
+                            draggedWordId,
+                            targetId
+                        );
+
+                    }
+                );
+
+            }
+        );
+
+}
+
+
+function reorderWords(
+    sourceId,
+    targetId
+) {
+
+    const workbook =
+        getCurrentWorkbook();
+
+
+    if (!workbook) {
+        return;
+    }
+
+
+    const sourceIndex =
+        workbook.words.findIndex(
+            word =>
+                word.id ===
+                sourceId
+        );
+
+
+    const targetIndex =
+        workbook.words.findIndex(
+            word =>
+                word.id ===
+                targetId
+        );
+
+
+    if (
+        sourceIndex < 0 ||
+        targetIndex < 0
+    ) {
+
+        return;
+
+    }
+
+
+    const [
+        moved
+    ] =
+        workbook.words.splice(
+            sourceIndex,
+            1
+        );
+
+
+    workbook.words.splice(
+        targetIndex,
+        0,
+        moved
+    );
+
+
+    saveData();
+
+    renderWordList();
+
+}
+
+
+/* =========================================================
+   파일 전체 단어
+   ========================================================= */
+
+function getAllWordsFromFile(
+    file
+) {
+
+    const result = [];
+
+
+    file.wordbooks.forEach(
+        workbook => {
+
+            workbook.words.forEach(
+                word => {
+
+                    result.push({
+
+                        word,
+
+                        workbook
+
+                    });
+
+                }
+            );
+
+        }
+    );
+
+
+    return result;
+
+}
+
+
+/* =========================================================
+   일반 테스트 메뉴
+   ========================================================= */
+
+function openTotalTestMenu() {
+
+    const file =
+        getCurrentFile();
+
+
+    if (!file) {
+        return;
+    }
+
+
+    const all =
+        getAllWordsFromFile(
+            file
+        );
+
+
+    if (
+        all.length ===
+        0
+    ) {
+
+        showToast(
+            "테스트할 단어가 없습니다.",
+            "error"
+        );
+
+
+        return;
+
+    }
+
+
+    openModal(
+        "일반 테스트",
+        `
+
             <div class="test-menu">
 
                 <button
                     class="test-menu-button"
-                    data-special-test="mixed"
+                    onclick="closeModal(); startFileTest('all')"
                 >
+
                     <strong>
                         📝 전체 테스트
                     </strong>
 
                     <span>
-                        뜻/음 방향을 섞어서 출제합니다.
+                        영어/뜻 방향이 문제마다 랜덤으로 출제됩니다.
                     </span>
+
                 </button>
+
 
                 <button
                     class="test-menu-button"
-                    data-special-test="hanja-meaning"
+                    onclick="closeModal(); startFileTest('file-to-meaning')"
                 >
+
                     <strong>
-                        한자 → 뜻
+                        ${escapeHTML(file.name)} → 뜻
                     </strong>
+
+                    <span>
+                        파일의 단어를 보고 뜻을 입력합니다.
+                    </span>
+
                 </button>
+
 
                 <button
                     class="test-menu-button"
-                    data-special-test="hanja-sound"
+                    onclick="closeModal(); startFileTest('meaning-to-file')"
                 >
+
                     <strong>
-                        한자 → 음
+                        뜻 → ${escapeHTML(file.name)}
                     </strong>
+
+                    <span>
+                        뜻을 보고 단어를 입력합니다.
+                    </span>
+
                 </button>
+
 
                 <button
                     class="test-menu-button"
-                    data-special-test="meaning-hanja"
+                    onclick="openQuickTestMenu()"
                 >
-                    <strong>
-                        뜻 → 한자
-                    </strong>
-                </button>
 
-                <button
-                    class="test-menu-button"
-                    data-special-test="sound-hanja"
-                >
                     <strong>
-                        음 → 한자
+                        ⚡ 빠른 테스트
                     </strong>
-                </button>
 
-                <button
-                    class="test-menu-button"
-                    data-special-test="choice"
-                >
-                    <strong>
-                        4지선다
-                    </strong>
+                    <span>
+                        중요 단어 또는 틀린 단어를 테스트합니다.
+                    </span>
+
                 </button>
 
             </div>
-            `
+
+        `
+    );
+
+}
+
+
+/* =========================================================
+   빠른 테스트
+   ========================================================= */
+
+function openQuickTestMenu() {
+
+    const file =
+        getCurrentFile();
+
+
+    if (!file) {
+        return;
+    }
+
+
+    const all =
+        getAllWordsFromFile(
+            file
         );
 
-    }else{
 
-        openModal(
-            "일본어 테스트",
-            `
+    const importantWords =
+        all.filter(
+            item =>
+                item.word.important
+        );
+
+
+    const wrongWords =
+        all.filter(
+            item =>
+                item.word.wrong > 0
+        );
+
+
+    openModal(
+        "빠른 테스트",
+        `
+
             <div class="test-menu">
 
                 <button
                     class="test-menu-button"
-                    data-special-test="mixed"
+                    ${
+                        importantWords.length ===
+                        0
+                            ? "disabled"
+                            : ""
+                    }
+                    onclick="closeModal(); startQuickTest('important')"
                 >
+
                     <strong>
-                        📝 전체 테스트
+                        ⭐ 중요 단어 테스트
                     </strong>
+
+                    <span>
+                        중요 단어 ${importantWords.length}개
+                    </span>
+
                 </button>
+
 
                 <button
                     class="test-menu-button"
-                    data-special-test="kanji-on"
+                    ${
+                        wrongWords.length ===
+                        0
+                            ? "disabled"
+                            : ""
+                    }
+                    onclick="closeModal(); startQuickTest('wrong')"
                 >
-                    <strong>
-                        한자 → 음독
-                    </strong>
-                </button>
 
-                <button
-                    class="test-menu-button"
-                    data-special-test="kanji-kun"
-                >
                     <strong>
-                        한자 → 훈독
+                        ❌ 틀린 단어 테스트
                     </strong>
-                </button>
 
-                <button
-                    class="test-menu-button"
-                    data-special-test="on-kanji"
-                >
-                    <strong>
-                        음독 → 한자
-                    </strong>
-                </button>
+                    <span>
+                        틀린 기록이 있는 단어 ${wrongWords.length}개
+                    </span>
 
-                <button
-                    class="test-menu-button"
-                    data-special-test="kun-kanji"
-                >
-                    <strong>
-                        훈독 → 한자
-                    </strong>
                 </button>
 
             </div>
-            `
-        );
-    }
+
+        `
+    );
+
 }
 
-function makeSpecialQuestion(
+
+/* =========================================================
+   문제 생성
+   ========================================================= */
+
+function makeQuestion(
     item,
-    type,
-    mode
-){
+    direction,
+    file
+) {
 
-    if(
-        mode==="hanja"
-    ){
+    const word =
+        item.word;
 
-        const dirs=[
-            "hanja-meaning",
-            "hanja-sound",
-            "meaning-hanja",
-            "sound-hanja"
-        ];
 
-        const d=
-            type==="mixed"
-                ? dirs[
-                    Math.floor(
-                        Math.random()*
-                        dirs.length
-                    )
-                ]
-                : type;
+    const workbook =
+        item.workbook;
 
-        if(
-            d==="hanja-meaning"
-        ){
 
-            return{
-                specialMode:"hanja",
-                direction:d,
-                question:item[1],
-                answers:[item[2]],
-                label:"한자 → 뜻"
-            };
-        }
+    const meanings =
+        word.meanings;
 
-        if(
-            d==="hanja-sound"
-        ){
 
-            return{
-                specialMode:"hanja",
-                direction:d,
-                question:item[1],
-                answers:[item[3]],
-                label:"한자 → 음"
-            };
-        }
+    let question;
 
-        if(
-            d==="meaning-hanja"
-        ){
+    let answers;
 
-            return{
-                specialMode:"hanja",
-                direction:d,
-                question:item[2],
-                answers:[item[1]],
-                label:"뜻 → 한자"
-            };
-        }
 
-        return{
-            specialMode:"hanja",
-            direction:d,
-            question:item[3],
-            answers:[item[1]],
-            label:"음 → 한자"
-        };
+    if (
+        direction ===
+        "file-to-meaning"
+    ) {
+
+        question =
+            word.word;
+
+
+        answers =
+            meanings;
+
+    } else {
+
+        question =
+            meanings[0];
+
+
+        answers =
+            [word.word];
+
     }
 
-    const dirs=[
-        "kanji-on",
-        "kanji-kun",
-        "on-kanji",
-        "kun-kanji"
-    ];
 
-    const d=
-        type==="mixed"
-            ? dirs[
-                Math.floor(
-                    Math.random()*
-                    dirs.length
-                )
-            ]
-            : type;
+    return {
 
-    if(
-        d==="kanji-on"
-    ){
+        wordId:
+            word.id,
 
-        return{
-            specialMode:"japanese",
-            direction:d,
-            question:item[0],
-            answers:[
-                ...item[1]
-                    .split("・")
-            ],
-            label:"한자 → 음독"
-        };
-    }
+        workbookId:
+            workbook.id,
 
-    if(
-        d==="kanji-kun"
-    ){
+        fileId:
+            file.id,
 
-        return{
-            specialMode:"japanese",
-            direction:d,
-            question:item[0],
-            answers:[
-                ...item[2]
-                    .split("・")
-            ],
-            label:"한자 → 훈독"
-        };
-    }
+        word,
 
-    if(
-        d==="on-kanji"
-    ){
+        workbook,
 
-        return{
-            specialMode:"japanese",
-            direction:d,
-            question:item[1],
-            answers:[item[0]],
-            label:"음독 → 한자"
-        };
-    }
+        file,
 
-    return{
-        specialMode:"japanese",
-        direction:d,
-        question:item[2],
-        answers:[item[0]],
-        label:"훈독 → 한자"
+        direction,
+
+        question,
+
+        answers
+
     };
+
 }
 
-function startSpecialTest(
+
+/* =========================================================
+   일반 파일 테스트
+   ========================================================= */
+
+function startFileTest(
     type
-){
+) {
 
-    const b=
-        book();
+    const file =
+        getCurrentFile();
 
-    const mode=
-        getWorkbookMode(
-            b
+
+    if (!file) {
+        return;
+    }
+
+
+    const all =
+        getAllWordsFromFile(
+            file
         );
 
-    if(
-        mode==="hanja"
-    ){
 
-        const level=
-            $("specialLevelList")
-                ?.querySelector(
-                    ".selected"
-                )
-                ?.dataset
-                .hanjaLevel||
-            "8급";
+    if (
+        all.length ===
+        0
+    ) {
 
-        const d=
-            specialHanja(
-                level
+        showToast(
+            "테스트할 단어가 없습니다.",
+            "error"
+        );
+
+
+        return;
+
+    }
+
+
+    let questions = [];
+
+
+    if (
+        type === "all"
+    ) {
+
+        questions =
+            all.map(
+                item => {
+
+                    const direction =
+                        Math.random() <
+                        0.5
+                            ? "file-to-meaning"
+                            : "meaning-to-file";
+
+
+                    return makeQuestion(
+                        item,
+                        direction,
+                        file
+                    );
+
+                }
             );
 
-        if(
-            type==="choice"
-        ){
+    } else {
 
-            const qs=
-                shuffle(
-                    d.map(
-                        item=>
-                            makeChoiceQuestion(
-                                item
-                            )
+        questions =
+            all.map(
+                item =>
+                    makeQuestion(
+                        item,
+                        type,
+                        file
                     )
+            );
+
+    }
+
+
+    startTest(
+        questions,
+        getTestName(
+            type,
+            file.name
+        ),
+        type,
+        file.id,
+        null,
+        "file"
+    );
+
+}
+
+
+/* =========================================================
+   테스트 이름
+   ========================================================= */
+
+function getTestName(
+    type,
+    fileName
+) {
+
+    if (
+        type === "all"
+    ) {
+
+        return `${fileName} 전체 테스트`;
+
+    }
+
+
+    if (
+        type ===
+        "file-to-meaning"
+    ) {
+
+        return `${fileName} → 뜻`;
+
+    }
+
+
+    if (
+        type ===
+        "meaning-to-file"
+    ) {
+
+        return `뜻 → ${fileName}`;
+
+    }
+
+
+    return `${fileName} 테스트`;
+
+}
+
+
+/* =========================================================
+   빠른 테스트
+   ========================================================= */
+
+function startQuickTest(
+    mode
+) {
+
+    const file =
+        getCurrentFile();
+
+
+    if (!file) {
+        return;
+    }
+
+
+    const all =
+        getAllWordsFromFile(
+            file
+        );
+
+
+    let selected;
+
+
+    if (
+        mode === "important"
+    ) {
+
+        selected =
+            all.filter(
+                item =>
+                    item.word.important
+            );
+
+    } else {
+
+        selected =
+            all.filter(
+                item =>
+                    item.word.wrong > 0
+            );
+
+    }
+
+
+    if (
+        selected.length ===
+        0
+    ) {
+
+        showToast(
+            "해당 단어가 없습니다.",
+            "error"
+        );
+
+
+        return;
+
+    }
+
+
+    const questions =
+        selected.map(
+            item => {
+
+                const direction =
+                    Math.random() <
+                    0.5
+                        ? "file-to-meaning"
+                        : "meaning-to-file";
+
+
+                return makeQuestion(
+                    item,
+                    direction,
+                    file
                 );
 
-            startTest(
-                qs,
-                "한자 4지선다",
-                "special",
-                currentFileId,
-                currentWorkbookId,
-                "workbook"
-            );
-
-        }else{
-
-            startTest(
-                shuffle(
-                    d.map(
-                        item=>
-                            makeSpecialQuestion(
-                                item,
-                                type,
-                                "hanja"
-                            )
-                    )
-                ),
-                `한자 ${level} 테스트`,
-                "special",
-                currentFileId,
-                currentWorkbookId,
-                "workbook"
-            );
-        }
-
-    }else{
-
-        startTest(
-            shuffle(
-                JAPANESE_DATA.map(
-                    item=>
-                        makeSpecialQuestion(
-                            item,
-                            type,
-                            "japanese"
-                        )
-                )
-            ),
-            "일본어 테스트",
-            "special",
-            currentFileId,
-            currentWorkbookId,
-            "workbook"
+            }
         );
-    }
+
+
+    startTest(
+        questions,
+        mode === "important"
+            ? "⭐ 중요 단어 테스트"
+            : "❌ 틀린 단어 테스트",
+        "quick",
+        file.id,
+        null,
+        "file"
+    );
+
 }
 
-function makeChoiceQuestion(
-    item
-){
 
-    const askChar=
-        Math.random()<.5;
-
-    let pool=
-        shuffle(
-            HANJA_DATA.filter(
-                x=>
-                    x[0]===item[0]
-            )
-        ).slice(
-            0,
-            4
-        );
-
-    if(
-        pool.length<4
-    ){
-
-        pool=
-            shuffle(
-                HANJA_DATA
-            ).slice(
-                0,
-                4
-            );
-    }
-
-    if(
-        !pool.some(
-            x=>
-                x[1]===item[1]
-        )
-    ){
-
-        pool[3]=item;
-    }
-
-    pool=
-        shuffle(
-            pool
-        );
-
-    const correct=
-        askChar
-            ? `${item[2]} / ${item[3]}`
-            : item[1];
-
-    const options=
-        pool.map(
-            x=>
-                askChar
-                    ? `${x[2]} / ${x[3]}`
-                    : x[1]
-        );
-
-    return{
-
-        specialMode:
-            "hanja-choice",
-
-        direction:
-            askChar
-                ? "hanja-choice"
-                : "meaning-choice",
-
-        question:
-            askChar
-                ? item[1]
-                : `${item[2]} / ${item[3]}`,
-
-        answers:[
-            correct
-        ],
-
-        choiceOptions:
-            options,
-
-        label:
-            askChar
-                ? "한자 → 뜻+음"
-                : "뜻+음 → 한자"
-    };
-}
+/* =========================================================
+   테스트 시작
+   ========================================================= */
 
 function startTest(
     questions,
-    name,
-    type,
-    fid,
-    bid,
-    returnPage
-){
+    testName,
+    testType,
+    sourceFileId,
+    sourceWorkbookId,
+    returnPage = "home"
+) {
 
-    stopTestTimer();
+    if (
+        !questions ||
+        questions.length ===
+        0
+    ) {
 
-    testState={
+        showToast(
+            "테스트할 문제가 없습니다.",
+            "error"
+        );
+
+
+        return;
+
+    }
+
+
+    stopTimer();
+
+
+    testState = {
 
         questions,
 
@@ -2750,548 +3505,737 @@ function startTest(
         wrongQuestions:
             [],
 
-        testName:
-            name,
+        testName,
 
-        testType:
-            type,
+        testType,
 
-        sourceFileId:
-            fid,
+        sourceFileId,
 
-        sourceWorkbookId:
-            bid,
+        sourceWorkbookId,
 
         returnPage,
 
         answered:
             false,
 
-        timeLeft:
-            Number(data.testTime)||10,
-
         timer:
             null,
 
-        autoTimer:
+        timeLeft:
+            Number(
+                appData.testTime
+            ) || 10,
+
+        autoNextTimer:
             null
+
     };
 
-    page(
+
+    showPage(
         "test"
     );
 
-    renderQuestion();
 
-    startTimer();
+    renderCurrentQuestion();
+
 }
 
-function renderQuestion(){
 
-    const q=
-        testState
-            ?.questions[
-                testState.currentIndex
-            ];
+/* =========================================================
+   현재 문제
+   ========================================================= */
 
-    if(!q){
+function renderCurrentQuestion() {
+
+    stopTimer();
+
+
+    const question =
+        testState.questions[
+            testState.currentIndex
+        ];
+
+
+    if (!question) {
+
+        finishTest();
+
         return;
+
     }
 
-    $("testQuestionNumber")
-        .textContent=
-        String(
-            testState.currentIndex+1
-        );
 
-    $("testTotalQuestions")
-        .textContent=
-        String(
-            testState.questions.length
-        );
-
-    $("testTypeLabel")
-        .textContent=
-        q.label||
-        q.direction;
-
-    $("testQuestion")
-        .textContent=
-        q.question;
-
-    $("testFeedback")
-        .classList.add(
-            "hidden"
-        );
-
-    $("testFeedback")
-        .innerHTML=
-        "";
-
-    const input=
-        $("testAnswerInput");
-
-    const choice=
-        $("testChoiceArea");
-
-    const submit=
-        $("testSubmitButton");
-
-    if(
-        q.specialMode===
-        "hanja-choice"
-    ){
-
-        input
-            .classList.add(
-                "hidden"
-            );
-
-        choice
-            .classList.remove(
-                "hidden"
-            );
-
-        submit
-            .classList.add(
-                "hidden"
-            );
-
-        choice.innerHTML=
-            q.choiceOptions
-                .map(
-                    (x,i)=>
-                        `
-                        <button
-                            type="button"
-                            class="test-choice-button"
-                            data-choice="${esc(x)}"
-                        >
-                            ${String.fromCharCode(
-                                9312+i
-                            )}
-                            ${esc(x)}
-                        </button>
-                        `
-                )
-                .join("");
-
-    }else{
-
-        input
-            .classList.remove(
-                "hidden"
-            );
-
-        choice
-            .classList.add(
-                "hidden"
-            );
-
-        choice.innerHTML=
-            "";
-
-        submit
-            .classList.remove(
-                "hidden"
-            );
-
-        submit.textContent=
-            "확인";
-
-        input.value=
-            "";
-
-        input.disabled=
-            false;
-
-        setTimeout(
-            ()=>input.focus(),
-            30
-        );
-    }
-
-    testState.answered=
+    testState.answered =
         false;
 
-    testState.timeLeft=
-        Number(data.testTime)||10;
+
+    testState.timeLeft =
+        Number(
+            appData.testTime
+        ) || 10;
+
+
+    $("testQuestionNumber")
+        .textContent =
+        testState.currentIndex +
+        1;
+
+
+    $("testTotalQuestions")
+        .textContent =
+        testState.questions.length;
+
+
+    const fileName =
+        question.file?.name ||
+        "파일";
+
+
+    if (
+        question.direction ===
+        "file-to-meaning"
+    ) {
+
+        $("testTypeLabel")
+            .textContent =
+            `${fileName} → 뜻`;
+
+    } else {
+
+        $("testTypeLabel")
+            .textContent =
+            `뜻 → ${fileName}`;
+
+    }
+
+
+    $("testQuestion")
+        .textContent =
+        question.question;
+
 
     $("testTimer")
-        .textContent=
-        String(
-            testState.timeLeft
-        );
+        .textContent =
+        testState.timeLeft;
+
+
+    const input =
+        $("testAnswerInput");
+
+
+    input.value =
+        "";
+
+
+    input.disabled =
+        false;
+
+
+    const feedback =
+        $("testFeedback");
+
+
+    feedback.classList.add(
+        "hidden"
+    );
+
+
+    feedback.innerHTML =
+        "";
+
+
+    $("testSubmitButton")
+        .textContent =
+        "확인";
+
+
+    setTimeout(
+        () => input.focus(),
+        50
+    );
+
+
+    startTimer();
+
 }
 
-function startTimer(){
 
-    stopTestTimer();
+/* =========================================================
+   타이머
+   ========================================================= */
 
-    $("testTimer")
-        .textContent=
-        String(
-            testState.timeLeft
-        );
+function startTimer() {
 
-    testState.timer=
+    stopTimer();
+
+
+    testState.timeLeft =
+        Number(
+            appData.testTime
+        ) || 10;
+
+
+    updateTimerUI();
+
+
+    testState.timer =
         setInterval(
-            ()=>{
+            () => {
 
-                if(
+                if (
                     testState.answered
-                ){
+                ) {
+
                     return;
+
                 }
+
 
                 testState.timeLeft--;
 
-                $("testTimer")
-                    .textContent=
-                    String(
-                        Math.max(
-                            0,
-                            testState.timeLeft
-                        )
-                    );
 
-                if(
-                    testState.timeLeft<=0
-                ){
+                updateTimerUI();
+
+
+                if (
+                    testState.timeLeft <=
+                    0
+                ) {
+
+                    stopTimer();
+
 
                     submitAnswer(
                         true
                     );
+
                 }
 
             },
             1000
         );
+
 }
 
-function answersMatch(
-    input,
-    answers
-){
+
+function updateTimerUI() {
+
+    $("testTimer")
+        .textContent =
+        testState.timeLeft;
+
+}
+
+
+function stopTimer() {
+
+    if (
+        testState.timer
+    ) {
+
+        clearInterval(
+            testState.timer
+        );
+
+
+        testState.timer =
+            null;
+
+    }
+
+
+    if (
+        testState.autoNextTimer
+    ) {
+
+        clearTimeout(
+            testState.autoNextTimer
+        );
+
+
+        testState.autoNextTimer =
+            null;
+
+    }
+
+}
+
+
+/* =========================================================
+   정답 확인
+   ========================================================= */
+
+function checkAnswer(
+    userAnswer,
+    question
+) {
+
+    const user =
+        String(
+            userAnswer || ""
+        ).trim();
+
+
+    if (!user) {
+        return false;
+    }
+
+
+    const answers =
+        question.answers ||
+        [];
+
 
     return answers.some(
-        a=>
-            norm(input)===
-            norm(a)
+        answer => {
+
+            const expected =
+                String(
+                    answer
+                ).trim();
+
+
+            if (
+                question.direction ===
+                "meaning-to-file"
+            ) {
+
+                return (
+                    user.toLowerCase() ===
+                    expected.toLowerCase()
+                );
+
+            }
+
+
+            return (
+                user ===
+                expected
+            );
+
+        }
     );
+
 }
 
-function updateWordStats(
-    q,
-    ok
-){
 
-    if(
-        q.specialMode
-    ){
+/* =========================================================
+   답안 제출
+   ========================================================= */
+
+function submitAnswer(
+    timeOut = false
+) {
+
+    if (
+        testState.answered
+    ) {
+
+        nextQuestion();
+
+        return;
+
+    }
+
+
+    const question =
+        testState.questions[
+            testState.currentIndex
+        ];
+
+
+    if (!question) {
         return;
     }
 
-    const w=
-        q.wordRef;
 
-    if(!w){
+    stopTimer();
+
+
+    const input =
+        $("testAnswerInput");
+
+
+    const userAnswer =
+        input.value.trim();
+
+
+    const isCorrect =
+        !timeOut &&
+        checkAnswer(
+            userAnswer,
+            question
+        );
+
+
+    testState.answered =
+        true;
+
+
+    if (isCorrect) {
+
+        testState.correct++;
+
+    } else {
+
+        testState.wrong++;
+
+
+        testState.wrongQuestions.push(
+            question
+        );
+
+    }
+
+
+    updateWordStatistics(
+        question,
+        isCorrect
+    );
+
+
+    showAnswerFeedback(
+        question,
+        isCorrect,
+        userAnswer,
+        timeOut
+    );
+
+
+    input.disabled =
+        true;
+
+
+    if (
+        testState.currentIndex ===
+        testState.questions.length -
+        1
+    ) {
+
+        $("testSubmitButton")
+            .textContent =
+            "결과 보기";
+
+    } else {
+
+        $("testSubmitButton")
+            .textContent =
+            "다음 문제";
+
+    }
+
+
+    if (
+        timeOut
+    ) {
+
+        testState.autoNextTimer =
+            setTimeout(
+                () => {
+
+                    nextQuestion();
+
+                },
+                900
+            );
+
+    }
+
+}
+
+
+/* =========================================================
+   단어 통계
+   ========================================================= */
+
+function updateWordStatistics(
+    question,
+    isCorrect
+) {
+
+    const file =
+        getFile(
+            question.fileId
+        );
+
+
+    if (!file) {
         return;
     }
 
-    if(ok){
 
-        w.correct++;
+    const workbook =
+        getWorkbook(
+            file.id,
+            question.workbookId
+        );
 
-    }else{
 
-        w.wrong++;
+    if (!workbook) {
+        return;
     }
 
-    const attempts=
-        w.correct+
-        w.wrong;
 
-    if(attempts){
+    const word =
+        workbook.words.find(
+            item =>
+                item.id ===
+                question.wordId
+        );
 
-        w.important=
-            w.wrong/
-            attempts>
-            0.7;
+
+    if (!word) {
+        return;
     }
 
-    save();
+
+    if (isCorrect) {
+
+        word.correct =
+            Number(word.correct) +
+            1;
+
+    } else {
+
+        word.wrong =
+            Number(word.wrong) +
+            1;
+
+    }
+
+
+    updateImportantStatus(
+        word
+    );
+
+
+    saveData();
+
 }
 
-function showFeedback(
-    q,
-    ok,
-    input,
-    timedOut
-){
 
-    const f=
+/* =========================================================
+   피드백
+   ========================================================= */
+
+function showAnswerFeedback(
+    question,
+    isCorrect,
+    userAnswer,
+    timeOut
+) {
+
+    const feedback =
         $("testFeedback");
 
-    if(!f){
+
+    if (!feedback) {
         return;
     }
 
-    f.classList.remove(
+
+    feedback.classList.remove(
         "hidden"
     );
 
-    f.innerHTML=
-        ok
 
-            ? `
-                <div class="feedback-correct">
+    const answerText =
+        question.answers.join(
+            ", "
+        );
 
-                    <strong>
-                        ⭕ 정답!
-                    </strong>
 
-                    <span>
-                        ${esc(
-                            q.answers.join(
-                                " / "
-                            )
-                        )}
-                    </span>
+    if (isCorrect) {
 
-                </div>
-            `
+        feedback.innerHTML = `
 
-            : `
-                <div class="feedback-wrong">
+            <div class="feedback-correct">
 
-                    <strong>
-                        ❌ ${
-                            timedOut
-                                ? "시간 초과!"
-                                : "오답!"
-                        }
-                    </strong>
+                <strong>
+                    ⭕ 정답!
+                </strong>
 
-                    <span>
-                        ${
-                            input
-                                ? `입력한 답: ${esc(input)}`
-                                : "입력한 답이 없습니다."
-                        }
-                    </span>
+                <span>
+                    ${escapeHTML(
+                        answerText
+                    )}
+                </span>
 
-                    <span>
-                        정답:
-                        <strong>
-                            ${esc(
-                                q.answers.join(
-                                    " / "
-                                )
+            </div>
+
+        `;
+
+
+        return;
+
+    }
+
+
+    feedback.innerHTML = `
+
+        <div class="feedback-wrong">
+
+            <strong>
+                ❌ ${
+                    timeOut
+                        ? "시간 초과!"
+                        : "오답!"
+                }
+            </strong>
+
+
+            ${
+                userAnswer
+                    ? `
+                        <span>
+                            입력한 답:
+                            ${escapeHTML(
+                                userAnswer
                             )}
-                        </strong>
-                    </span>
+                        </span>
+                    `
+                    : `
+                        <span>
+                            입력한 답이 없습니다.
+                        </span>
+                    `
+            }
 
-                </div>
-            `;
+
+            <span>
+                정답:
+                <strong>
+                    ${escapeHTML(
+                        answerText
+                    )}
+                </strong>
+            </span>
+
+        </div>
+
+    `;
+
 }
 
-function submitAnswer(
-    timedOut=false
-){
 
-    if(
-        !testState||
-        testState.answered
-    ){
-        return;
-    }
+/* =========================================================
+   다음 문제
+   ========================================================= */
 
-    const q=
-        testState.questions[
-            testState.currentIndex
-        ];
+function nextQuestion() {
 
-    if(!q){
-        return;
-    }
-
-    const input=
-        $("testAnswerInput")
-            .value
-            .trim();
-
-    const ok=
-        !timedOut&&
-        answersMatch(
-            input,
-            q.answers
-        );
-
-    testState.answered=
-        true;
-
-    stopTestTimer();
-
-    if(ok){
-
-        testState.correct++;
-
-    }else{
-
-        testState.wrong++;
-
-        testState.wrongQuestions.push(
-            q
-        );
-    }
-
-    updateWordStats(
-        q,
-        ok
-    );
-
-    showFeedback(
-        q,
-        ok,
-        input,
-        timedOut
-    );
-
-    if(
-        q.specialMode===
-        "hanja-choice"
-    ){
-
-        return;
-    }
-
-    $("testAnswerInput")
-        .disabled=
-        true;
-
-    $("testSubmitButton")
-        .textContent=
-        testState.currentIndex===
-        testState.questions.length-1
-            ? "결과 보기"
-            : "다음 문제";
-}
-
-function submitChoice(
-    answer
-){
-
-    if(
-        !testState||
-        testState.answered
-    ){
-        return;
-    }
-
-    const q=
-        testState.questions[
-            testState.currentIndex
-        ];
-
-    const ok=
-        q.answers.includes(
-            answer
-        );
-
-    testState.answered=
-        true;
-
-    stopTestTimer();
-
-    if(ok){
-
-        testState.correct++;
-
-    }else{
-
-        testState.wrong++;
-
-        testState.wrongQuestions.push(
-            q
-        );
-    }
-
-    showFeedback(
-        q,
-        ok,
-        answer,
-        false
-    );
-
-    $$(
-        "#testChoiceArea button"
-    ).forEach(
-        b=>
-            b.disabled=
-                true
-    );
-
-    $("testSubmitButton")
-        .classList.remove(
-            "hidden"
-        );
-
-    $("testSubmitButton")
-        .textContent=
-        testState.currentIndex===
-        testState.questions.length-1
-            ? "결과 보기"
-            : "다음 문제";
-}
-
-function nextQuestion(){
-
-    if(!testState){
-        return;
-    }
-
-    if(
+    if (
         !testState.answered
-    ){
+    ) {
+
+        submitAnswer(
+            false
+        );
+
+
         return;
+
     }
 
-    if(
-        testState.currentIndex>=
-        testState.questions.length-1
-    ){
+
+    if (
+        testState.currentIndex >=
+        testState.questions.length -
+        1
+    ) {
 
         finishTest();
 
         return;
+
     }
+
 
     testState.currentIndex++;
 
-    renderQuestion();
 
-    startTimer();
+    renderCurrentQuestion();
+
 }
 
-function finishTest(){
 
-    if(!testState){
+/* =========================================================
+   테스트 뒤로가기
+   ========================================================= */
+
+function leaveTest() {
+
+    stopTimer();
+
+
+    const returnPage =
+        testState.returnPage;
+
+
+    if (
+        returnPage ===
+        "workbook" &&
+        testState.sourceFileId &&
+        testState.sourceWorkbookId
+    ) {
+
+        showWorkbookPage(
+            testState.sourceFileId,
+            testState.sourceWorkbookId
+        );
+
+
         return;
+
     }
 
-    stopTestTimer();
 
-    const total=
+    if (
+        returnPage ===
+        "file" &&
+        testState.sourceFileId
+    ) {
+
+        showFilePage(
+            testState.sourceFileId
+        );
+
+
+        return;
+
+    }
+
+
+    showHomePage();
+
+}
+
+
+/* =========================================================
+   테스트 종료
+   ========================================================= */
+
+function finishTest() {
+
+    stopTimer();
+
+
+    const total =
         testState.questions.length;
 
-    data.testRecords.push({
+
+    const record = {
 
         id:
-            uid(),
+            makeId(),
 
         date:
-            now(),
+            new Date()
+                .toISOString(),
+
+        fileName:
+            getFileNameForTest(),
 
         testName:
             testState.testName,
@@ -3305,176 +4249,234 @@ function finishTest(){
             testState.correct,
 
         wrong:
-            testState.wrong,
+            testState.wrong
 
-        accuracy:
-            total
-                ? testState.correct/
-                  total
-                : 0,
+    };
 
-        sourceFileId:
-            testState.sourceFileId,
 
-        sourceWorkbookId:
-            testState.sourceWorkbookId
+    appData.testRecords.unshift(
+        record
+    );
 
-    });
 
-    save();
+    saveData();
+
 
     $("resultTestName")
-        .textContent=
+        .textContent =
         testState.testName;
 
+
     $("resultCorrect")
-        .textContent=
+        .textContent =
         testState.correct;
 
+
     $("resultWrong")
-        .textContent=
+        .textContent =
         testState.wrong;
 
+
     $("resultTotal")
-        .textContent=
+        .textContent =
         total;
 
-    $("retryWrongButton")
-        .disabled=
-        !testState.wrongQuestions.length;
 
-    page(
+    $("retryWrongButton")
+        .disabled =
+        testState.wrongQuestions
+            .length === 0;
+
+
+    showPage(
         "result"
     );
+
 }
 
-function leaveTest(){
 
-    stopTestTimer();
+function getFileNameForTest() {
 
-    if(
-        testState?.returnPage===
-        "workbook"&&
-        testState.sourceFileId&&
-        testState.sourceWorkbookId
-    ){
-
-        openWorkbook(
-            testState.sourceWorkbookId
-        );
-
-        return;
-    }
-
-    if(
-        testState?.sourceFileId
-    ){
-
-        openFile(
+    const file =
+        getFile(
             testState.sourceFileId
         );
 
-        return;
-    }
 
-    showHome();
+    return file
+        ? file.name
+        : "알 수 없는 파일";
+
 }
 
-function retryWrongQuestions(){
 
-    if(
-        !testState
-            ?.wrongQuestions
-            ?.length
-    ){
+/* =========================================================
+   틀린 문제 다시 풀기
+   ========================================================= */
+
+function retryWrongQuestions() {
+
+    if (
+        !testState.wrongQuestions.length
+    ) {
+
+        showToast(
+            "틀린 문제가 없습니다."
+        );
+
 
         return;
+
     }
 
+
+    const questions =
+        testState.wrongQuestions.map(
+            question => ({
+                ...question,
+
+                word:
+                    question.word,
+
+                answers:
+                    [...question.answers]
+            })
+        );
+
+
     startTest(
-        shuffle(
-            testState.wrongQuestions
-        ),
+        questions,
         `${testState.testName} - 틀린 문제`,
-        "retry",
+        "wrong-retry",
         testState.sourceFileId,
         testState.sourceWorkbookId,
         testState.returnPage
     );
+
 }
 
-function renderStatistics(){
 
-    const records=
-        [
-            ...data.testRecords
-        ].sort(
-            (a,b)=>
-                new Date(b.date)-
-                new Date(a.date)
-        );
+/* =========================================================
+   기록
+   ========================================================= */
 
-    const empty=
-        $("emptyStatisticsState");
+function renderStatistics() {
 
-    const summary=
-        $("statisticsSummary");
+    const records =
+        Array.isArray(
+            appData.testRecords
+        )
+            ? appData.testRecords
+            : [];
 
-    const list=
-        $("statisticsList");
 
-    if(
-        !records.length
-    ){
+    if (
+        records.length ===
+        0
+    ) {
 
-        summary.innerHTML=
+        $("statisticsSummary")
+            .innerHTML =
             "";
 
-        list.innerHTML=
+
+        $("statisticsList")
+            .innerHTML =
             "";
 
-        empty.classList.remove(
+
+        $("emptyStatisticsState")
+            .classList.remove(
+                "hidden"
+            );
+
+
+        return;
+
+    }
+
+
+    $("emptyStatisticsState")
+        .classList.add(
             "hidden"
         );
 
-        return;
-    }
 
-    empty.classList.add(
-        "hidden"
+    renderStatisticsSummary(
+        records
     );
 
-    const total=
-        records.reduce(
-            (n,r)=>
-                n+
-                (
-                    Number(
-                        r.total
-                    )||0
-                ),
-            0
-        );
 
-    const correct=
-        records.reduce(
-            (n,r)=>
-                n+
-                (
-                    Number(
-                        r.correct
-                    )||0
-                ),
-            0
-        );
+    renderStatisticsList(
+        records
+    );
 
-    summary.innerHTML=`
+}
+
+
+/* =========================================================
+   기록 요약
+   ========================================================= */
+
+function renderStatisticsSummary(
+    records
+) {
+
+    let totalQuestions =
+        0;
+
+
+    let totalCorrect =
+        0;
+
+
+    let totalWrong =
+        0;
+
+
+    records.forEach(
+        record => {
+
+            totalQuestions +=
+                Number(
+                    record.total ||
+                    0
+                );
+
+
+            totalCorrect +=
+                Number(
+                    record.correct ||
+                    0
+                );
+
+
+            totalWrong +=
+                Number(
+                    record.wrong ||
+                    0
+                );
+
+        }
+    );
+
+
+    const accuracy =
+        totalQuestions > 0
+            ? Math.round(
+                totalCorrect /
+                totalQuestions *
+                100
+            )
+            : 0;
+
+
+    $("statisticsSummary")
+        .innerHTML = `
 
         <div class="statistics-card">
 
-            <span>
-                📝
-            </span>
+            <span>📝</span>
 
             <strong>
                 ${records.length}
@@ -3486,14 +4488,13 @@ function renderStatistics(){
 
         </div>
 
+
         <div class="statistics-card">
 
-            <span>
-                📚
-            </span>
+            <span>📚</span>
 
             <strong>
-                ${total}
+                ${totalQuestions}
             </strong>
 
             <small>
@@ -3502,14 +4503,13 @@ function renderStatistics(){
 
         </div>
 
+
         <div class="statistics-card">
 
-            <span>
-                ⭕
-            </span>
+            <span>⭕</span>
 
             <strong>
-                ${correct}
+                ${totalCorrect}
             </strong>
 
             <small>
@@ -3518,22 +4518,13 @@ function renderStatistics(){
 
         </div>
 
+
         <div class="statistics-card">
 
-            <span>
-                🎯
-            </span>
+            <span>🎯</span>
 
             <strong>
-                ${
-                    total
-                        ? Math.round(
-                            correct/
-                            total*
-                            100
-                        )
-                        : 0
-                }%
+                ${accuracy}%
             </strong>
 
             <small>
@@ -3544,1377 +4535,2167 @@ function renderStatistics(){
 
     `;
 
-    list.innerHTML=
-        records
-            .map(
-                r=>`
-
-                <div class="statistics-record">
-
-                    <div>
-
-                        <strong>
-                            ${esc(
-                                r.testName
-                            )}
-                        </strong>
-
-                        <span>
-                            ${new Date(
-                                r.date
-                            ).toLocaleString(
-                                "ko-KR"
-                            )}
-                        </span>
-
-                    </div>
-
-                    <div>
-
-                        <span>
-                            ${r.total}문제
-                        </span>
-
-                        <span>
-                            정답 ${r.correct}
-                        </span>
-
-                        <span>
-                            오답 ${r.wrong}
-                        </span>
-
-                        <strong>
-                            ${Math.round(
-                                r.accuracy*100
-                            )}%
-                        </strong>
-
-                    </div>
-
-                </div>
-
-                `
-            )
-            .join("");
 }
 
-function renderSettings(){
 
-    if(
-        $("darkModeToggle")
-    ){
+/* =========================================================
+   기록 날짜
+   날짜 → 시간 → 테스트 종류
+   ========================================================= */
 
-        $("darkModeToggle")
-            .checked=
-            data.theme==="dark";
-    }
+function formatRecordDate(
+    dateString
+) {
 
-    applyTheme();
-
-    if(
-        $("usageGuideContent")&&
-        $("usageGuideContent")
-            .dataset.ready!=="1"
-    ){
-
-        renderUsageGuide();
-    }
-
-    const pageEl=
-        $("settingsPage");
-
-    if(
-        pageEl&&
-        !$("testTimeSettingRow")
-    ){
-
-        const card=
-            document.createElement(
-                "div"
-            );
-
-        card.className=
-            "settings-card";
-
-        card.id=
-            "testTimeSettingRow";
-
-        card.innerHTML=`
-
-            <div class="settings-card-title">
-
-                <span class="settings-icon">
-                    ⏱️
-                </span>
-
-                <div>
-
-                    <h2>
-                        테스트 제한 시간
-                    </h2>
-
-                    <p>
-                        문제 하나당 제한 시간을 설정합니다.
-                    </p>
-
-                </div>
-
-            </div>
-
-            <div class="settings-row">
-
-                <strong>
-                    제한 시간
-                </strong>
-
-                <select id="testTimeSelect">
-
-                    ${TEST_TIMES
-                        .map(
-                            t=>
-                                `<option value="${t}">${t}초</option>`
-                        )
-                        .join("")
-                    }
-
-                </select>
-
-            </div>
-
-        `;
-
-        pageEl.insertBefore(
-            card,
-            pageEl.firstElementChild
-                .nextElementSibling
+    const date =
+        new Date(
+            dateString
         );
 
-        bindClicks();
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+
+        return {
+            date: "",
+            time: ""
+        };
+
     }
 
-    if(
-        $("testTimeSelect")
-    ){
 
-        $("testTimeSelect")
-            .value=
-            String(
-                data.testTime
-            );
-    }
+    return {
+
+        date:
+            `${date.getFullYear()}.${String(
+                date.getMonth() + 1
+            ).padStart(
+                2,
+                "0"
+            )}.${String(
+                date.getDate()
+            ).padStart(
+                2,
+                "0"
+            )}`,
+
+        time:
+            `${String(
+                date.getHours()
+            ).padStart(
+                2,
+                "0"
+            )}:${String(
+                date.getMinutes()
+            ).padStart(
+                2,
+                "0"
+            )}`
+
+    };
+
 }
 
-function renderUsageGuide(){
 
-    const box=
-        $("usageGuideContent");
+/* =========================================================
+   기록 목록
+   ========================================================= */
 
-    if(!box){
-        return;
-    }
+function renderStatisticsList(
+    records
+) {
 
-    box.dataset.ready=
-        "1";
+    const sorted =
+        [...records].sort(
+            (a, b) =>
+                new Date(b.date) -
+                new Date(a.date)
+        );
 
-    box.innerHTML=`
 
-        <div class="guide-item">
+    $("statisticsList")
+        .innerHTML =
+        sorted
+            .map(
+                record =>
+                    renderStatisticRecord(
+                        record
+                    )
+            )
+            .join("");
 
-            <strong>
-                📁 파일
-            </strong>
+}
 
-            <p>
-                파일 안에 여러 개의 단어장을 만들 수 있습니다.
-            </p>
 
-        </div>
+/* =========================================================
+   기록 하나
+   ========================================================= */
 
-        <div class="guide-item">
+function renderStatisticRecord(
+    record
+) {
 
-            <strong>
-                📖 단어장
-            </strong>
+    const dateInfo =
+        formatRecordDate(
+            record.date
+        );
 
-            <p>
-                단어를 추가하고 드래그하여 순서를 변경할 수 있습니다.
-            </p>
 
-        </div>
+    const testType =
+        getTestTypeText(
+            record
+        );
 
-        <div class="guide-item">
 
-            <strong>
-                ✏️ 단어 입력
-            </strong>
+    return `
 
-            <p>
-                <code>:</code>
-                영어/뜻,
-                <code>,</code>
-                여러 뜻,
-                <code>/</code>
-                여러 단어.
-            </p>
+        <div class="statistic-record">
 
-        </div>
+            <div class="statistic-record-info">
 
-        <div class="guide-item">
+                <strong>
+                    ${escapeHTML(
+                        dateInfo.date
+                    )}
+                </strong>
 
-            <strong>
-                📝 테스트
-            </strong>
+                <span>
+                    ${escapeHTML(
+                        dateInfo.time
+                    )}
+                </span>
 
-            <p>
-                문제마다 제한 시간이 적용되고 Enter로 제출할 수 있습니다.
-            </p>
+                <small>
+                    ${escapeHTML(
+                        testType
+                    )}
+                </small>
 
-        </div>
+            </div>
 
-        <div class="guide-item">
 
-            <strong>
-                🀄 한자
-            </strong>
+            <div class="statistic-record-score">
 
-            <p>
-                단어장 이름에 한자가 포함되면 내장 한자 학습 모드가 열립니다.
-            </p>
+                <strong>
+                    ${Number(
+                        record.correct ||
+                        0
+                    )}
+                    /
+                    ${Number(
+                        record.total ||
+                        0
+                    )}
+                </strong>
 
-        </div>
+                <span>
+                    ⭕ ${Number(
+                        record.correct ||
+                        0
+                    )}
+                    ·
+                    ❌ ${Number(
+                        record.wrong ||
+                        0
+                    )}
+                </span>
 
-        <div class="guide-item">
-
-            <strong>
-                🇯🇵 일본어
-            </strong>
-
-            <p>
-                단어장 이름에 일본어가 포함되면 음독·훈독 학습 모드가 열립니다.
-            </p>
+            </div>
 
         </div>
 
     `;
+
 }
 
-function applyTheme(){
 
-    document.body
-        .classList.toggle(
-            "dark",
-            data.theme==="dark"
-        );
+/* =========================================================
+   기록 테스트 종류
+   ========================================================= */
 
-    if(
-        $("darkModeToggle")
-    ){
+function getTestTypeText(
+    record
+) {
 
-        $("darkModeToggle")
-            .checked=
-            data.theme==="dark";
+    if (
+        record.testType ===
+        "workbook"
+    ) {
+
+        return `단어장 테스트 · ${record.testName}`;
+
     }
 
-    if(
+
+    if (
+        record.testType ===
+        "quick"
+    ) {
+
+        return record.testName ||
+            "빠른 테스트";
+
+    }
+
+
+    if (
+        record.testType ===
+        "wrong-retry"
+    ) {
+
+        return record.testName ||
+            "틀린 문제 다시 풀기";
+
+    }
+
+
+    return record.testName ||
+        "일반 테스트";
+
+}
+
+
+/* =========================================================
+   테마
+   ========================================================= */
+
+function applyTheme() {
+
+    const dark =
+        appData.theme ===
+        "dark";
+
+
+    document.body.classList.toggle(
+        "dark-mode",
+        dark
+    );
+
+
+    document.documentElement
+        .dataset.theme =
+        dark
+            ? "dark"
+            : "light";
+
+
+    if (
+        $("darkModeToggle")
+    ) {
+
+        $("darkModeToggle")
+            .checked =
+            dark;
+
+    }
+
+
+    if (
         $("headerThemeButton")
-    ){
+    ) {
 
         $("headerThemeButton")
-            .textContent=
-            data.theme==="dark"
+            .textContent =
+            dark
                 ? "☀️"
                 : "🌙";
+
     }
+
 }
 
-function exportBackup(){
 
-    const blob=
+function toggleTheme() {
+
+    appData.theme =
+        appData.theme ===
+        "dark"
+            ? "light"
+            : "dark";
+
+
+    saveData();
+
+    applyTheme();
+
+}
+
+
+/* =========================================================
+   테스트 시간
+   ========================================================= */
+
+function applyTestTimeUI() {
+
+    const select =
+        $("testTimeSelect");
+
+
+    if (!select) {
+        return;
+    }
+
+
+    select.value =
+        String(
+            appData.testTime
+        );
+
+}
+
+
+function changeTestTime(
+    value
+) {
+
+    const allowed =
+        [
+            5,
+            10,
+            15,
+            20,
+            30,
+            60
+        ];
+
+
+    const time =
+        Number(value);
+
+
+    if (
+        !allowed.includes(
+            time
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    appData.testTime =
+        time;
+
+
+    saveData();
+
+
+    showToast(
+        `문제 제한시간이 ${time}초로 변경되었습니다.`
+    );
+
+}
+
+
+/* =========================================================
+   데이터 내보내기
+   ========================================================= */
+
+function exportData() {
+
+    const exportObject = {
+
+        appName:
+            "단어 암기장",
+
+        version:
+            APP_VERSION,
+
+        exportedAt:
+            new Date()
+                .toISOString(),
+
+        data:
+            appData
+
+    };
+
+
+    const json =
+        JSON.stringify(
+            exportObject,
+            null,
+            2
+        );
+
+
+    const blob =
         new Blob(
-            [
-                JSON.stringify(
-                    {
-                        app:
-                            "단어 암기장",
-
-                        version:
-                            APP_VERSION,
-
-                        data
-                    },
-                    null,
-                    2
-                )
-            ],
+            [json],
             {
                 type:
                     "application/json"
             }
         );
 
-    const url=
+
+    const url =
         URL.createObjectURL(
             blob
         );
 
-    const a=
+
+    const link =
         document.createElement(
             "a"
         );
 
-    a.href=
+
+    const date =
+        new Date()
+            .toISOString()
+            .slice(
+                0,
+                10
+            );
+
+
+    link.href =
         url;
 
-    a.download=
-        `단어장_백업_${
-            new Date()
-                .toISOString()
-                .slice(
-                    0,
-                    10
-                )
-        }.json`;
 
-    a.click();
+    link.download =
+        `단어장_백업_${date}.json`;
+
+
+    document.body.appendChild(
+        link
+    );
+
+
+    link.click();
+
+
+    link.remove();
+
 
     URL.revokeObjectURL(
         url
     );
+
+
+    showToast(
+        "데이터를 내보냈습니다."
+    );
+
 }
 
-function importBackup(
-    event
-){
 
-    const file=
-        event.target.files?.[0];
+/* =========================================================
+   데이터 가져오기
+   ========================================================= */
 
-    if(!file){
+function importData() {
+
+    const input =
+        $("importFileInput");
+
+
+    if (!input) {
         return;
     }
 
-    const reader=
+
+    input.value =
+        "";
+
+
+    input.click();
+
+}
+
+
+function handleImportFile(
+    event
+) {
+
+    const file =
+        event.target.files?.[0];
+
+
+    if (!file) {
+        return;
+    }
+
+
+    const reader =
         new FileReader();
 
-    reader.onload=
-        ()=>{
 
-            try{
+    reader.onload =
+        () => {
 
-                const obj=
+            try {
+
+                const parsed =
                     JSON.parse(
                         reader.result
                     );
 
-                if(
-                    !obj.data||
-                    !Array.isArray(
-                        obj.data.files
-                    )
-                ){
 
-                    throw 0;
+                const imported =
+                    parsed?.data &&
+                    typeof parsed.data ===
+                    "object"
+                        ? parsed.data
+                        : parsed;
+
+
+                if (
+                    !imported ||
+                    !Array.isArray(
+                        imported.files
+                    )
+                ) {
+
+                    throw new Error(
+                        "올바른 백업 파일이 아닙니다."
+                    );
+
                 }
 
-                confirmBox(
-                    "데이터 가져오기",
-                    "현재 데이터가 백업 파일로 교체됩니다.",
-                    ()=>{
 
-                        data=
+                openConfirmModal(
+                    "데이터 가져오기",
+                    "현재 데이터가 가져온 데이터로 교체됩니다.\n계속하시겠습니까?",
+                    () => {
+
+                        appData =
                             normalizeData(
-                                obj.data
+                                imported
                             );
 
-                        save();
+
+                        saveData();
 
                         applyTheme();
 
-                        showHome();
+                        applyTestTimeUI();
 
-                        toast(
+
+                        currentFileId =
+                            null;
+
+
+                        currentWorkbookId =
+                            null;
+
+
+                        renderFileList();
+
+                        showHomePage();
+
+
+                        showToast(
                             "데이터를 가져왔습니다."
                         );
+
                     }
                 );
 
-            }catch{
+            } catch (error) {
 
-                toast(
-                    "올바른 백업 파일이 아닙니다.",
+                console.error(
+                    error
+                );
+
+
+                showToast(
+                    "데이터 파일을 읽을 수 없습니다.",
                     "error"
                 );
+
             }
+
         };
+
 
     reader.readAsText(
         file,
         "UTF-8"
     );
 
-    event.target.value=
-        "";
 }
 
-function bindClicks(){
 
-    $$("[data-page]")
+/* =========================================================
+   버전 / 업데이트 기록 / 사용 설명서
+   ========================================================= */
+
+const VERSION_CHANGELOG = [
+
+    {
+        version: "3.1.0",
+        date: "2026-09-18",
+
+        added: [
+            "버전별 업데이트 기록",
+            "업데이트 기록과 현재 기능을 연동하는 설명서 시스템"
+        ],
+
+        modified: [
+            "현재 버전에 존재하는 기능만 사용 설명서에 표시되도록 개선",
+            "설명서에 기능 추가·수정·제거 내역을 함께 표시",
+            "일부 화면 요소가 없어도 앱 초기화가 중단되지 않도록 안정성 개선"
+        ],
+
+        removed: []
+    },
+
+    {
+        version: "3.0.0",
+        date: "2026-09-18",
+
+        added: [
+            "한자 전용 단어장 모드",
+            "일본어 전용 단어장 모드",
+            "한자 급수 선택 기능",
+            "한자 4지선다 테스트",
+            "일본어 음독·훈독 테스트",
+            "테스트 제한시간 설정"
+        ],
+
+        modified: [
+            "단어장 테스트를 현재 단어장 기준으로 동작하도록 개선",
+            "전체 테스트의 문제 방향을 문제마다 랜덤으로 출제",
+            "테스트 결과 기록 기능 개선"
+        ],
+
+        removed: []
+    },
+
+    {
+        version: "1.1.0",
+        date: "2026-09-17",
+
+        added: [
+            "문제별 제한시간 설정",
+            "기록 화면"
+        ],
+
+        modified: [
+            "테스트 및 사용 방법 안내 개선"
+        ],
+
+        removed: []
+    },
+
+    {
+        version: "1.0.0",
+        date: "2026-09-17",
+
+        added: [
+            "파일 및 단어장 관리",
+            "단어 추가·수정·삭제",
+            "일반 테스트",
+            "빠른 테스트",
+            "중요 단어 표시",
+            "테스트 기록",
+            "다크 모드",
+            "데이터 내보내기 및 가져오기"
+        ],
+
+        modified: [],
+
+        removed: []
+    }
+
+];
+
+
+const USAGE_GUIDE = [
+
+    {
+        since: "1.0.0",
+        until: null,
+        title: "📁 파일",
+        text: "파일 안에 여러 개의 단어장을 만들 수 있습니다."
+    },
+
+    {
+        since: "1.0.0",
+        until: null,
+        title: "📖 단어장",
+        text: "단어를 추가하고 수정하거나 삭제할 수 있으며, 드래그하여 순서를 변경할 수 있습니다."
+    },
+
+    {
+        since: "1.0.0",
+        until: null,
+        title: "✏️ 단어 입력",
+        text: "<code>:</code>로 단어와 뜻을 구분하고, <code>,</code>로 여러 뜻을 입력하며, <code>/</code>로 여러 단어를 구분합니다."
+    },
+
+    {
+        since: "1.0.0",
+        until: null,
+        title: "📝 일반 테스트",
+        text: "파일에 들어 있는 단어를 대상으로 테스트합니다. 전체 테스트에서는 각 문제의 출제 방향이 랜덤으로 결정됩니다."
+    },
+
+    {
+        since: "3.0.0",
+        until: null,
+        title: "📚 단어장 테스트",
+        text: "단어장 화면의 <strong>📝 단어 테스트</strong>를 누르면 현재 단어장에 있는 단어만 테스트합니다."
+    },
+
+    {
+        since: "1.0.0",
+        until: null,
+        title: "⭐ 중요 단어",
+        text: "전체 시도 횟수 중 틀린 비율이 70%를 초과하면 해당 단어가 자동으로 중요 단어로 표시됩니다."
+    },
+
+    {
+        since: "1.0.0",
+        until: null,
+        title: "💾 데이터 백업",
+        text: "데이터 내보내기로 백업 파일을 만들고, 데이터 가져오기로 백업한 데이터를 복원할 수 있습니다."
+    },
+
+    {
+        since: "3.0.0",
+        until: null,
+        title: "⏱️ 테스트 제한시간",
+        text: "설정에서 문제 하나당 제한시간을 5초, 10초, 15초, 20초, 30초, 60초 중에서 선택할 수 있습니다."
+    },
+
+    {
+        since: "3.0.0",
+        until: null,
+        title: "🀄 한자 단어장",
+        text: "단어장 이름에 <strong>한자</strong>가 포함되면 내장 한자 학습 모드가 사용됩니다. 급수를 선택하고 뜻·음 테스트 또는 4지선다 테스트를 할 수 있습니다."
+    },
+
+    {
+        since: "3.0.0",
+        until: null,
+        title: "🇯🇵 일본어 단어장",
+        text: "단어장 이름에 <strong>일본어</strong>가 포함되면 일본어 학습 모드가 사용됩니다. 뜻은 사용하지 않고 한자의 음독·훈독을 학습합니다."
+    },
+
+    {
+        since: "1.0.0",
+        until: null,
+        title: "🌙 다크 모드",
+        text: "설정 또는 상단의 테마 버튼으로 화면 테마를 변경할 수 있습니다."
+    },
+
+    {
+        since: "1.0.0",
+        until: null,
+        title: "📊 기록",
+        text: "완료한 테스트의 날짜, 시간, 테스트 종류와 정답·오답 결과를 확인할 수 있습니다."
+    }
+
+];
+
+
+function compareVersions(a, b) {
+
+    const pa = String(a || "0").split(".").map(Number);
+    const pb = String(b || "0").split(".").map(Number);
+
+    for (let i = 0; i < 3; i++) {
+
+        const va = Number.isFinite(pa[i]) ? pa[i] : 0;
+        const vb = Number.isFinite(pb[i]) ? pb[i] : 0;
+
+        if (va > vb) return 1;
+        if (va < vb) return -1;
+
+    }
+
+    return 0;
+
+}
+
+
+function isGuideItemVisible(item) {
+
+    const afterSince =
+        compareVersions(
+            APP_VERSION,
+            item.since
+        ) >= 0;
+
+    const beforeUntil =
+        !item.until ||
+        compareVersions(
+            APP_VERSION,
+            item.until
+        ) < 0;
+
+    return afterSince && beforeUntil;
+
+}
+
+
+function renderChangeList(items) {
+
+    if (!items || items.length === 0) {
+        return "<li>없음</li>";
+    }
+
+    return items
+        .map(
+            item => `<li>${escapeHTML(item)}</li>`
+        )
+        .join("");
+
+}
+
+
+function renderChangelog() {
+
+    const rows =
+        VERSION_CHANGELOG
+            .map(
+                entry => `
+
+                    <div class="guide-item">
+
+                        <strong>
+                            v${escapeHTML(entry.version)}
+                            · ${escapeHTML(entry.date)}
+                        </strong>
+
+                        <p><strong>추가</strong></p>
+                        <ul>
+                            ${renderChangeList(entry.added)}
+                        </ul>
+
+                        <p><strong>수정</strong></p>
+                        <ul>
+                            ${renderChangeList(entry.modified)}
+                        </ul>
+
+                        <p><strong>제거</strong></p>
+                        <ul>
+                            ${renderChangeList(entry.removed)}
+                        </ul>
+
+                    </div>
+
+                `
+            )
+            .join("");
+
+    return rows;
+
+}
+
+
+function getCurrentUsageGuide() {
+
+    return USAGE_GUIDE.filter(
+        isGuideItemVisible
+    );
+
+}
+
+
+function renderUsageGuide() {
+
+    const content =
+        $("usageGuideContent");
+
+
+    if (!content) {
+        return;
+    }
+
+
+    const guide =
+        getCurrentUsageGuide();
+
+
+    content.innerHTML = `
+
+        <div class="guide-version">
+            현재 버전 ${escapeHTML(APP_VERSION)}
+        </div>
+
+        ${
+            guide
+                .map(
+                    item => `
+
+                        <div class="guide-item">
+
+                            <strong>
+                                ${item.title}
+                            </strong>
+
+                            <p>
+                                ${item.text}
+                            </p>
+
+                        </div>
+
+                    `
+                )
+                .join("")
+        }
+
+        <div class="guide-item">
+
+            <strong>🆕 업데이트 기록</strong>
+
+            <p>
+                각 버전에서 추가·수정·제거된 기능을 확인할 수 있습니다.
+            </p>
+
+            ${renderChangelog()}
+
+        </div>
+
+    `;
+
+}
+
+
+function toggleUsageGuide() {
+
+    const content =
+        $("usageGuideContent");
+
+    const arrow =
+        $("usageGuideArrow");
+
+
+    if (!content) {
+        return;
+    }
+
+
+    const hidden =
+        content.classList.contains(
+            "hidden"
+        );
+
+
+    content.classList.toggle(
+        "hidden",
+        !hidden
+    );
+
+
+    if (arrow) {
+
+        arrow.textContent =
+            hidden
+                ? "⌃"
+                : "⌄";
+
+    }
+
+}
+
+
+/* =========================================================
+   입력 모달
+   ========================================================= */
+
+function openInputModal(
+    title,
+    description,
+    defaultValue,
+    onConfirm
+) {
+
+    openModal(
+        title,
+
+        `
+
+            <p
+                style="
+                    margin-top:0;
+                    color:var(--text-light);
+                    font-size:13px;
+                "
+            >
+                ${escapeHTML(
+                    description
+                )}
+            </p>
+
+            <input
+                id="modalInputField"
+                class="modal-input"
+                type="text"
+                autocomplete="off"
+                value="${escapeHTML(
+                    defaultValue
+                )}"
+            >
+
+        `,
+
+        `
+
+            <button
+                id="modalCancelButton"
+                class="secondary-button"
+                type="button"
+            >
+                취소
+            </button>
+
+            <button
+                id="modalConfirmButton"
+                class="primary-button"
+                type="button"
+            >
+                확인
+            </button>
+
+        `
+    );
+
+
+    const input =
+        $("modalInputField");
+
+
+    setTimeout(
+        () => {
+
+            input.focus();
+
+            input.select();
+
+        },
+        30
+    );
+
+
+    const confirm =
+        () => {
+
+            const value =
+                input.value.trim();
+
+
+            if (!value) {
+
+                showToast(
+                    "내용을 입력해주세요.",
+                    "error"
+                );
+
+
+                input.focus();
+
+
+                return;
+
+            }
+
+
+            closeModal();
+
+
+            onConfirm(
+                value
+            );
+
+        };
+
+
+    $("modalConfirmButton")
+        .addEventListener(
+            "click",
+            confirm
+        );
+
+
+    $("modalCancelButton")
+        .addEventListener(
+            "click",
+            closeModal
+        );
+
+
+    input.addEventListener(
+        "keydown",
+        event => {
+
+            if (
+                event.key ===
+                "Enter"
+            ) {
+
+                event.preventDefault();
+
+                confirm();
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   확인 모달
+   ========================================================= */
+
+function openConfirmModal(
+    title,
+    message,
+    onConfirm
+) {
+
+    openModal(
+        title,
+
+        `
+
+            <p
+                style="
+                    white-space:pre-line;
+                    line-height:1.6;
+                    margin:0;
+                    color:var(--text-light);
+                "
+            >
+                ${escapeHTML(
+                    message
+                )}
+            </p>
+
+        `,
+
+        `
+
+            <button
+                id="modalCancelButton"
+                class="secondary-button"
+                type="button"
+            >
+                취소
+            </button>
+
+            <button
+                id="modalConfirmButton"
+                class="primary-button"
+                type="button"
+            >
+                확인
+            </button>
+
+        `
+    );
+
+
+    $("modalCancelButton")
+        .addEventListener(
+            "click",
+            closeModal
+        );
+
+
+    $("modalConfirmButton")
+        .addEventListener(
+            "click",
+            () => {
+
+                closeModal();
+
+                onConfirm();
+
+            }
+        );
+
+}
+
+
+/* =========================================================
+   일반 모달
+   ========================================================= */
+
+function openModal(
+    title,
+    body,
+    footer = ""
+) {
+
+    $("modalTitle")
+        .textContent =
+        title;
+
+
+    $("modalBody")
+        .innerHTML =
+        body;
+
+
+    $("modalFooter")
+        .innerHTML =
+        footer;
+
+
+    $("modalOverlay")
+        .classList.remove(
+            "hidden"
+        );
+
+}
+
+
+function closeModal() {
+
+    $("modalOverlay")
+        .classList.add(
+            "hidden"
+        );
+
+}
+
+
+/* =========================================================
+   뒤로가기
+   ========================================================= */
+
+function goBackToHome() {
+
+    showHomePage();
+
+}
+
+
+function goBackToFile() {
+
+    if (!currentFileId) {
+
+        showHomePage();
+
+        return;
+
+    }
+
+
+    showFilePage(
+        currentFileId
+    );
+
+}
+
+
+function goToResultHome() {
+
+    showHomePage();
+
+}
+
+
+function goToResultBack() {
+
+    if (
+        testState.sourceWorkbookId &&
+        testState.sourceFileId
+    ) {
+
+        showWorkbookPage(
+            testState.sourceFileId,
+            testState.sourceWorkbookId
+        );
+
+
+        return;
+
+    }
+
+
+    if (
+        testState.sourceFileId
+    ) {
+
+        showFilePage(
+            testState.sourceFileId
+        );
+
+
+        return;
+
+    }
+
+
+    showHomePage();
+
+}
+
+
+/* =========================================================
+   네비게이션
+   ========================================================= */
+
+function setupNavigation() {
+
+    document
+        .querySelectorAll(
+            ".nav-item, .mobile-nav-item"
+        )
         .forEach(
-            b=>{
+            button => {
 
-                b.onclick=
-                    ()=>{
+                button.addEventListener(
+                    "click",
+                    () => {
 
-                        closeSidebar();
+                        const page =
+                            button.dataset.page;
 
-                        if(
-                            b.dataset.page===
+
+                        if (
+                            page ===
                             "home"
-                        ){
+                        ) {
 
-                            showHome();
+                            showHomePage();
 
-                        }else if(
-                            b.dataset.page===
+                        }
+
+
+                        if (
+                            page ===
                             "statistics"
-                        ){
+                        ) {
 
-                            stopTestTimer();
+                            stopTimer();
 
-                            page(
+                            showPage(
                                 "statistics"
                             );
 
+
                             renderStatistics();
 
-                        }else if(
-                            b.dataset.page===
+                        }
+
+
+                        if (
+                            page ===
                             "settings"
-                        ){
+                        ) {
 
-                            stopTestTimer();
+                            stopTimer();
 
-                            page(
+                            showPage(
                                 "settings"
                             );
 
-                            renderSettings();
+
+                            applyTestTimeUI();
+
                         }
-                    };
-            }
-        );
 
-    if(
-        $("headerHomeButton")
-    ){
-
-        $("headerHomeButton").onclick=
-            showHome;
-    }
-
-    if(
-        $("mobileMenuButton")
-    ){
-
-        $("mobileMenuButton").onclick=
-            ()=>
-                $("sidebar")
-                    ?.classList.add(
-                        "open"
-                    );
-    }
-
-    if(
-        $("headerThemeButton")
-    ){
-
-        $("headerThemeButton").onclick=
-            ()=>{
-
-                data.theme=
-                    data.theme==="dark"
-                        ? "light"
-                        : "dark";
-
-                save();
-
-                applyTheme();
-            };
-    }
-
-    if(
-        $("addFileButton")
-    ){
-
-        $("addFileButton").onclick=
-            addFile;
-    }
-
-    if(
-        $("emptyAddFileButton")
-    ){
-
-        $("emptyAddFileButton").onclick=
-            addFile;
-    }
-
-    if(
-        $("backToHomeButton")
-    ){
-
-        $("backToHomeButton").onclick=
-            showHome;
-    }
-
-    if(
-        $("fileTestButton")
-    ){
-
-        $("fileTestButton").onclick=
-            openTotalTestMenu;
-    }
-
-    if(
-        $("addWorkbookButton")
-    ){
-
-        $("addWorkbookButton").onclick=
-            addWorkbook;
-    }
-
-    if(
-        $("emptyAddWorkbookButton")
-    ){
-
-        $("emptyAddWorkbookButton").onclick=
-            addWorkbook;
-    }
-
-    if(
-        $("backToFileButton")
-    ){
-
-        $("backToFileButton").onclick=
-            ()=>openFile(
-                currentFileId
-            );
-    }
-
-    if(
-        $("addWordButton")
-    ){
-
-        $("addWordButton").onclick=
-            startWorkbookTest;
-    }
-
-    if(
-        $("bulkAddWordButton")
-    ){
-
-        $("bulkAddWordButton").onclick=
-            addBulkWords;
-    }
-
-    if(
-        $("usageGuideButton")
-    ){
-
-        $("usageGuideButton").onclick=
-            ()=>
-                $("usageGuideContent")
-                    ?.classList.toggle(
-                        "hidden"
-                    );
-    }
-
-    if(
-        $("darkModeToggle")
-    ){
-
-        $("darkModeToggle").onchange=
-            e=>{
-
-                data.theme=
-                    e.target.checked
-                        ? "dark"
-                        : "light";
-
-                save();
-
-                applyTheme();
-            };
-    }
-
-    if(
-        $("exportDataButton")
-    ){
-
-        $("exportDataButton").onclick=
-            exportBackup;
-    }
-
-    if(
-        $("importDataButton")
-    ){
-
-        $("importDataButton").onclick=
-            ()=>
-                $("importFileInput")
-                    ?.click();
-    }
-
-    if(
-        $("importFileInput")
-    ){
-
-        $("importFileInput").onchange=
-            importBackup;
-    }
-
-    if(
-        $("modalCloseButton")
-    ){
-
-        $("modalCloseButton").onclick=
-            closeModal;
-    }
-
-    if(
-        $("modalOverlay")
-    ){
-
-        $("modalOverlay").onclick=
-            e=>{
-
-                if(
-                    e.target.id===
-                    "modalOverlay"
-                ){
-
-                    closeModal();
-                }
-            };
-    }
-
-    if(
-        $("retryWrongButton")
-    ){
-
-        $("retryWrongButton").onclick=
-            retryWrongQuestions;
-    }
-
-    if(
-        $("resultHomeButton")
-    ){
-
-        $("resultHomeButton").onclick=
-            showHome;
-    }
-
-    if(
-        $("resultBackButton")
-    ){
-
-        $("resultBackButton").onclick=
-            ()=>{
-
-                if(
-                    testState
-                        ?.sourceWorkbookId
-                ){
-
-                    openWorkbook(
-                        testState.sourceWorkbookId
-                    );
-
-                }else if(
-                    testState
-                        ?.sourceFileId
-                ){
-
-                    openFile(
-                        testState.sourceFileId
-                    );
-
-                }else{
-
-                    showHome();
-                }
-            };
-    }
-
-    if(
-        $("testSubmitButton")
-    ){
-
-        $("testSubmitButton").onclick=
-            ()=>{
-
-                if(
-                    testState
-                        ?.answered
-                ){
-
-                    nextQuestion();
-
-                }else{
-
-                    submitAnswer(
-                        false
-                    );
-                }
-            };
-    }
-
-    if(
-        $("testAnswerInput")
-    ){
-
-        $("testAnswerInput").onkeydown=
-            e=>{
-
-                if(
-                    e.key===
-                    "Enter"
-                ){
-
-                    e.preventDefault();
-
-                    if(
-                        testState
-                            ?.answered
-                    ){
-
-                        nextQuestion();
-
-                    }else{
-
-                        submitAnswer(
-                            false
-                        );
                     }
-                }
-            };
-    }
+                );
 
-    if(
-        $("specialSearch")
-    ){
+            }
+        );
 
-        $("specialSearch").oninput=
-            renderSpecialList;
-    }
-
-    if(
-        $("specialTestButton")
-    ){
-
-        $("specialTestButton").onclick=
-            openSpecialTestMenu;
-    }
-
-    if(
-        $("testTimeSelect")
-    ){
-
-        $("testTimeSelect").onchange=
-            e=>{
-
-                if(
-                    TEST_TIMES.includes(
-                        Number(
-                            e.target.value
-                        )
-                    )
-                ){
-
-                    data.testTime=
-                        Number(
-                            e.target.value
-                        );
-
-                    save();
-                }
-            };
-    }
 }
 
-function dynamicClicks(
-    event
-){
 
-    const t=
-        event.target.closest(
-            "button,[data-open-file],[data-open-workbook],[data-file-action],[data-workbook-action],[data-word-action],[data-start-file-test],[data-start-quick],[data-open-quick],[data-hanja-level],[data-special-test],[data-choice]"
-        );
 
-    if(!t){
-        return;
-    }
+/* =========================================================
+   한자 / 일본어 전용 단어장 모드
+   - 단어장 이름에 "한자" 포함 → 한자 모드
+   - 단어장 이름에 "일본어" 포함 → 일본어 모드
+   ========================================================= */
 
-    if(
-        t.dataset.openFile
-    ){
+const HANJA_LEVEL_ORDER = [
+    "8급", "7급", "6급", "준5급", "5급", "준4급", "4급", "준3급", "3급",
+    "준2급", "2급", "준1급", "1급", "사범", "대사범"
+];
 
-        openFile(
-            t.dataset.openFile
-        );
+const HANJA_LEVEL_COUNTS = {
+    "8급":30,"7급":50,"6급":70,"준5급":100,"5급":250,"준4급":400,"4급":600,
+    "준3급":800,"3급":1000,"준2급":1500,"2급":2000,"준1급":2500,"1급":3500,"사범":5000,"대사범":5000
+};
 
-        return;
-    }
+/*
+   현재 내장한 대한검정회 배정한자 데이터.
+   8급~준5급(총 100자)은 급수표를 기준으로 내장합니다.
+   5급 이상은 전체 급수의 구조를 미리 만들어 두고,
+   실제 전체 배정한자 데이터를 추가하면 같은 구조로 바로 확장할 수 있습니다.
+*/
+const HANJA_DATA = [
+    ["8급", "九", "아홉", "구"],["8급", "金", "쇠", "금"],["8급", "南", "남녘", "남"],["8급", "男", "사내", "남"],["8급", "女", "여자", "녀"],
+    ["8급", "東", "동녘", "동"],["8급", "六", "여섯", "륙"],["8급", "母", "어머니", "모"],["8급", "木", "나무", "목"],["8급", "門", "문", "문"],
+    ["8급", "父", "아버지", "부"],["8급", "北", "북녘", "북"],["8급", "四", "넉", "사"],["8급", "三", "석", "삼"],["8급", "西", "서녘", "서"],
+    ["8급", "水", "물", "수"],["8급", "十", "열", "십"],["8급", "五", "다섯", "오"],["8급", "月", "달", "월"],["8급", "二", "두", "이"],
+    ["8급", "人", "사람", "인"],["8급", "日", "날", "일"],["8급", "一", "한", "일"],["8급", "子", "아들", "자"],["8급", "弟", "아우", "제"],
+    ["8급", "七", "일곱", "칠"],["8급", "土", "흙", "토"],["8급", "八", "여덟", "팔"],["8급", "兄", "맏", "형"],["8급", "火", "불", "화"],
 
-    if(
-        t.dataset.openWorkbook
-    ){
+    ["7급", "江", "강", "강"],["7급", "口", "입", "구"],["7급", "內", "안", "내"],["7급", "年", "해", "년"],["7급", "大", "큰", "대"],
+    ["7급", "目", "눈", "목"],["7급", "白", "흰", "백"],["7급", "山", "메", "산"],["7급", "上", "위", "상"],["7급", "小", "작을", "소"],
+    ["7급", "手", "손", "수"],["7급", "外", "바깥", "외"],["7급", "右", "오른", "우"],["7급", "入", "들", "입"],["7급", "足", "발", "족"],
+    ["7급", "左", "왼", "좌"],["7급", "中", "가운데", "중"],["7급", "靑", "푸를", "청"],["7급", "出", "날", "출"],["7급", "下", "아래", "하"],
 
-        openWorkbook(
-            t.dataset.openWorkbook
-        );
+    ["6급", "犬", "개", "견"],["6급", "己", "몸", "기"],["6급", "林", "수풀", "림"],["6급", "馬", "말", "마"],["6급", "名", "이름", "명"],
+    ["6급", "百", "일백", "백"],["6급", "生", "날", "생"],["6급", "石", "돌", "석"],["6급", "先", "먼저", "선"],["6급", "姓", "성씨", "성"],
+    ["6급", "心", "마음", "심"],["6급", "羊", "양", "양"],["6급", "魚", "물고기", "어"],["6급", "玉", "구슬", "옥"],["6급", "牛", "소", "우"],
+    ["6급", "耳", "귀", "이"],["6급", "地", "땅", "지"],["6급", "川", "내", "천"],["6급", "千", "일천", "천"],["6급", "天", "하늘", "천"],
 
-        return;
-    }
+    ["준5급", "車", "수레", "거"],["준5급", "巾", "수건", "건"],["준5급", "古", "예", "고"],["준5급", "工", "장인", "공"],["준5급", "今", "이제", "금"],
+    ["준5급", "同", "한가지", "동"],["준5급", "力", "힘", "력"],["준5급", "立", "설", "립"],["준5급", "末", "끝", "말"],["준5급", "文", "글월", "문"],
+    ["준5급", "方", "모", "방"],["준5급", "本", "근본", "본"],["준5급", "夫", "지아비", "부"],["준5급", "不", "아니", "불"],["준5급", "士", "선비", "사"],
+    ["준5급", "夕", "저녁", "석"],["준5급", "世", "세상", "세"],["준5급", "少", "적을", "소"],["준5급", "食", "먹을", "식"],["준5급", "央", "가운데", "앙"],
+    ["준5급", "王", "임금", "왕"],["준5급", "位", "자리", "위"],["준5급", "衣", "옷", "의"],["준5급", "字", "글자", "자"],["준5급", "自", "스스로", "자"],
+    ["준5급", "正", "바를", "정"],["준5급", "主", "주인", "주"],["준5급", "寸", "마디", "촌"],["준5급", "向", "향할", "향"],["준5급", "休", "쉴", "휴"]
+].map(([level,char,meaning,sound],i)=>({id:`hanja_${i+1}`,level,char,meaning,sound,stars:HANJA_LEVEL_ORDER.indexOf(level)+1}));
 
-    if(
-        t.dataset.fileAction===
-        "rename"
-    ){
+const JAPANESE_DATA = [
+    ["日","にち・じつ","ひ・か"],["月","げつ・がつ","つき"],["火","か","ひ"],["水","すい","みず"],["木","もく","き"],
+    ["金","きん","かね"],["土","ど","つち"],["山","さん","やま"],["川","せん","かわ"],["人","じん・にん","ひと"],
+    ["大","だい・たい","おお"],["小","しょう","ちい・こ"],["中","ちゅう","なか"],["上","じょう・しょう","うえ・あ"],["下","か・げ","した・さ"],
+    ["入","にゅう","い・はい"],["出","しゅつ","で・だ"],["見","けん","み"],["行","こう・ぎょう","い・おこな"],["来","らい","く"],
+    ["食","しょく","た・く"],["飲","いん","の"],["学","がく","まな"],["生","せい・しょう","い・う・なま"],["先","せん","さき"],
+    ["名","めい・みょう","な"],["女","じょ・にょ","おんな"],["男","だん・なん","おとこ"],["子","し・す","こ"],["友","ゆう","とも"]
+].map(([char,on,kun],i)=>({id:`japanese_${i+1}`,char,on,kun}));
 
-        renameFile(
-            t.dataset.id
-        );
+function getWorkbookMode(workbook){
+    const name=String(workbook?.name||"");
+    if(name.includes("한자")) return "hanja";
+    if(name.includes("일본어")) return "japanese";
+    return "normal";
+}
 
-        return;
-    }
+function specialDataForLevel(level){
+    return HANJA_DATA.filter(x=>x.level===level || HANJA_LEVEL_ORDER.indexOf(x.level)<=HANJA_LEVEL_ORDER.indexOf(level));
+}
 
-    if(
-        t.dataset.fileAction===
-        "delete"
-    ){
+function hanjaAvailable(level){return specialDataForLevel(level).length>0;}
 
-        deleteFile(
-            t.dataset.id
-        );
+function getSpecialStars(level){return "⭐".repeat(Math.max(1,HANJA_LEVEL_ORDER.indexOf(level)+1));}
 
-        return;
-    }
-
-    if(
-        t.dataset.workbookAction===
-        "rename"
-    ){
-
-        renameWorkbook(
-            t.dataset.id
-        );
-
-        return;
-    }
-
-    if(
-        t.dataset.workbookAction===
-        "delete"
-    ){
-
-        deleteWorkbook(
-            t.dataset.id
-        );
-
-        return;
-    }
-
-    if(
-        t.dataset.wordAction===
-        "edit"
-    ){
-
-        editWord(
-            t.dataset.id
-        );
-
-        return;
-    }
-
-    if(
-        t.dataset.wordAction===
-        "important"
-    ){
-
-        toggleImportant(
-            t.dataset.id
-        );
-
-        return;
-    }
-
-    if(
-        t.dataset.wordAction===
-        "delete"
-    ){
-
-        deleteWord(
-            t.dataset.id
-        );
-
-        return;
-    }
-
-    if(
-        t.dataset.startFileTest
-    ){
-
-        closeModal();
-
-        startFileTest(
-            t.dataset.startFileTest
-        );
-
-        return;
-    }
-
-    if(
-        t.dataset.openQuick
-    ){
-
-        closeModal();
-
-        openQuickTestMenu();
-
-        return;
-    }
-
-    if(
-        t.dataset.startQuick
-    ){
-
-        closeModal();
-
-        startQuickTest(
-            t.dataset.startQuick
-        );
-
-        return;
-    }
-
-    if(
-        t.dataset.hanjaLevel
-    ){
-
-        $$(
-            "[data-hanja-level]"
-        ).forEach(
-            b=>
-                b.classList.toggle(
-                    "selected",
-                    b===t
-                )
-        );
-
+function renderSpecialWorkbookPanel(){
+    const workbook=getCurrentWorkbook();
+    const panel=$("specialWorkbookPanel");
+    const normal=$("normalWordInputCard");
+    if(!panel||!normal||!workbook)return;
+    const mode=getWorkbookMode(workbook);
+    panel.classList.toggle("hidden",mode==="normal");
+    normal.classList.toggle("hidden",mode!=="normal");
+    if(mode==="normal")return;
+    if(mode==="hanja"){
+        $("specialWorkbookTitle").textContent="🀄 한자 학습";
+        $("specialWorkbookDescription").textContent="급수를 선택하고 한자의 뜻과 음을 학습합니다.";
+        $("specialLevelArea").classList.remove("hidden");
+        $("specialSearchArea").classList.remove("hidden");
+        $("specialJapaneseInfo").classList.add("hidden");
+        $("specialLevelList").innerHTML=HANJA_LEVEL_ORDER.map(level=>{
+            const available=hanjaAvailable(level);
+            const stars=getSpecialStars(level);
+            return `<button class="special-level-button ${available?'':'disabled'}" data-hanja-level="${level}" ${available?'':'disabled'}><strong>${escapeHTML(level)}</strong><span>${stars}</span><small>${HANJA_LEVEL_COUNTS[level]}자${available?' · 내장':''}</small></button>`;
+        }).join("");
+        $("specialSearch").placeholder="한자·뜻·음 검색";
         renderSpecialList();
-
-        return;
-    }
-
-    if(
-        t.dataset.specialTest
-    ){
-
-        closeModal();
-
-        startSpecialTest(
-            t.dataset.specialTest
-        );
-
-        return;
-    }
-
-    if(
-        t.dataset.choice
-    ){
-
-        submitChoice(
-            t.dataset.choice
-        );
-
-        return;
-    }
-
-    if(
-        t.dataset.modalClose
-    ){
-
-        closeModal();
-
-        return;
+    }else{
+        $("specialWorkbookTitle").textContent="🇯🇵 일본어 학습";
+        $("specialWorkbookDescription").textContent="한자의 음독과 훈독을 기준으로 학습합니다. 뜻은 사용하지 않습니다.";
+        $("specialLevelArea").classList.add("hidden");
+        $("specialSearchArea").classList.remove("hidden");
+        $("specialJapaneseInfo").classList.remove("hidden");
+        $("specialSearch").placeholder="한자·음독·훈독 검색";
+        renderSpecialList();
     }
 }
 
-function setupDrag(){
-
-    document.addEventListener(
-        "dragstart",
-        e=>{
-
-            const f=
-                e.target.closest(
-                    "[data-file-id]"
-                );
-
-            const b=
-                e.target.closest(
-                    "[data-workbook-id]"
-                );
-
-            const w=
-                e.target.closest(
-                    "[data-word-id]"
-                );
-
-            if(f){
-                f.classList.add(
-                    "dragging"
-                );
-            }
-
-            if(b){
-                b.classList.add(
-                    "dragging"
-                );
-            }
-
-            if(w){
-                w.classList.add(
-                    "dragging"
-                );
-            }
-        }
-    );
-
-    document.addEventListener(
-        "dragend",
-        e=>
-            e.target
-                .closest(
-                    "[data-file-id],[data-workbook-id],[data-word-id]"
-                )
-                ?.classList.remove(
-                    "dragging"
-                )
-    );
-
-    document.addEventListener(
-        "dragover",
-        e=>{
-
-            if(
-                e.target.closest(
-                    "[data-file-id],[data-workbook-id],[data-word-id]"
-                )
-            ){
-
-                e.preventDefault();
-            }
-        }
-    );
-
-    document.addEventListener(
-        "drop",
-        e=>{
-
-            const targetFile=
-                e.target.closest(
-                    "[data-file-id]"
-                );
-
-            const targetBook=
-                e.target.closest(
-                    "[data-workbook-id]"
-                );
-
-            const targetWord=
-                e.target.closest(
-                    "[data-word-id]"
-                );
-
-            if(
-                !targetFile&&
-                !targetBook&&
-                !targetWord
-            ){
-
-                return;
-            }
-
-            e.preventDefault();
-
-            const drag=
-                document.querySelector(
-                    ".dragging"
-                );
-
-            if(!drag){
-                return;
-            }
-
-            if(
-                targetFile&&
-                drag.dataset.fileId
-            ){
-
-                const a=
-                    data.files.findIndex(
-                        x=>
-                            x.id===
-                            drag.dataset.fileId
-                    );
-
-                const b=
-                    data.files.findIndex(
-                        x=>
-                            x.id===
-                            targetFile.dataset.fileId
-                    );
-
-                if(
-                    a>=0&&
-                    b>=0&&
-                    a!==b
-                ){
-
-                    const [m]=
-                        data.files.splice(
-                            a,
-                            1
-                        );
-
-                    data.files.splice(
-                        b,
-                        0,
-                        m
-                    );
-
-                    save();
-
-                    renderFiles();
-                }
-            }
-
-            if(
-                targetBook&&
-                drag.dataset.workbookId
-            ){
-
-                const f=
-                    file();
-
-                const a=
-                    f?.wordbooks.findIndex(
-                        x=>
-                            x.id===
-                            drag.dataset.workbookId
-                    );
-
-                const b=
-                    f?.wordbooks.findIndex(
-                        x=>
-                            x.id===
-                            targetBook.dataset.workbookId
-                    );
-
-                if(
-                    f&&
-                    a>=0&&
-                    b>=0&&
-                    a!==b
-                ){
-
-                    const [m]=
-                        f.wordbooks.splice(
-                            a,
-                            1
-                        );
-
-                    f.wordbooks.splice(
-                        b,
-                        0,
-                        m
-                    );
-
-                    save();
-
-                    renderWorkbooks();
-                }
-            }
-
-            if(
-                targetWord&&
-                drag.dataset.wordId
-            ){
-
-                const bk=
-                    book();
-
-                const a=
-                    bk?.words.findIndex(
-                        x=>
-                            x.id===
-                            drag.dataset.wordId
-                    );
-
-                const b=
-                    bk?.words.findIndex(
-                        x=>
-                            x.id===
-                            targetWord.dataset.wordId
-                    );
-
-                if(
-                    bk&&
-                    a>=0&&
-                    b>=0&&
-                    a!==b
-                ){
-
-                    const [m]=
-                        bk.words.splice(
-                            a,
-                            1
-                        );
-
-                    bk.words.splice(
-                        b,
-                        0,
-                        m
-                    );
-
-                    save();
-
-                    renderWords();
-                }
-            }
-        }
-    );
+function renderSpecialList(){
+    const workbook=getCurrentWorkbook(); if(!workbook)return;
+    const mode=getWorkbookMode(workbook);
+    const query=normalizeSearch($("specialSearch")?.value||"");
+    let data=[];
+    if(mode==="hanja"){
+        const level=$("specialLevelList")?.querySelector(".selected")?.dataset.hanjaLevel||"8급";
+        data=specialDataForLevel(level);
+        if(query)data=data.filter(x=>normalizeSearch(x.char).includes(query)||normalizeSearch(x.meaning).includes(query)||normalizeSearch(x.sound).includes(query));
+        $("specialListTitle").textContent=`${level} 학습 목록`;
+        $("specialList").innerHTML=data.length?data.map(x=>`<div class="special-item"><strong>${escapeHTML(x.char)}</strong><span>${escapeHTML(x.meaning)} · ${escapeHTML(x.sound)}</span><small>${getSpecialStars(x.level)}</small></div>`).join(""):`<div class="empty">선택한 조건에 맞는 한자가 없습니다.</div>`;
+    }else{
+        data=JAPANESE_DATA.filter(x=>!query||normalizeSearch(x.char).includes(query)||normalizeSearch(x.on).includes(query)||normalizeSearch(x.kun).includes(query));
+        $("specialListTitle").textContent="일본어 기본 학습 목록";
+        $("specialList").innerHTML=data.map(x=>`<div class="special-item"><strong>${escapeHTML(x.char)}</strong><span>음독: ${escapeHTML(x.on)}</span><span>훈독: ${escapeHTML(x.kun)}</span></div>`).join("");
+    }
 }
 
-function init(){
+function openSpecialTestMenu(){
+    const workbook=getCurrentWorkbook(); if(!workbook)return;
+    const mode=getWorkbookMode(workbook);
+    if(mode==="normal")return startWorkbookTest();
+    if(mode==="hanja"){
+        const level=$("specialLevelList")?.querySelector(".selected")?.dataset.hanjaLevel||"8급";
+        if(!hanjaAvailable(level)){showToast("아직 내장된 데이터가 없는 급수입니다.","error");return;}
+        openModal("한자 테스트",`<div class="test-menu">
+            <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','mixed')"><strong>📝 전체 테스트</strong><span>한자→뜻 / 한자→음 / 뜻→한자 / 음→한자를 섞어서 출제합니다.</span></button>
+            <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','choice')"><strong>🎯 4지선다 테스트</strong><span>뜻+음 또는 한자를 보고 4개의 보기 중 정답을 고릅니다.</span></button>
+            <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','hanja-meaning')"><strong>한자 → 뜻</strong><span>한자를 보고 뜻을 입력합니다.</span></button>
+            <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','hanja-sound')"><strong>한자 → 음</strong><span>한자를 보고 음을 입력합니다.</span></button>
+            <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','meaning-hanja')"><strong>뜻 → 한자</strong><span>뜻을 보고 한자를 입력합니다.</span></button>
+            <button class="test-menu-button" onclick="closeModal();startSpecialHanjaTest('${level}','sound-hanja')"><strong>음 → 한자</strong><span>음을 보고 한자를 입력합니다.</span></button>
+        </div>`);
+    }else{
+        openModal("일본어 테스트",`<div class="test-menu">
+            <button class="test-menu-button" onclick="closeModal();startSpecialJapaneseTest('mixed')"><strong>📝 전체 테스트</strong><span>한자→음독 / 한자→훈독 / 음독→한자 / 훈독→한자를 섞어서 출제합니다.</span></button>
+            <button class="test-menu-button" onclick="closeModal();startSpecialJapaneseTest('kanji-on')"><strong>한자 → 음독</strong><span>한자를 보고 음독을 입력합니다.</span></button>
+            <button class="test-menu-button" onclick="closeModal();startSpecialJapaneseTest('kanji-kun')"><strong>한자 → 훈독</strong><span>한자를 보고 훈독을 입력합니다.</span></button>
+            <button class="test-menu-button" onclick="closeModal();startSpecialJapaneseTest('on-kanji')"><strong>음독 → 한자</strong><span>음독을 보고 한자를 입력합니다.</span></button>
+            <button class="test-menu-button" onclick="closeModal();startSpecialJapaneseTest('kun-kanji')"><strong>훈독 → 한자</strong><span>훈독을 보고 한자를 입력합니다.</span></button>
+        </div>`);
+    }
+}
 
-    bindClicks();
+function makeSpecialQuestion(item,direction,mode){
+    if(mode==="hanja"){
+        const q={...item,specialMode:"hanja",direction,wordId:null,workbookId:null,fileId:null,answers:[],file:{name:"한자"}};
+        if(direction==="hanja-meaning"){q.question=item.char;q.answers=[item.meaning];q.label="한자 → 뜻";}
+        else if(direction==="hanja-sound"){q.question=item.char;q.answers=[item.sound];q.label="한자 → 음";}
+        else if(direction==="meaning-hanja"){q.question=item.meaning;q.answers=[item.char];q.label="뜻 → 한자";}
+        else if(direction==="sound-hanja"){q.question=item.sound;q.answers=[item.char];q.label="음 → 한자";}
+        return q;
+    }
+    const q={...item,specialMode:"japanese",direction,wordId:null,workbookId:null,fileId:null,answers:[],file:{name:"일본어"}};
+    if(direction==="kanji-on"){q.question=item.char;q.answers=[item.on];q.label="한자 → 음독";}
+    else if(direction==="kanji-kun"){q.question=item.char;q.answers=[item.kun];q.label="한자 → 훈독";}
+    else if(direction==="on-kanji"){q.question=item.on;q.answers=[item.char];q.label="음독 → 한자";}
+    else if(direction==="kun-kanji"){q.question=item.kun;q.answers=[item.char];q.label="훈독 → 한자";}
+    return q;
+}
 
-    document.addEventListener(
+function shuffleArray(arr){return [...arr].sort(()=>Math.random()-0.5);}
+
+function startSpecialHanjaTest(level,type="mixed"){
+    const workbook=getCurrentWorkbook(); if(!workbook)return;
+    let data=specialDataForLevel(level); if(!data.length){showToast("해당 급수의 내장 데이터가 없습니다.","error");return;}
+    data=shuffleArray(data);
+    let questions=[];
+    if(type==="choice") questions=data.map(item=>makeSpecialChoiceQuestion(item,data,"hanja"));
+    else questions=data.map(item=>makeSpecialQuestion(item,type==="mixed"?["hanja-meaning","hanja-sound","meaning-hanja","sound-hanja"][Math.floor(Math.random()*4)]:type,"hanja"));
+    startTest(questions,`한자 ${level} ${type==="choice"?"4지선다":"테스트"}`,"special-hanja",currentFileId,currentWorkbookId,"workbook");
+}
+
+function makeSpecialChoiceQuestion(item,pool){
+    const reverse=Math.random()<0.5;
+    const distractors=shuffleArray(pool.filter(x=>x.id!==item.id)).slice(0,3);
+    if(reverse){
+        return {...item,specialMode:"hanja-choice",choiceType:"pair-hanja",direction:"choice",question:`${item.meaning} · ${item.sound}`,answers:[item.char],choiceOptions:shuffleArray([item,...distractors]).map(x=>x.char),file:{name:"한자"},wordId:null,workbookId:null,fileId:null};
+    }
+    return {...item,specialMode:"hanja-choice",choiceType:"hanja-pair",direction:"choice",question:item.char,answers:[`${item.meaning} · ${item.sound}`],choiceOptions:shuffleArray([item,...distractors]).map(x=>`${x.meaning} · ${x.sound}`),file:{name:"한자"},wordId:null,workbookId:null,fileId:null};
+}
+
+function startSpecialJapaneseTest(type="mixed"){
+    const workbook=getCurrentWorkbook(); if(!workbook)return;
+    const data=shuffleArray(JAPANESE_DATA);
+    const dirs=["kanji-on","kanji-kun","on-kanji","kun-kanji"];
+    const questions=data.map(item=>makeSpecialQuestion(item,type==="mixed"?dirs[Math.floor(Math.random()*dirs.length)]:type,"japanese"));
+    startTest(questions,`일본어 ${type==="mixed"?"전체 테스트":"테스트"}`,"special-japanese",currentFileId,currentWorkbookId,"workbook");
+}
+
+/* 기존 일반 기능은 그대로 두고, 전용 단어장일 때만 화면을 교체합니다. */
+const originalShowWorkbookPage = showWorkbookPage;
+function showWorkbookPage(fileId,workbookId){
+    originalShowWorkbookPage(fileId,workbookId);
+    const workbook=getCurrentWorkbook();
+    if(workbook)renderSpecialWorkbookPanel();
+}
+
+const originalRenderWordList = renderWordList;
+function renderWordList(){
+    const workbook=getCurrentWorkbook();
+    if(workbook && getWorkbookMode(workbook)!=="normal"){
+        renderSpecialWorkbookPanel();
+        const list=$("wordList"),empty=$("emptyWordState");
+        if(list)list.innerHTML="";
+        if(empty){empty.classList.remove("hidden");empty.innerHTML='<div class="empty-icon">📚</div><h2>내장 학습 자료를 사용합니다.</h2><p>이 단어장은 사용자가 단어를 직접 추가하지 않습니다.</p>';} 
+        $("wordListCount").textContent="내장 자료";
+        return;
+    }
+    originalRenderWordList();
+}
+
+const originalStartWorkbookTest = startWorkbookTest;
+function startWorkbookTest(){
+    const workbook=getCurrentWorkbook();
+    if(workbook && getWorkbookMode(workbook)!=="normal") return openSpecialTestMenu();
+    return originalStartWorkbookTest();
+}
+
+const originalUpdateWordStatistics = updateWordStatistics;
+function updateWordStatistics(question,isCorrect){
+    if(question?.specialMode)return;
+    return originalUpdateWordStatistics(question,isCorrect);
+}
+
+const originalMakeQuestion = makeQuestion;
+function makeQuestion(item,direction,file){return originalMakeQuestion(item,direction,file);}
+
+const originalRenderCurrentQuestion = renderCurrentQuestion;
+function renderCurrentQuestion(){
+    const q=testState.questions[testState.currentIndex];
+    if(!q?.specialMode)return originalRenderCurrentQuestion();
+    stopTimer();
+    testState.answered=false;
+    testState.timeLeft=Number(appData.testTime)||10;
+    $("testQuestionNumber").textContent=testState.currentIndex+1;
+    $("testTotalQuestions").textContent=testState.questions.length;
+    $("testTypeLabel").textContent=q.label||((q.specialMode==="hanja-choice")?"한자 4지선다":q.specialMode==="japanese"?q.direction:q.direction);
+    $("testQuestion").textContent=q.question;
+    const input=$("testAnswerInput"), choice=$("testChoiceArea");
+    if(q.specialMode==="hanja-choice"){
+        input.classList.add("hidden");
+        choice.classList.remove("hidden");
+        $("testSubmitButton").classList.add("hidden");
+        choice.innerHTML=q.choiceOptions.map((x,i)=>`<button class="test-choice-button" data-choice-index="${i}">${String.fromCharCode(9312+i)} ${escapeHTML(x)}</button>`).join("");
+        choice.querySelectorAll("button").forEach(btn=>btn.onclick=()=>submitSpecialChoice(btn.textContent.replace(/^. /,""),q));
+    }else{
+        $("testSubmitButton").classList.remove("hidden");
+        input.classList.remove("hidden");
+        input.value="";input.disabled=false;
+        choice.classList.add("hidden");choice.innerHTML="";
+        setTimeout(()=>input.focus(),50);
+    }
+    $("testFeedback").classList.add("hidden");$("testFeedback").innerHTML="";$("testSubmitButton").textContent="확인";
+    startTimer();
+}
+
+function submitSpecialChoice(answer,q){
+    if(testState.answered)return;
+    const ok=q.answers.includes(answer);
+    testState.answered=true;stopTimer();
+    if(ok)testState.correct++;else{testState.wrong++;testState.wrongQuestions.push(q);}
+    showAnswerFeedback(q,ok,answer,false);
+    $("testChoiceArea").querySelectorAll("button").forEach(b=>b.disabled=true);
+    $("testSubmitButton").classList.remove("hidden");
+    $("testSubmitButton").textContent=testState.currentIndex===testState.questions.length-1?"결과 보기":"다음 문제";
+}
+
+const originalCheckAnswer = checkAnswer;
+function checkAnswer(userAnswer,question){
+    if(!question?.specialMode)return originalCheckAnswer(userAnswer,question);
+    const raw=String(userAnswer||"").trim();
+    return question.answers.some(a=>String(a).trim().toLocaleLowerCase()==raw.toLocaleLowerCase());
+}
+
+const originalShowAnswerFeedback = showAnswerFeedback;
+function showAnswerFeedback(question,isCorrect,userAnswer,timeOut){
+    if(!question?.specialMode)return originalShowAnswerFeedback(question,isCorrect,userAnswer,timeOut);
+    const feedback=$("testFeedback"); if(!feedback)return;
+    feedback.classList.remove("hidden");
+    const answer=question.answers.join(" / ");
+    feedback.innerHTML=isCorrect?`<div class="feedback-correct"><strong>⭕ 정답!</strong><span>${escapeHTML(answer)}</span></div>`:`<div class="feedback-wrong"><strong>❌ ${timeOut?"시간 초과!":"오답!"}</strong>${userAnswer?`<span>입력한 답: ${escapeHTML(userAnswer)}</span>`:"<span>입력한 답이 없습니다.</span>"}<span>정답: <strong>${escapeHTML(answer)}</strong></span></div>`;
+}
+
+const originalFinishTest = finishTest;
+function finishTest(){return originalFinishTest();}
+
+function selectHanjaLevel(level){
+    $("specialLevelList")?.querySelectorAll("button").forEach(b=>b.classList.toggle("selected",b.dataset.hanjaLevel===level));
+    renderSpecialList();
+}
+
+function setupSpecialPanelEvents(){
+    document.addEventListener("click",event=>{
+        const levelButton=event.target.closest("[data-hanja-level]");
+        if(levelButton){selectHanjaLevel(levelButton.dataset.hanjaLevel);}
+    });
+    $("specialSearch")?.addEventListener("input",renderSpecialList);
+    $("specialTestButton")?.addEventListener("click",openSpecialTestMenu);
+}
+
+/* =========================================================
+   버튼
+   ========================================================= */
+
+function setupButtons() {
+
+    const on = (id, event, handler) => {
+
+        const el = $(id);
+
+        if (!el) {
+            return;
+        }
+
+        el.addEventListener(
+            event,
+            handler
+        );
+    };
+
+
+    on(
+        "addFileButton",
         "click",
-        dynamicClicks
+        addFile
     );
 
-    setupDrag();
 
-    renderUsageGuide();
+    on(
+        "emptyAddFileButton",
+        "click",
+        addFile
+    );
 
-    renderFiles();
 
-    applyTheme();
+    on(
+        "backToHomeButton",
+        "click",
+        goBackToHome
+    );
 
-    showHome();
+
+    on(
+        "addWorkbookButton",
+        "click",
+        addWorkbook
+    );
+
+
+    on(
+        "emptyAddWorkbookButton",
+        "click",
+        addWorkbook
+    );
+
+
+    on(
+        "backToFileButton",
+        "click",
+        goBackToFile
+    );
+
+
+    on(
+        "addWordButton",
+        "click",
+        startWorkbookTest
+    );
+
+
+    on(
+        "bulkAddWordButton",
+        "click",
+        addBulkWords
+    );
+
+
+    on(
+        "fileTestButton",
+        "click",
+        openTotalTestMenu
+    );
+
+
+    on(
+        "testSubmitButton",
+        "click",
+        () => submitAnswer(false)
+    );
+
+
+    on(
+        "testBackButton",
+        "click",
+        leaveTest
+    );
+
+
+    on(
+        "resultHomeButton",
+        "click",
+        goToResultHome
+    );
+
+
+    on(
+        "resultBackButton",
+        "click",
+        goToResultBack
+    );
+
+
+    on(
+        "retryWrongButton",
+        "click",
+        retryWrongQuestions
+    );
+
+
+    on(
+        "darkModeToggle",
+        "change",
+        event => {
+
+            appData.theme =
+                event.target.checked
+                    ? "dark"
+                    : "light";
+
+            saveData();
+
+            applyTheme();
+
+        }
+    );
+
+
+    on(
+        "headerThemeButton",
+        "click",
+        toggleTheme
+    );
+
+
+    on(
+        "testTimeSelect",
+        "change",
+        event => changeTestTime(
+            event.target.value
+        )
+    );
+
+
+    on(
+        "exportDataButton",
+        "click",
+        exportData
+    );
+
+
+    on(
+        "importDataButton",
+        "click",
+        importData
+    );
+
+
+    on(
+        "importFileInput",
+        "change",
+        handleImportFile
+    );
+
+
+    on(
+        "usageGuideButton",
+        "click",
+        toggleUsageGuide
+    );
+
+
+    on(
+        "modalCloseButton",
+        "click",
+        closeModal
+    );
+
+
+    on(
+        "modalOverlay",
+        "click",
+        event => {
+
+            if (
+                event.target ===
+                $("modalOverlay")
+            ) {
+
+                closeModal();
+
+            }
+
+        }
+    );
+
+
+    on(
+        "mobileMenuButton",
+        "click",
+        openSidebar
+    );
+
+
+    on(
+        "headerHomeButton",
+        "click",
+        showHomePage
+    );
+
+}
+
+/* =========================================================
+   키보드
+   ========================================================= */
+
+function setupKeyboardEvents() {
 
     document.addEventListener(
         "keydown",
-        e=>{
+        event => {
 
-            if(
-                e.key===
-                "Escape"
-            ){
+            if (
+                event.target ===
+                $("bulkWordInput")
+            ) {
 
-                closeModal();
+                if (
+                    event.key ===
+                    "Enter" &&
+                    !event.shiftKey
+                ) {
+
+                    event.preventDefault();
+
+                    addBulkWords();
+
+                }
+
+
+                return;
+
             }
+
+
+            const activePage =
+                document.querySelector(
+                    ".page.active"
+                );
+
+
+            if (
+                !activePage ||
+                activePage.id !==
+                "testPage"
+            ) {
+
+                return;
+
+            }
+
+
+            if (
+                event.key !==
+                "Enter"
+            ) {
+
+                return;
+
+            }
+
+
+            event.preventDefault();
+
+
+            if (
+                testState.answered
+            ) {
+
+                nextQuestion();
+
+            } else {
+
+                submitAnswer(
+                    false
+                );
+
+            }
+
         }
     );
 
-    registerServiceWorker();
 }
 
-function registerServiceWorker(){
 
-    if(
+/* =========================================================
+   PWA
+   ========================================================= */
+
+function registerServiceWorker() {
+
+    if (
         "serviceWorker" in
         navigator
-    ){
+    ) {
 
-        navigator.serviceWorker
-            .register(
-                "./sw.js"
-            )
-            .catch(
-                ()=>{}
-            );
+        window.addEventListener(
+            "load",
+            () => {
+
+                navigator.serviceWorker
+                    .register(
+                        "./sw.js"
+                    )
+                    .then(
+                        registration => {
+
+                            console.log(
+                                "Service Worker 등록 완료:",
+                                registration.scope
+                            );
+
+                        }
+                    )
+                    .catch(
+                        error => {
+
+                            console.error(
+                                "Service Worker 등록 실패:",
+                                error
+                            );
+
+                        }
+                    );
+
+            }
+        );
+
     }
+
 }
 
-window.openFile=
-    openFile;
 
-window.renameFile=
-    renameFile;
+/* =========================================================
+   초기화
+   ========================================================= */
 
-window.deleteFile=
-    deleteFile;
+function initializeApp() {
 
-window.openWorkbook=
-    openWorkbook;
+    try {
+        applyTheme();
+    } catch (error) {
+        console.error("테마 초기화 실패:", error);
+    }
 
-window.renameWorkbook=
-    renameWorkbook;
+    try {
+        applyTestTimeUI();
+    } catch (error) {
+        console.error("테스트 시간 초기화 실패:", error);
+    }
 
-window.deleteWorkbook=
-    deleteWorkbook;
+    try {
+        renderUsageGuide();
+    } catch (error) {
+        console.error("사용 방법 초기화 실패:", error);
+    }
 
-window.editWord=
-    editWord;
+    const appVersion = $("appVersion");
+    if (appVersion) {
+        appVersion.textContent = APP_VERSION;
+    }
 
-window.deleteWord=
-    deleteWord;
+    try {
+        setupNavigation();
+    } catch (error) {
+        console.error("네비게이션 초기화 실패:", error);
+    }
 
-window.startFileTest=
-    startFileTest;
+    try {
+        setupButtons();
+    } catch (error) {
+        console.error("버튼 초기화 실패:", error);
+    }
 
-window.startQuickTest=
-    startQuickTest;
+    try {
+        setupKeyboardEvents();
+    } catch (error) {
+        console.error("키보드 초기화 실패:", error);
+    }
 
-window.startWorkbookTest=
-    startWorkbookTest;
+    try {
+        setupSpecialPanelEvents();
+    } catch (error) {
+        console.error("특수 학습 초기화 실패:", error);
+    }
 
-window.openTotalTestMenu=
-    openTotalTestMenu;
+    try {
+        renderFileList();
+        showHomePage();
+    } catch (error) {
+        console.error("화면 초기화 실패:", error);
+    }
 
-window.openQuickTestMenu=
-    openQuickTestMenu;
+    registerServiceWorker();
 
-window.startSpecialTest=
-    startSpecialTest;
+    console.log(
+        `단어 암기장이 시작되었습니다. v${APP_VERSION}`
+    );
 
-window.closeModal=
-    closeModal;
+}
 
-window.showHome=
-    showHome;
 
-window.leaveTest=
-    leaveTest;
+/* =========================================================
+   시작
+   ========================================================= */
 
-window.retryWrongQuestions=
-    retryWrongQuestions;
-
-if(
-    document.readyState===
+if (
+    document.readyState ===
     "loading"
-){
+) {
 
     document.addEventListener(
         "DOMContentLoaded",
-        init
+        initializeApp
     );
 
-}else{
+} else {
 
-    init();
+    initializeApp();
+
 }
+
+
+/* =========================================================
+   HTML onclick 전역 등록
+   ========================================================= */
+
+window.openFile =
+    openFile;
+
+window.renameFile =
+    renameFile;
+
+window.deleteFile =
+    deleteFile;
+
+window.openWorkbook =
+    openWorkbook;
+
+window.renameWorkbook =
+    renameWorkbook;
+
+window.deleteWorkbook =
+    deleteWorkbook;
+
+window.editWord =
+    editWord;
+
+window.deleteWord =
+    deleteWord;
+
+window.closeModal =
+    closeModal;
+
+window.openQuickTestMenu =
+    openQuickTestMenu;
+
+window.startFileTest =
+    startFileTest;
+
+window.startQuickTest =
+    startQuickTest;
+window.startSpecialHanjaTest=startSpecialHanjaTest;
+window.startSpecialJapaneseTest=startSpecialJapaneseTest;
+window.openSpecialTestMenu=openSpecialTestMenu;
+window.selectHanjaLevel=selectHanjaLevel;
