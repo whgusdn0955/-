@@ -5,7 +5,7 @@
    앱 버전
    ========================================================= */
 
-const APP_VERSION = "3.4.17";
+const APP_VERSION = "3.4.18";
 
 const STORAGE_KEY =
     "word_memorize_app_final_v1";
@@ -4350,7 +4350,7 @@ function baseShowAnswerFeedback(
             <div class="feedback-correct">
 
                 <strong>
-                    ⭕ 정답!
+                    ⭕ 정답
                 </strong>
 
                 <span>
@@ -4376,8 +4376,8 @@ function baseShowAnswerFeedback(
             <strong>
                 ❌ ${
                     timeOut
-                        ? "시간 초과!"
-                        : "오답!"
+                        ? "시간 초과"
+                        : "오답"
                 }
             </strong>
 
@@ -6288,6 +6288,39 @@ const HANJA_TEST_EXAMPLES = {
     eumToChar: "예: 부 → 父"
 };
 
+/*
+   한자사전에서 사용되는 호환 한자 표기 보정
+   현재 데이터셋의 표준 통합문자(金/樂/宅)를
+   사용자가 요청한 호환 한자(金/樂/宅)로 표시하고
+   훈·음을 명시적으로 보정한다.
+*/
+const HANJA_COMPATIBILITY_FIXES = {
+    "金": {
+        char: "金",
+        hun: "쇠",
+        hunAnswers: ["쇠"],
+        eum: "금 · 김",
+        eumAnswers: ["금", "김"],
+        level: "8급"
+    },
+    "樂": {
+        char: "樂",
+        hun: "즐길",
+        hunAnswers: ["즐길"],
+        eum: "락 · 악 · 요",
+        eumAnswers: ["락", "악", "요"],
+        level: "준6급"
+    },
+    "宅": {
+        char: "宅",
+        hun: "집",
+        hunAnswers: ["집"],
+        eum: "택",
+        eumAnswers: ["택"],
+        level: "준5급"
+    }
+};
+
 let HANJA_DATA = [];
 let HANJA_DATA_MAP = new Map();
 let HANJA_DATA_BY_LEVEL = new Map();
@@ -6427,14 +6460,71 @@ function parseHanjaCSV(text) {
     return rows;
 }
 
+function applyHanjaCompatibilityFixes(rows) {
+    const sourceRows = Array.isArray(rows) ? rows : [];
+    const result = [];
+    const seenBases = new Set();
+
+    for (const row of sourceRows) {
+        const baseChar = normalizeHanjaCharacter(row?.char);
+        const fix = HANJA_COMPATIBILITY_FIXES[baseChar];
+
+        if (!fix) {
+            result.push(row);
+            continue;
+        }
+
+        if (seenBases.has(baseChar)) {
+            continue;
+        }
+
+        seenBases.add(baseChar);
+
+        result.push({
+            ...row,
+            id: `hanja_${fix.char}`,
+            char: fix.char,
+            hun: fix.hun,
+            eum: fix.eum,
+            hunAnswers: [...fix.hunAnswers],
+            eumAnswers: [...fix.eumAnswers],
+            level: fix.level
+        });
+    }
+
+    for (const [baseChar, fix] of Object.entries(HANJA_COMPATIBILITY_FIXES)) {
+        if (seenBases.has(baseChar)) continue;
+
+        result.push({
+            id: `hanja_${fix.char}`,
+            char: fix.char,
+            hun: fix.hun,
+            eum: fix.eum,
+            hunAnswers: [...fix.hunAnswers],
+            eumAnswers: [...fix.eumAnswers],
+            meaning: "",
+            level: fix.level,
+            sourceLevel: HANJA_SOURCE_LEVEL[fix.level] || fix.level,
+            radical: "",
+            strokes: 0,
+            totalStrokes: 0,
+            pairs: []
+        });
+    }
+
+    return result;
+}
+
 function buildHanjaIndexes(rows) {
-    HANJA_DATA = rows;
+    HANJA_DATA = applyHanjaCompatibilityFixes(rows);
     HANJA_DATA_MAP = new Map();
     HANJA_DATA_BY_LEVEL = new Map();
 
-    for (const item of rows) {
-        if (!HANJA_DATA_MAP.has(item.char)) {
-            HANJA_DATA_MAP.set(item.char, item);
+    for (const item of HANJA_DATA) {
+        const normalizedChar = normalizeHanjaCharacter(item.char);
+
+        if (!HANJA_DATA_MAP.has(normalizedChar)) {
+            HANJA_DATA_MAP.set(normalizedChar, item);
         }
 
         if (!HANJA_DATA_BY_LEVEL.has(item.level)) {
@@ -7460,6 +7550,7 @@ function checkAnswer(userAnswer, question){
     );
 }
 
+/* 정답이면 "정답", 오답이면 "오답"과 함께 반드시 정답을 표시한다. */
 function showAnswerFeedback(question, isCorrect, userAnswer, timeOut){
     if(!question?.specialMode){
         return baseShowAnswerFeedback(question, isCorrect, userAnswer, timeOut);
@@ -7469,8 +7560,8 @@ function showAnswerFeedback(question, isCorrect, userAnswer, timeOut){
     feedback.classList.remove("hidden");
     const answer = question.answers.join(" / ");
     feedback.innerHTML = isCorrect
-        ? `<div class="feedback-correct"><strong>⭕ 정답!</strong><span>${escapeHTML(answer)}</span></div>`
-        : `<div class="feedback-wrong"><strong>❌ ${timeOut ? "시간 초과!" : "오답!"}</strong>${userAnswer ? `<span>입력한 답: ${escapeHTML(userAnswer)}</span>` : "<span>입력한 답이 없습니다.</span>"}<span>정답: <strong>${escapeHTML(answer)}</strong></span></div>`;
+        ? `<div class="feedback-correct"><strong>⭕ 정답</strong><span>${escapeHTML(answer)}</span></div>`
+        : `<div class="feedback-wrong"><strong>❌ ${timeOut ? "시간 초과" : "오답"}</strong>${userAnswer ? `<span>입력한 답: ${escapeHTML(userAnswer)}</span>` : "<span>입력한 답이 없습니다.</span>"}<span>정답: <strong>${escapeHTML(answer)}</strong></span></div>`;
 }
 
 function finishTest(){
