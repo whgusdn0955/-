@@ -5,7 +5,7 @@
    앱 버전
    ========================================================= */
 
-const APP_VERSION = "3.1.0";
+const APP_VERSION = "3.4.0";
 
 const STORAGE_KEY =
     "word_memorize_app_final_v1";
@@ -1507,7 +1507,7 @@ function renderWorkbookList() {
 
                             <div
                                 class="workbook-card-main"
-                                onclick="openWorkbook('${file.id}', '${workbook.id}')"
+                                data-open-workbook="${escapeHTML(workbook.id)}"
                             >
 
                                 <div class="workbook-icon">
@@ -5968,7 +5968,6 @@ const JAPANESE_DATA = [
 function getWorkbookMode(workbook){
     const name=String(workbook?.name||"");
     if(name.includes("한자")) return "hanja";
-    if(name.includes("일본어")) return "japanese";
     return "normal";
 }
 
@@ -5995,10 +5994,11 @@ function renderSpecialWorkbookPanel(){
         $("specialLevelArea").classList.remove("hidden");
         $("specialSearchArea").classList.remove("hidden");
         $("specialJapaneseInfo").classList.add("hidden");
-        $("specialLevelList").innerHTML=HANJA_LEVEL_ORDER.map(level=>{
+        $("specialLevelList").innerHTML=HANJA_LEVEL_ORDER.map((level,index)=>{
             const available=hanjaAvailable(level);
             const stars=getSpecialStars(level);
-            return `<button class="special-level-button ${available?'':'disabled'}" data-hanja-level="${level}" ${available?'':'disabled'}><strong>${escapeHTML(level)}</strong><span>${stars}</span><small>${HANJA_LEVEL_COUNTS[level]}자${available?' · 내장':''}</small></button>`;
+            const selected=level==="8급" && available;
+            return `<button class="special-level-button ${available?'':'disabled'} ${selected?'selected':''}" data-hanja-level="${level}" ${available?'':'disabled'}><strong>${escapeHTML(level)}</strong><span>${stars}</span><small>${HANJA_LEVEL_COUNTS[level]}자${available?' · 내장':''}</small></button>`;
         }).join("");
         $("specialSearch").placeholder="한자·뜻·음 검색";
         renderSpecialList();
@@ -6128,7 +6128,7 @@ function renderWordList(){
 const originalStartWorkbookTest = startWorkbookTest;
 function startWorkbookTest(){
     const workbook=getCurrentWorkbook();
-    if(workbook && getWorkbookMode(workbook)!=="normal") return openSpecialTestMenu();
+    if(workbook && getWorkbookMode(workbook)==="hanja") return openSpecialTestMenu();
     return originalStartWorkbookTest();
 }
 
@@ -6208,8 +6208,20 @@ function selectHanjaLevel(level){
 function setupSpecialPanelEvents(){
     document.addEventListener("click",event=>{
         const levelButton=event.target.closest("[data-hanja-level]");
-        if(levelButton){selectHanjaLevel(levelButton.dataset.hanjaLevel);}
-    });
+        if(levelButton){
+            selectHanjaLevel(levelButton.dataset.hanjaLevel);
+            return;
+        }
+
+        const workbookButton=event.target.closest("[data-open-workbook]");
+        if(workbookButton){
+            event.preventDefault();
+            event.stopPropagation();
+            openWorkbook(workbookButton.dataset.openWorkbook);
+            return;
+        }
+    }, {capture:false});
+
     $("specialSearch")?.addEventListener("input",renderSpecialList);
     $("specialTestButton")?.addEventListener("click",openSpecialTestMenu);
 }
@@ -6570,7 +6582,15 @@ function registerServiceWorker() {
    초기화
    ========================================================= */
 
+let __WORD_MEMORIZE_APP_INITIALIZED__ = false;
+
 function initializeApp() {
+
+    if (__WORD_MEMORIZE_APP_INITIALIZED__) {
+        return;
+    }
+
+    __WORD_MEMORIZE_APP_INITIALIZED__ = true;
 
     try {
         applyTheme();
