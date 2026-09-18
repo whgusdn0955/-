@@ -9,7 +9,7 @@
 
 <title>단어장</title>
 
-<link rel="stylesheet" href="style.css?v=3.4.17">
+<link rel="stylesheet" href="style.css?v=3.4.20">
 <link rel="manifest" href="manifest.json">
 
 </head>
@@ -234,24 +234,14 @@
                         <span>뜻은 사용하지 않고 한자의 음독·훈독만 학습합니다.</span>
                     </div>
 
-                    <div id="specialSearchArea" class="special-search-area hidden">
-                        <input id="specialSearch" type="search" placeholder="한자·훈·음 검색" autocomplete="off">
-                    </div>
-
-                    <div class="special-list-header">
-                        <h3 id="specialListTitle">8급 학습 목록</h3>
-                    </div>
-
                     <div class="special-list-actions">
                         <button id="hanjaListButton" class="secondary-button" type="button">📚 한자 목록 보기</button>
-                        <button id="specialTestButton" class="primary-button" type="button">📝 테스트</button>
                     </div>
-                    <div id="specialList" class="special-list hidden"></div>
                 </div>
 
 
                 <!-- 단어 목록 -->
-                <div class="section-header">
+                <div id="wordListSection" class="section-header">
                     <div>
                         <h2>단어 목록</h2>
                         <span id="wordListCount">0개</span>
@@ -303,6 +293,8 @@
                     </div>
                     <div id="hanjaListLevelList" class="hanja-list-level-list"></div>
                 </div>
+
+                <div id="hanjaListInitialFilter" class="hanja-initial-filter" aria-label="음독 초성 필터"></div>
 
                 <div class="hanja-list-toolbar">
                     <div>
