@@ -2669,3 +2669,54 @@ body.dark-mode .feedback-wrong {
         grid-template-columns: 1fr;
     }
 }
+
+/* 파일 순서 변경용 전용 드래그 핸들 */
+.file-card { position: relative; }
+.file-drag-handle {
+    width: 34px;
+    min-width: 34px;
+    align-self: stretch;
+    border: 0;
+    border-right: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-light);
+    font-size: 20px;
+    font-weight: 800;
+    cursor: grab;
+    touch-action: none;
+}
+.file-drag-handle:active { cursor: grabbing; }
+.file-card.dragging { opacity: .55; }
+
+/* 한자 목록 음독 초성 필터 */
+.hanja-initial-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 0 0 16px;
+}
+.hanja-initial-button {
+    min-width: 38px;
+    height: 36px;
+    padding: 0 9px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 700;
+    cursor: pointer;
+}
+.hanja-initial-button:hover,
+.hanja-initial-button.active {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    color: var(--primary-dark);
+}
+
+.pagination-fast { font-size: 15px; letter-spacing: -1px; }
+
+@media (max-width: 700px) {
+    .file-drag-handle { width: 32px; min-width: 32px; }
+    .hanja-initial-filter { gap: 5px; }
+    .hanja-initial-button { min-width: 34px; height: 34px; padding: 0 7px; }
+}
