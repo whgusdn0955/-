@@ -9,7 +9,7 @@
 
 <title>단어장</title>
 
-<link rel="stylesheet" href="style.css?v=3.4.20">
+<link rel="stylesheet" href="style.css?v=3.4.17">
 <link rel="manifest" href="manifest.json">
 
 </head>
@@ -184,7 +184,7 @@
                     <div class="input-card-header">
                         <div>
                             <h2>단어 빠르게 추가</h2>
-                            <p>
+                            <p id="wordInputExample">
                                 예: apple:사과,과일 / banana:바나나
                             </p>
                         </div>
@@ -195,6 +195,7 @@
                         <textarea
                             id="bulkWordInput"
                             rows="4"
+                            id="bulkWordInput"
                             placeholder="영어:뜻,뜻 / 영어:뜻"
                             autocomplete="off"
                             spellcheck="false"
@@ -234,14 +235,20 @@
                         <span>뜻은 사용하지 않고 한자의 음독·훈독만 학습합니다.</span>
                     </div>
 
+                    <div class="special-list-header">
+                        <h3 id="specialListTitle">8급 학습 목록</h3>
+                    </div>
+
                     <div class="special-list-actions">
                         <button id="hanjaListButton" class="secondary-button" type="button">📚 한자 목록 보기</button>
+                        <button id="specialTestButton" class="primary-button" type="button">📝 테스트</button>
                     </div>
+                    <div id="specialList" class="special-list hidden"></div>
                 </div>
 
 
                 <!-- 단어 목록 -->
-                <div id="wordListSection" class="section-header">
+                <div class="section-header">
                     <div>
                         <h2>단어 목록</h2>
                         <span id="wordListCount">0개</span>
@@ -293,8 +300,6 @@
                     </div>
                     <div id="hanjaListLevelList" class="hanja-list-level-list"></div>
                 </div>
-
-                <div id="hanjaListInitialFilter" class="hanja-initial-filter" aria-label="음독 초성 필터"></div>
 
                 <div class="hanja-list-toolbar">
                     <div>
@@ -435,6 +440,10 @@
                             hidden
                         >
 
+                        <button id="resetAllDataButton" class="secondary-button" type="button">
+                            🗑️ 전체 기록 초기화
+                        </button>
+
                     </div>
 
                 </div>
@@ -529,6 +538,8 @@
             <section id="testPage" class="page">
 
                 <div class="test-header">
+
+                    <button id="testBackButton" class="test-close-button" type="button" aria-label="테스트 닫기">×</button>
 
                     <div class="test-progress">
                         <span id="testQuestionNumber">1</span>
@@ -701,7 +712,7 @@
 
 
 <!-- JavaScript -->
-<script src="app.js?v=3.4.20"></script>
+<script src="app.js?v=3.4.21"></script>
 
 
 </body>
